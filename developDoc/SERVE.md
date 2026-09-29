@@ -51,7 +51,7 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 终端输出形态（清单结构化，便于日志检索）：
 
 ```
-aris serve v0.4.0  data=…/data  pid=12345
+aris serve v0.4.2  data=…/data  pid=12345
 ✓ core.llm     3 提供方，默认 deepseek-v4-flash-free
 ✓ persona      persona.system_prompt
 ✓ behavior     3 工具 / 4 skills
@@ -59,8 +59,11 @@ aris serve v0.4.0  data=…/data  pid=12345
 ✓ store.embed  后台预热中（Bekko a25m，384 维）
 ✓ knowledge    1 文档 / 129 块，迁移已最新
 ✓ webui        http://127.0.0.1:9690（免鉴权模式：仅本机）
-43 个总线服务全部就绪 · Ctrl-C 停止
+各模块声明的 24 个依赖服务全部就绪 · Ctrl-C 停止
 ```
+
+> 末行由 `serve/steps.py` 按 `webui.REQUIRED_SERVICES` 的**实际条数**生成（每加一条依赖
+> 就会变），故上方数字只是某次运行的快照；全项目 `provide(` 注册点另计（2026-09-29 实测 52 个）。
 
 预热完成后再补一行：`✓ store.embed  就绪（用时 21s）`。
 
