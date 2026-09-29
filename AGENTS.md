@@ -266,7 +266,9 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
     总线服务合计 10 个（`store.health` / `store.embed` / `store.embed_dimension` /
     `store.connect` / `store.migrate.*` / `store.vector.*`）
   - 待实现：无既定项（将来按需扩展，如云端 provider）
-- `memory/` —— 记忆系统：Embedding + 数据库（复用 `store/`，不自建第二套）
+- `memory/` —— 记忆系统：Embedding + 数据库（复用 `store/`，不自建第二套）。
+  **2026-09-28 起进入设计商讨**：内容模型（分层 / 事件 / 权重衰减）的定案与待商讨项
+  见 `developDoc/MEMORY.md`
 - `knowledge/` —— **知识库（2026-09-18 定案，首期已实现）**：面向外部资料的独立 RAG
   检索，含摄入、分块、来源管理、检索语义。**不做 skill**（属内部底层设施，经大总线
   暴露 `knowledge.ingest` / `knowledge.sources` / `knowledge.remove` /
@@ -306,6 +308,16 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `REQUIRED_SERVICES`、`aris doctor` 与 `aris serve --dry-run` 共用
   `serve.probe_all()` 探针。**待做**：工具注册表 / agent loop / LLM engine 仍是
   会话级对象（#4/#7 时由 serve 上收）。详见 `developDoc/SERVE.md`
+- `autorun/` —— **定时与主动任务调度（2026-09-28 定案方向；同日追加决定：
+  暂不实现，v1.0 也不做）**：**只留设计文档，不写代码**。定位 = 独立模块（平行于
+  `behavior/`、`serve/`）、**纯调度器 + 触发源抽象**（定时 / 事件 / 手动），
+  **不自己做任务内容**（写日志归 logging、发通知归 notify、记记忆归 memory）；
+  其他模块的核心任务由各模块自己负责，只有「默认不开的通用任务」集中放可读写文件
+  （定位像 skill 一样是外围，另有「特殊列表」待商讨）。归属切两半：机制参数 →
+  `config/autorun.toml`；任务实例 → `data/autorun/tasks.toml`（与 `data/skills/` 同类，
+  不进 git）。模块级 `enabled` + 宽容降级。**暂不做的原因**：v1.0 优先保
+  memory + persona（同日已毙掉多项原计划在 1.0 完善的功能）。
+  设计留存见 `developDoc/discuss-2026-09-28.md` D11
 - 插件系统：**后续可能增加**——MCP 服务器可做同样的事，
   届时再评估是否独立成模块
 
@@ -317,8 +329,11 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   （如 Message）；CLI 组装根可保持直接引用
 - 服务表与架构详见 `developDoc/CMCB.md`
 
-## 独立文档站（规划中，未开工）
+## 独立文档站（**2026-09-28 决定短期不做**）
 
+- **当前决定：先不做**（v1.0 之后乃至短期都不做）。理由：多一个站点多一份维护，
+  而功能还没稳；为让正式版尽快发布，已毙掉多个原计划在 1.0 完善的功能。
+  **部署平台（GitHub Pages / Cloudflare Pages）也不定**。下文定案原样保留，待真开工启用。
 - **不在本仓库内**：面向使用者 + 插件作者的独立站点，另起仓库、**VitePress**，
   本仓库不为其提供构建产物，也不与仓库内文档做同步机制。
 - 与本文档的分工：`README.md` 给使用者最短路径，`developDoc/` 留「为什么这么设计」
@@ -330,18 +345,60 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - 与插件系统的关系：站点上「插件作者契约」可先写，**当作工具去推平
   `PLUGIN.md` 的 `[待讨论]` 项**——契约落地后再改就要动代码。
 
+## v1.0 两条硬目标（2026-09-28 定案，**必须满足**）
+
+> 完整设计见 `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`。**凡与它们冲突的既有设计，
+> 实现时以那份文档为准。**
+
+### 可迁移性（D14）
+
+**换主机 = 新机 `git clone` → 把原机 `data/` 全量拷过来 → `uv run aris serve` 直接起。**
+
+- **不得写死绝对路径、不得把"已验证状态"存进库**（PG 二进制可用性等一律启动时重新探测）
+- **启动必须幂等**：缺什么补什么，重复执行无副作用
+- **跨平台要能降级重获取**：便携 PG 二进制是平台相关的（Linux x86_64 ≠ macOS ≠ aarch64），
+  探测到不兼容 → 走 `bootstrap_env()` 重新获取（联网）或报可操作错误，不许直接崩
+- **`data/` 分层**必须带：`pgdata/`（记忆全在这）、`knowledge/`、`personas/`、`skills/`、
+  `autorun/tasks.toml`；可重建：`pg/`、`models/`、各类缓存；**`.venv/` 不在 `data/`**（新机 `uv sync`）
+- **已知三缺口**（实现时处理）：① PG 二进制平台相关（要"能跑"验证而非"存在"）②
+  `pgdata` 属主绑定 `$USER`（换机用户名不同就连不上，需统一定成与主机无关的角色名）
+  ③ 固定端口可能被占
+
+### 单一会话原则（D15）
+
+**Aris 只有一个当前会话；不做、也不允许子代理。** 一切输入无论来自 TUI / 语音 / SNS，
+都进入同一个会话。立意：**正常人不会让助理代替自己刷社交软件**。
+
+- **会话复用**：无论从哪个通道开始聊天，都直接进**最新小会话**（不按通道开新会话）；
+  **冷却上限 3~5 天**（默认 5 天，可配）——拉长的理由是**吃 AI API 的 KV cache 磁盘存活期**省钱
+- **"一段连续对话"是大会话的定义，不是小会话的**：小会话可**跨天**存在，空档由大会话聚类划分
+- **"不许子代理" ≠ 禁止额外 LLM 调用**：compact 摘要 / 记忆提取是**同一会话的内部维护动作**，
+  不算子代理
+- **autorun 分两类**：主动任务类（如"提醒看社交软件"）**进当前上下文 + 带系统提示标识**；
+  内部维护类走系统场合，不污染人类对话
+- **并发输入 = 串行排队**（单一会话是单线程语义，靠队列，不并行改历史）
+- **场合与去向模型**（**只写文档，暂不实现**——STT/TTS/SNS 都还没有）：
+  入消息带**场合**（`场合 = 通道 + 对话方`，因为对话可能**一对多**）+ `speaker` +
+  `expects_reply`；Aris 输出带**去向**（固定枚举：当前场合 / `sns:<对话方>` / `tts` /
+  独白 / 不发），**去向挂在输出上而不是会话上**（"这边语音聊着、那边 SNS 有人发话"
+  需要同一段历史里两种去向）；渠道 → 场合风格的映射放 `config/chat.toml`
+  - **独白（`monologue`）同样暂不实现**（2026-09-28 追加确认）：整个"去向"层只写文档，
+    **不写代码**；设计留存理由：独白将来**应进历史**（`kind=aris_monologue`），
+    便于续上自己的思考
+
 ## 开发路线
 
-> **当前聚焦：`aris serve` 已完成（v0.4.2 beta，clone 下来一条命令起服务）**；
-> 下一步候选：真 API 实测（等低成本方案）/ 知识库第二阶段（PDF、混合检索）/
-> 记忆系统（`memory/` 复用 `store/`，动手前先定人格与会话的持久化载体）。
+> **当前聚焦：v1.0（国庆前后发布）= memory + persona 基础功能**——人格载体 /
+> 会话落库 / 大会话分组 / 上下文 compact / WebUI（**autorun 同日决定暂不做，
+> 也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与 `developDoc/discuss-2026-09-28.md`；
+> 详细排期见 `PROGRESS.md`「当前聚焦」。
 > WebUI 管理后台见 `developDoc/WEBUI.md`，启动编排见 `developDoc/SERVE.md`。
 
 1. **搭标准项目骨架**（轻量）：目录结构 + 配置系统 + 日志 + CLI 入口，各模块留占位
    - 骨架已完成（2026-08），配置系统已定案并跑通 `uv sync`（2026-08-09）
 2. 接入 LLM —— **已完成**（2026-08-09，`core/llm`，见 PROGRESS.md）
 3. 跑通文字对话 —— **已完成**（2026-08-09，`aris chat`，见 PROGRESS.md）
-4. 记忆系统（PostgreSQL + pgvector）—— **下一步**
+4. 记忆系统（PostgreSQL + pgvector）—— **v1.0 主线**（载体与形态已定，D1/D2）
 5. 人格系统 —— **提示词工程起步，已完成简单版**（2026-08-12，`persona/`）；
    世界观/人际关系/成长轨迹后续演进
 6. 语音链路（STT → LLM → TTS）
@@ -441,6 +498,45 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `developDoc/CMCB.md`）；**代码标识符（模块文件 `core/bus.py`、函数名、服务名）
   保持不变**——服务名前缀是模块名、函数名不含 `aris`，当初即为降低改名成本而设计
 
+### BACKLOG 全量商讨定案（2026-09-28，来源 `developDoc/discuss-2026-09-28.md`）
+
+> 8 条 BACKLOG 一次性过完，条目级结论已回写 `developDoc/BACKLOG.md`；
+> 完整 D1–D13 与代码级勘察卡片（含 `文件:行号`）见该文件。
+
+- **人格与记忆（D1/D2）**：**「多人格」= 多个人**（各自会话、各自记忆，互相是不同的人）；
+  载体 = `data/personas/<id>/` **文件**（PG 只存 id 绑定）；运行形态 = **单进程多会话**；
+  **记忆按 `persona_id` 分区**（记忆表第一版就带该列）
+- **会话模型（D2/D3/D4）**：**小会话是先天属性**（一次 LLM 调用的上下文，不需我们切）；
+  **大会话 = 纯时间聚类**，与 session 正交（派生分组，物化存储但可重算）；
+  分组算法 = **k=2 的 1D k-means 组间离差平方和最大 ⇒ 取最大间隔切分**，
+  数据点 = **消息时间戳**，递归切到"足够连续"为止
+- **compact 语义（D5）**：**压缩后同一会话继续**（`session_id` 不变，成本考虑），
+  旧消息被摘要替换；**原文全量保留 + 标记可归档**；触发用**字符数估算 token ×
+  `context_length` 比例**（真实 token 统计落地后再切）；
+  `WEBUI.md` 会话模型里「compact 后新开会话」的旧描述**已作废**；`/new` 保留
+- **对外接口（D6）**：以 **CMCB 为载体**，路线 = **双层门面**（总线对内自由 + 对外白名单
+  与契约文档），**不改 `bus.provide` 签名**；安全边界暂定进程内 + 同权限；
+  **先搁置，v1.0 只文档化不写代码**
+- **Skills（D7）**：**整体迁 `data/skills/`**（技能本质是外部内容，Aris 自己的能力
+  直接做进 `behavior`）；包内不再留技能；那三个测试用 skill 临时放
+  **`developDoc/skills-backup/`**（声明为「迁移前的技能备份」），迁完测完再删
+- **提供商与 LLM（D8/D9）**：**支持 Responses API**（DeepSeek 已正式支持，见
+  `API-CALL.md` 3 / 6.1）；**多模态只做底层**（模型补标模态 + 图片输入 + 图片落盘
+  按引用组装，TUI 与前端不动）；**思考模式要做但默认关闭放配置文件**；
+  **不接 Anthropic 兼容端点**；**降级与成本纪律**——模型级 `free` 标签 +
+  自动识别开关（默认关，扫**提供方模型 id** 含 `free`）→ 同一模型 id 内**免费优先**，
+  免费试完再走 `fallback_models` 链；示例配置去掉默认降级值、`race_fallback`
+  默认 `false`、关掉 SDK 内建重试
+- **多模态细节（D10）**：**视觉三挡开关** `vision_transcribe = none | auto | force`
+  （auto = 主模型不支持视觉才转述）；兜底可配 `transcribe` / `reject` 等，
+  **换模型不在候选**；暂不让模型主动调视觉模型看图
+- **autorun（D11）**：方向已定（见「模块划分」条目）——**纯调度器 + 触发源抽象**，
+  任务实例落 `data/autorun/tasks.toml`；模块级 `enabled` + 宽容降级。
+  **同日追加决定：暂不实现（v1.0 也不做）**，只留设计文档，不写代码
+- **文档站（D12）**：**短期不做**（多一个站多一份维护，功能未稳）
+- **其他（D13）**：WebUI 配置页体验要在 v1.0 一并改（现状"选项名 + 数值框"跟直接改
+  配置文件只差一个 UI）
+
 ## 待定（勿替用户做决定）
 
 - 记忆架构：三层记忆模型（感觉/短期/长期，含反思、遗忘权重、时间线冲突处理）
@@ -453,9 +549,9 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   —— 交给 Aris（相当于「打断 + 继续听」）或丢弃并假装没听见（「装没听见」）。
   判断依据待定（如语气、上下文、用户意图）。实现前先定方案
 - Python 静态检查/格式化工具（ruff vs black+isort+flake8）
-- **人格与对话历史的持久化载体（未定，2026-09-19 决定先置着）**：人格用
-  `data/personas/<id>/` 文件还是 PG 表；会话历史是否落 PG（现为纯内存，重启即丢）。
-  做 BACKLOG #4 多人格 / #5 记忆系统**之前必须先定**，否则相关表结构要返工
+- ~~人格与对话历史的持久化载体~~（**2026-09-28 已定案**：人格载体 = `data/personas/<id>/`
+  文件（PG 只存 id 绑定）；对话历史 = **落 PG**；运行形态 = **单进程多会话**；
+  **记忆按 `persona_id` 分区**。详见 `developDoc/discuss-2026-09-28.md` D1/D2）
 - ~~总线改名 CMCB~~（已完成：2026-09-19 文档与注释统一改名，见「已定案」）
 - ~~测试框架是否启用 pytest~~（已定：2026-08-18 启用 pytest，见技术栈）
 
@@ -530,6 +626,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 | 技能系统（`behavior.skills`） | `developDoc/SKILLS.md` |
 | 联网搜索方案（演进历史 / 留档） | `developDoc/WEB-SEARCH.md` |
 | `memory` 模块（Embedding / 检索） | `developDoc/EMBEDDING.md` |
+| **记忆系统设计（分层 / 事件 / 权重衰减；商讨中）** | `developDoc/MEMORY.md` |
 | 知识库（独立 RAG 知识检索；议题全部定案） | `developDoc/KNOWLEDGE-BASE.md` |
 | LLM 提供商/模型管理（list/check/fetch/退休） | `developDoc/LLM-PROVIDER-MGMT.md` |
 | `voice` 模块（STT / TTS） | `developDoc/stt&&tts选型.md` |
@@ -542,4 +639,6 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 | 开发路线总体（候选参考） | `referenceDocumentation/总览-bydsv4fpre.html` |
 | 开发进度（每次开发前先读） | `PROGRESS.md` |
 | 后续待办（未排期的中长期方向） | `developDoc/BACKLOG.md` |
+| **BACKLOG 全量商讨记录（2026-09-28，D1–D13 定案 + 勘察卡片）** | `developDoc/discuss-2026-09-28.md` |
+| **v1.0 硬目标：可迁移性 + 单一会话原则（D14/D15）** | `developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
 | 开发进度归档（历史条目与踩坑记录，查旧事用） | `developDoc/PROGRESS-ARCHIVE.md` |

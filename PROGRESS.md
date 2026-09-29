@@ -18,8 +18,9 @@
 | `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪 |
 | `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper |
 | `knowledge/` | 首期完成：两表 / 分块 / 摄入 / 纯向量检索 / CLI / agent 工具 / WebUI 页 |
-| `memory/` | **占位**，复用 `store/`（BACKLOG #5） |
+| `memory/` | **设计商讨中（2026-09-28 起）**：内容模型见 `developDoc/MEMORY.md`（分层/事件/权重衰减）；会话与消息表见 D2 |
 | `voice/` | **占位**（选型见 `developDoc/stt&&tts选型.md`） |
+| `autorun/` | **方向已定，暂不实现（2026-09-28）**：纯调度器 + 触发源抽象（D11） |
 
 - **入口**：`aris serve` 一条命令即可（首次自动获取便携 PG，需联网数分钟）；
   `aris doctor` 体检、`aris chat` 终端对话（调试用，与应用互不干涉）
@@ -27,10 +28,45 @@
 - 数据库：便携实例在 `data/pg`，项目本地、不注册系统服务；`aris serve` 会按需自建/自启，
   退出时只停自己拉起的那个
 - 知识库现有资料：`data/knowledge/刑法.md`（约 129 块）
-- 待办方向：`developDoc/BACKLOG.md`（7 条中长期）
+- 待办方向：`developDoc/BACKLOG.md`（8 条中长期，**2026-09-28 已全部过一轮商讨**）
 - 已知陷阱（踩坑档案，修完就补）：`AGENTS.md`「已知陷阱」节
 
 ## 最近动态
+
+### 2026-09-28：BACKLOG 8 条全量商讨（纯商讨，未写代码）
+
+- **目标**：为国庆前后发布 **v1.0**（memory + persona 基础功能）铺路，一次性把 8 条
+  BACKLOG 全部过完；按 v1.0 相关性排序商讨
+- **方法**：8 个只读子代理并行做代码级勘察（产出含 `文件:行号` 的卡片）→ 逐条拍板；
+  产物 = **`developDoc/discuss-2026-09-28.md`**（勘察卡片 + D1–D13 定案）
+- **核心定案**（完整见该文件与 `AGENTS.md`「BACKLOG 全量商讨定案」）：
+  - **D1 人格**：「多人格」= **多个人**（各自会话/记忆）；载体 = `data/personas/<id>/`
+    文件；**单进程多会话**；**记忆按 `persona_id` 分区**
+  - **D2–D5 会话与压缩**：小会话是**先天属性**（不需切）；**大会话 = 纯时间聚类**
+    （k=2 的 1D k-means ⇒ 取最大消息间隔切分）；**compact 后同一会话继续**；
+    原文全量保留 + 可归档；触发用字符估算 × `context_length` 比例
+  - **D6 对外接口**：双层门面、CMCB 为载体 → **搁置，v1.0 只文档化**
+  - **D7 Skills**：**整体迁 `data/skills/`**；包内不留技能；3 个测试用 skill 暂放
+    `developDoc/skills-backup/`
+  - **D8/D9 提供商**：**支持 Responses API**；多模态只做底层；思考模式默认关闭走配置；
+    **模型级 `free` 标签 + 免费优先降级**；`race_fallback` 默认关、SDK 内建重试关掉
+  - **D10 多模态**：模型补标模态；图片落盘按引用；视觉三挡 `none|auto|force`
+  - **D11 autorun**：新模块 = **纯调度器 + 触发源抽象**；任务实例落
+    `data/autorun/tasks.toml`；**同日追加决定暂不实现（v1.0 也不做）**，只留设计文档
+  - **D12 文档站**：**短期不做**
+- **补充两条 v1.0 硬目标（D14/D15，用户当场追加，权威文档
+  `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）**：
+  - **D14 可迁移性**：换主机 = 新机 clone + 把 `data/` 全量拷过去 + `uv run aris serve`
+    直接起；不写死绝对路径、启动幂等、跨平台能重获取 PG
+  - **D15 单一会话原则**：只有一个当前会话，**不做也不允许子代理**；一切输入进同一会话；
+    复用最新小会话 + 冷却 3~5 天（吃 KV cache 省钱）；场合/去向模型只写文档暂不实现
+- **顺带勘误** `developDoc/API-CALL.md`：第 3 节 Responses 整节重写（原路径/模型名/
+  兼容性描述均过期）、第 4 节重写思考模式 + 新增 4.3 图像理解 / 4.4 文件输入 /
+  4.5 模态元数据 / 4.6 Files API / 6.1 落地要点
+- **同步改动**：`AGENTS.md`（模块划分加 `autorun/`、文档站改「短期不做」、待定划掉
+  人格载体、新增「BACKLOG 全量商讨定案」节、文档索引加一行）、`BACKLOG.md`（每条加
+  「商讨结论」+ 速览表）、`WEBUI.md`（会话模型按 D2/D5 修订）、`PLUGIN.md`（标注搁置）
+- **未写代码、未提交**（本机为安卓容器，仅做文档操作）
 
 ### 2026-09-24：v0.4.2 发布（首个带 beta 标记的版本）
 
@@ -188,27 +224,49 @@
 
 ## 当前聚焦
 
-知识库首期已随 v0.4.0 发布，下一步候选（尚未拍定）：
+**目标：国庆前后发布 v1.0**（memory + persona 基础功能；文档站、对外接口、autorun、
+知识库第二阶段等**已明确挤出 1.0**，见商讨 D6/D11/D12）。决策依据全部在
+`developDoc/discuss-2026-09-28.md`（结合 `AGENTS.md`「BACKLOG 全量商讨定案」）。
 
-1. **serve 收尾**——SERVE.md 第 4–5 步：上收 `webui` 的 import 与 `_REQUIRED_SERVICES`
-   （纳入 serve 组装根）、与 `aris doctor` 合流探针
-2. **真 API 实测**——对投喂过的资料提问，看 Aris 是否自主调用 `knowledge_search`、
-   来源与距离是否合理（此前验证均为 mock；等用户找低成本方案）
-3. **知识库第二阶段**——PDF 摄入 + 混合检索（含中文 FTS）
-4. **记忆系统**——`memory/` 复用 `store/`（上下文压缩在此落地；动手前须先定
-   人格/会话的持久化载体，见 AGENTS「待定」）
-5. 低优先级遗留：WebUI 仪表盘系统状态区域（读各模块服务，不经 serve）、
-   htmx（可选）、Lucide 图标（可选）
+**v1.0 主线（按依赖顺序）**：
+
+1. **可迁移性 + 单一会话**（D14/D15，硬目标，权威文档
+   `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）：`data/` 分层可迁移自检、
+   跨平台 PG 重获取、`pgdata` 属主与端口缺口；会话复用最新小会话 + 冷却 3~5 天 +
+   串行排队 + 消息带场合/说话者
+2. **人格载体 + 会话落库**（D1/D2，`persona/` + `memory/`）：`data/personas/<id>/` 文件、
+   `persona_id` 贯穿、`memory_sessions` / `memory_messages` / `memory_conversations`
+   三表（owner=`memory`，用 `store/` 迁移机制）
+3. **大会话分组**（D3/D4）：按消息时间戳做 k=2 的 1D k-means（取最大间隔切分），
+   物化 + 可重算
+4. **上下文 compact**（D5）：同一 `session_id` 内摘要替换；字符估算 × `context_length`
+   比例触发；原文保留 + 可归档
+5. **WebUI**：配置页体验重做（D13，"选项名 + 数值框"要改）+ `/history` 页按会话模型落地
+
+**v1.0 附带（同批做的底层能力）**：
+- **Responses API + 多模态底层**（D8/D10，含模型补标模态、图片落盘按引用、
+  视觉三挡开关）；按 `API-CALL.md` 6.1 的 7 条要点落地
+- **Skills 迁 `data/skills/`**（D7，改动小可插队）
+- **提供商降级/成本纪律**（D9：免费标签 + 免费优先 + 三条默认值）
+
+**明确不做（1.0 之后）**：对外接口/插件（D6）、文档站（D12）、
+**autorun 定时与主动任务（D11，2026-09-28 追加决定暂不做）**、
+目标/计划状态层、场合/去向（含独白）、知识库第二阶段（PDF/混合检索）、语音链路
+
+**遗留低优先级**：serve 收尾（SERVE.md 第 4–5 步）、真 API 实测、WebUI 仪表盘系统状态区域、
+htmx / Lucide（可选）
 
 ## 开发路线
 
 1. ✅ 项目骨架（2026-08）
 2. ✅ 接入 LLM（2026-08-09）
 3. ✅ 跑通文字对话（2026-08-09）
-4. ⬜ 记忆系统（PostgreSQL + pgvector）—— **主线下一步**，`memory/` 复用 `store/`
-5. ✅ 人格系统（提示词工程起步，2026-08-12）；世界观 / 人际关系 / 成长轨迹待演进
+4. ⬜ 记忆系统（PostgreSQL + pgvector）—— **v1.0 主线**（载体已定：D1/D2），
+   `memory/` 复用 `store/`
+5. ⬜ 人格系统 —— 提示词工程已起步（2026-08-12）；**v1.0 要把载体与多会话落地**（D1）
 6. ⬜ 语音链路（STT → LLM → TTS）
 7. ✅ 行为扩展：函数调用（2026-08-09）、联网搜索（2026-08-09）、skills（2026-08-12）；
    MCP 待后续
 8. ⬜ GraphRAG
 9. ✅ 知识库首期（v0.4.0）；第二阶段 PDF + 混合检索待做，详见 `developDoc/KNOWLEDGE-BASE.md`
+10. ⬜ autorun（定时与主动任务）—— **方向已定，暂不实现**（D11，只留设计文档）

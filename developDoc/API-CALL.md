@@ -461,91 +461,179 @@ for _ in range(10):  # 防死循环上限
 
 ---
 
-## 3. OpenAI Responses API（备用/将来）
+## 3. OpenAI Responses API（**2026-09-28 重新核实：升级为正式支持目标**）
 
-> OpenAI 官方新推荐，DeepSeek 也支持（仅 deepseek-v4-flash）。若未来切 OpenAI 原生可考虑。功能更丰富，但字段名与 Chat Completions 差异大。
+> 本节 2026-09-28 按 DeepSeek 官方文档重写（旧内容多处过期：路径错写 `/v1/responses`、
+> 模型名过旧、兼容性描述不准）。**DeepSeek 已正式支持 Responses API**，本节作为接入依据。
 
 ### 3.1 基础请求
 
 ```http
-POST https://api.deepseek.com/v1/responses   # 或 https://api.openai.com/v1/responses
+POST https://api.deepseek.com/responses      # DeepSeek 无 /v1 前缀
+POST https://api.openai.com/v1/responses     # OpenAI 有 /v1
 ```
+
+- **base_url 与协议路径必须分别配置**，不能假定自动补 `/v1`（通义是
+  `.../compatible-mode/v1`，Kimi 是 `/v1`）
+- DeepSeek 可用模型：`deepseek-flash` / `deepseek-v4-pro`
+- `input`：字符串（视作单条 user 消息）或 item 列表；`instructions` 顶层系统指令，作为
+  首条 system 消息插入；**二者至少传一个**
+- 样例：
 
 ```json
 {
-  "model": "gpt-5.6",
-  "input": "写个关于独角兽的睡前故事",
-  "instructions": "用中文回答，语气温柔。"
+  "model": "deepseek-flash",
+  "instructions": "用中文回答，语气温柔。",
+  "input": [{"role": "user", "content": [{"type": "input_text", "text": "你好"}]}]
 }
 ```
 
-- `input` —— 字符串或消息数组（无 role 的平铺格式，或 `{role, content}`）
-- `instructions` —— 顶层系统指令，优先级高于 input 里的 developer 消息，等价于首条 developer 消息
-- `input` 与 `instructions` 至少传一个
+### 3.2 与 Chat Completions 的字段对照（实现 formatters 时照此写）
 
-### 3.2 响应
+| 维度 | Chat Completions | Responses |
+|---|---|---|
+| 输入载体 | `messages` 数组 | `input`：字符串或 item 列表 |
+| 内容块类型 | `text` / `image_url` | `input_text` / `output_text` / `input_image` |
+| 系统提示 | `role:"system"` 消息 | 顶层 `instructions` |
+| 长度 / 格式 | `max_tokens` / `max_completion_tokens`；`response_format` | `max_output_tokens`；`text.format` |
+| 输出解析 | `choices[0].message.content` | `output_text`，或 `output[]` 里 `type:"message"` 的 `content[].text` |
+| 流式增量 | `choices[0].delta.content` | SSE `response.output_text.delta` 的 `delta` |
+| 工具定义 | `tools[].function.{name,description,parameters}` | **扁平** `tools[].{type:"function",name,description,parameters}` |
+| 工具调用返回 | `message.tool_calls[].{id,function.name,function.arguments}` | `output[]` 里 `{type:"function_call",call_id,name,arguments}` |
+| 工具结果回传 | `role:"tool"` + `tool_call_id` | `{type:"function_call_output",call_id,output}`（**不再用 role:"tool"**） |
+| 用量字段 | `prompt_tokens` / `completion_tokens` | `input_tokens` / `output_tokens` |
+| 流结束 | `data: [DONE]` | `response.completed` / `incomplete` / `failed`（**无 `[DONE]`**） |
 
-```json
-{
-  "id": "resp_xxx",
-  "output": [
-    {
-      "id": "msg_xxx",
-      "type": "message",
-      "role": "assistant",
-      "content": [{"type": "output_text", "text": "...", "annotations": []}]
-    }
-  ],
-  "status": "completed"
-}
-```
+### 3.3 流式事件（DeepSeek 全量列表）
 
-**关键**：文本在 `output` 数组里，但 `output` 可能含 tool call、reasoning 等多项，**不要假设文本在 `output[0].content[0]`**。SDK 提供 `response.output_text` 便捷聚合。
+| 事件 | 说明 |
+|---|---|
+| `response.created` / `response.in_progress` | 首个事件 / 生成中 |
+| `response.output_item.added` / `.done` | 输出 item（`reasoning`/`message`/`function_call`）开始 / 完成 |
+| `response.content_part.added` / `.done` | item 内内容块开始 / 完成 |
+| `response.reasoning_text.delta` / `.done` | 思维链增量 / 全文（**思考模式**） |
+| `response.output_text.delta` / `.done` | 输出文本增量 / 全文 |
+| `response.function_call_arguments.delta` / `.done` | 工具参数增量 / 完整参数 |
+| `response.completed` / `.incomplete` / `.failed` | 终止事件，**携带完整 response 对象（含 `usage`）** |
 
-### 3.3 工具调用（Responses 版）
-
-- 工具定义**无 `function` 外层**：`{"type":"function","name":"get_weather","description":"...","parameters":{...},"strict":true}`
-- 模型返回：`output[]` 里 `{"type":"function_call","call_id":"call_xxx","name":...,"arguments":"{...}"}`
-- 回传：`{"type":"function_call_output","call_id":"call_xxx","output":"..."}`，追加到 input
-- 流式事件：`response.output_item.added` → `response.function_call_arguments.delta`（拼 arguments）→ `response.function_call_arguments.done`
-- 流式以 `response.completed` 结束，**无 `data: [DONE]`**
+- 每事件带 `event` 字段与递增 `sequence_number`
+- **usage 在终止事件里拿全**（`input_tokens` 含 `input_tokens_details.cached_tokens`，
+  `output_tokens` 含 `output_tokens_details.reasoning_tokens`）——注意
+  **`stream_options` 在 DeepSeek Responses 下不支持**，别照抄 chat 的做法
 
 ### 3.4 会话状态
 
-- `previous_response_id` —— 链式续接上一条响应
-- Conversations API —— 持久化会话对象
-- 手动全量回传 output（最通用，DeepSeek 兼容）
-- 响应默认存 30 天，`store: false` 关闭
+- **DeepSeek 是无状态**：`previous_response_id` / `conversation` / `store` / `background` /
+  `include` / `metadata` / `truncation` 全不支持，`store` 恒为 `false`
+  → **每轮必须自己回传完整历史**（与 Aris「会话历史落库」的设计一致）
+- 其他厂商可能把历史放服务端（如通义 `previous_response_id` 保留 7 天）——但要跨厂商一致，
+  就统一走「全量回传」
+- `parallel_tool_calls` / `max_tool_calls` 被忽略（并行工具调用恒开）
 
-### 3.5 DeepSeek 兼容性注意
+### 3.5 DeepSeek 兼容性注意（2026-09-28 官方为准）
 
-- 仅 `deepseek-v4-flash` 支持 Responses API（pro 暂不支持，预计 2026-08 初支持）
-- 不支持的参数**静默忽略**不报错，现有客户端无需修改即可接入
-- `previous_response_id`、`store`、`conversation`、`background` 等不支持
-- 无状态：输入超上下文返回 400
+- 可用模型：`deepseek-flash`、`deepseek-v4-pro`
+- **不支持的参数静默忽略、不报错** → 现有 Responses 客户端可直接接入
+- `truncation` 不支持：**输入超上下文窗口直接返回 400**，不能指望服务端截断
+  （与 #5 上下文压缩直接相关）
+- tools 仅支持 `function`；另允许 `{"type":"custom","name":"apply_patch"}`（Codex 兼容），
+  其他内置工具（`web_search` / `file_search` / `code_interpreter` / `mcp`）一律忽略
+- `reasoning` item：**只认纯文本 `content`**，`summary` / `encrypted_content` 不支持
+- `web_search_call` item 回传时会被还原并拼进上下文
 
 ---
 
 ## 4. DeepSeek 特有能力
 
-### 4.1 思考模式
+### 4.1 思考模式（2026-09-28 按官方重写）
 
-- 默认开启，`extra_body={"thinking":{"type":"enabled"}}`（OpenAI SDK 里 thinking 参数要放 extra_body）
-- `reasoning_effort`: `low` / `high` / `max`（OpenAI 格式）
-- 思考模式不支持 `temperature` / `top_p` / `presence_penalty` / `frequency_penalty`（设置不报错但不生效）
-- 思维链在 `message.reasoning_content`（非流式）或 `delta.reasoning_content`（流式）
-- **多轮回传规则**见 2.3 节：带 tools 时必须回传 reasoning_content
+- **参数形态两套**：Chat Completions 用 `thinking: {"type": "enabled"|"disabled"}`；
+  Responses 用顶层 `reasoning.effort`
+- **`reasoning.effort` 取值**：`none`（关闭）/ `low` / `high` / `max`；兼容映射
+  `minimal→low`、`medium`/`xhigh→high`；**不传则用模型默认（默认开启）**
+- 思考模式下 `temperature` 不生效；`top_p` 仅在思考模式生效且下限 0.95（低于按 0.95 处理），
+  非思考模式恒为 1.0（传了也忽略）
+- 思维链文本：chat 在 `message.reasoning_content` / `delta.reasoning_content`；
+  responses 是 `output[]` 里的 `reasoning` item（内容为 `reasoning_text` 块），
+  流式事件 `response.reasoning_text.delta`
+- responses 的 `reasoning.summary` **可传但不生成摘要**；`encrypted_content` 不支持
+- **多轮回传规则**见 2.3 节：带 tools 时必须回传 reasoning_content（chat 路径）
+- **Aris 约定**：思考模式**默认关闭**，开关放配置文件；打开时才用 `effort`
 
-### 4.2 Anthropic API 兼容
+### 4.2 Anthropic API 兼容（**不实现**）
 
-base_url 换 `https://api.deepseek.com/anthropic` 即可用 Anthropic 格式调用 DeepSeek 模型：
-- `claude-opus*` 模型名 → 映射 deepseek-v4-pro
-- `claude-haiku*` / `claude-sonnet*` → 映射 deepseek-v4-flash
-- 不支持的模型名自动映射到 deepseek-v4-flash
-- `temperature` 范围 0.0~2.0，`thinking` 支持（`budget_tokens` 忽略）
-- 工具结果 `tool_result` 支持；图片、document、MCP tool 不支持
+DeepSeek 提供 `base_url=https://api.deepseek.com/anthropic` 的 Anthropic 兼容端点，
+但其服务端工具、图片、document、MCP tool 支持面与 Anthropic 官方并不一致
+（如 `tool_result` 支持、图片/document 不支持）。
 
-### 4.3 价格（2026-08，每百万 tokens，人民币）
+**2026-09-28 定案：Aris 不接 Anthropic 兼容端点**（用户决定），保留本节仅作资料备查。
+
+### 4.3 图像理解 / 多模态（2026-09-28 新增，首期能力）
+
+- **模型**：`deepseek-flash` 支持图片输入（旧名 `deepseek-v4-flash-vision-exp` 已下线，
+  请求仍由最新 Flash 承接）
+- **支持格式**：JPEG / PNG / GIF / WebP（**按文件实际内容判断**，不看文件名与 MIME）
+- **三种传图方式**（chat 路径）：
+  1. base64 内联：`{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}`
+  2. 外部 URL：`{"type":"image_url","image_url":{"url":"https://..."}}`
+  3. Files API：`{"type":"file","file_id":"file-api-..."}`，
+     或 `{"type":"file","file_data":"data:image/jpeg;base64,...","filename":"a.jpg"}`
+     （`file_id` 与 `file_data` **互斥**）
+- **responses 路径**用 `input_image` 块：`{"type":"input_image","image_url":...}` 或
+  `{"type":"input_image","file_id":...}`（二者互斥，都缺或都有均 400）
+- **硬约束：图片只能出现在 `user`（responses 另允许 `developer`）消息里**；
+  放进 `system` / `assistant` 直接 400
+- **responses 额外允许**：图片出现在 `function_call_output` / `custom_tool_call_output`
+  的 `output` 里（工具返回图片给模型看）
+- `detail` 字段：`low`（推理前缩到 512×512，省 token）/ `high`（等价 `original`）/
+  `original` / `auto`（当前等于 `original`）；用 `file_id` 时该字段被忽略
+- **token 与尺寸**：每图 token **上限 1024**；小于约 544×544 会放大、更大则缩到约
+  1300×1300 相当的总像素 → 2000×2000 与 5000×5000 消耗相同
+- **限制**：外部 URL ≤ 8192 字符且需 60 秒内下载完；请求体 ≤ 48 MiB；内联单图 ≤ 32 MiB；
+  `file_id` 单图 ≤ 64 MiB；单请求 ≤ 600 张；单边最长 8192px（≥15 张时降为 4096px）；
+  不含 `file_id` 的图片总计 ≤ 64 MiB，含 `file_id` 最高 200 MiB
+- **文件（PDF / 文档）不支持**：DeepSeek 的 Files API **只用于图片**，
+  responses 明确 "File inputs are not supported"
+
+### 4.4 文件（PDF / 文档）输入：OpenAI 支持，DeepSeek 不支持（2026-09-28 新增）
+
+| | OpenAI chat | OpenAI responses | DeepSeek（两路） |
+|---|---|---|---|
+| 图片块 | `{"type":"image_url","image_url":{"url":..,"detail":..}}` | `{"type":"input_image","image_url":"..","detail":..}` | chat `image_url` 对象 / responses `input_image`；**另有第三种平铺 `{"type":"file","file_id":"file-api-.."}`** |
+| `detail` 取值 | `auto`/`low`/`high` | 另有 `original` | `low`/`high`/`original`/`auto` |
+| 文件块 | `{"type":"file","file":{"file_data":"<base64>","file_id":"..","filename":"a.pdf"}}`（**多嵌一层 `file`**） | `{"type":"input_file","filename":"a.pdf","file_data":"data:application/pdf;base64,.."}` 或 `{"type":"input_file","file_id":"file-.."}`（**平铺**） | ✗ 不支持 |
+| PDF 是否可吃 | 是（`file_data` 为 base64） | 是 | ✗ |
+| role 限制 | — | — | 图片仅限 `user`（responses 另允许 `developer`），system/assistant 返回 400 |
+
+- OpenAI Files API：单文件 ≤ 512 MB、项目 2.5 TB、1000 上传/分，
+  `purpose ∈ assistants/batch/fine-tune/vision/user_data/evals`，`expires_after` 1h–30d
+- OpenAI 的单图 / 单文件上限**未查到官方说明**（官网在本环境 403）；Azure 镜像文档口径：
+  ≤50 图、单图与合计 ≤50 MB、PDF ≤50 MB 且需模型同时支持文本 + 图像
+- **写法形状三家三种**：翻译层必须按 (提供方, 协议) 分派，不能共用一份序列化代码
+
+### 4.5 模型模态元数据从哪来（2026-09-28 新增）
+
+| 来源 | 是否含模态 | 字段 |
+|---|---|---|
+| OpenAI `/v1/models` | ✗ | 仅 `id` / `created` / `object` / `owned_by` / `shutdown_date` |
+| DeepSeek `/models` | ✓ | `input_modalities`(text\|image) / `output_modalities`(text) / `context_window` / `max_output_tokens` / `effort` |
+| models.dev（`api.json`） | ✓ | `modalities.input` / `modalities.output`（text/image/audio/video/pdf）+ `attachment` 布尔 |
+
+→ **能力表自建**，不依赖 `/v1/models`；`aris llm fetch` 的 enrichment 继续用 models.dev，
+DeepSeek 一侧可优先读它自己的 `/models`（信息更准）。
+
+### 4.6 Files API（图片复用，2026-09-28 新增）
+
+- 端点：`POST /files`（multipart/form-data）、`GET /files`、`GET /files/{id}`、
+  `DELETE /files/{id}`
+- 表单：`file`（必填）、`purpose`（**必须为 `user_data`**）、可选
+  `expires_after[anchor]=created_at` + `expires_after[seconds]`（3600 ~ 2592000；
+  不传则永久有效）
+- 返回 `file-api-xxxxxxxxxxxxxxxx`；文件归属 API key，可被任一 API 家族引用
+- 限制：单文件 ≤ 64 MiB、文件名 ≤ 512 字符、单用户 ≤ 25 GiB / 10000 个文件
+- **何时用**：多请求复用同一张图、或内联超 48 MiB / 单图超 32 MiB 时
+
+### 4.5 价格（2026-08，每百万 tokens，人民币）
 
 | 模型 | 输入(未命中缓存) | 输入(缓存命中) | 输出 | 上下文/输出上限 |
 |---|---|---|---|---|
@@ -677,3 +765,23 @@ resp2 = client.messages.create(model=..., messages=messages, tools=tools)
 3. 会话维护用「手动拼全量 messages」，三家都支持，无需状态存储。
 4. 流式事件按提供方适配：OpenAI/DeepSeek 拼 `delta.content` + `delta.tool_calls`（按 index）；Anthropic 拼 `content_block_delta`。
 5. 未来若接 OpenAI Responses，只需新增一个「归一化层」把 Responses 的 output 数组转成内部消息格式。
+
+### 6.1 #1 落地要点（2026-09-28 商讨定案）
+
+1. **formatters 增 `responses` 分支**：system 消息抽成顶层 `instructions`；
+   `messages` → `input` items；工具定义扁平化（去掉 `function` 外层）；
+   `max_tokens` → `max_output_tokens`；`response_format` → `text.format`
+2. **流式解析按 `event.type` 分发**，终止条件改 `response.completed`，
+   **不要依赖 `[DONE]`**；reasoning 走 `response.reasoning_text.delta`
+3. **Message 需补 `call_id` 与 `function_call_output` 形态**；工具结果回传走新 item，
+   不再用 `role:"tool"`（chat 与 responses 两条路径的翻译差异收在 formatters）
+4. **usage 映射层**：chat 的 `prompt_tokens`/`completion_tokens` ↔ responses 的
+   `input_tokens`/`output_tokens`；responses 的 usage 在终止事件里，chat 需要
+   `stream_options`（**DeepSeek responses 不支持 `stream_options`**，别照抄）
+5. **多模态：内部统一「内容块」表示**，翻译时按路径分派
+   （chat → `image_url` / `file`；responses → `input_image`），
+   并在构造期校验「图片只能在 user 消息」
+6. **`providers.toml` 增 `api_style` / `path` 字段**：base_url 与协议路径分开配置，
+   **禁止硬编码 `/v1`**（DeepSeek 无 `/v1`，通义是 `/compatible-mode/v1`）
+7. **待用户确认后补**：#1 第三条能力面（其余厂商 API / 结构化输出等）
+   与「LLM 流程 + 提供商管理的优化项、与 AstrBot 的差异」——调研中，未定案
