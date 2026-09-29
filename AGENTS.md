@@ -268,7 +268,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   - 待实现：无既定项（将来按需扩展，如云端 provider）
 - `memory/` —— 记忆系统：Embedding + 数据库（复用 `store/`，不自建第二套）。
   **2026-09-28 起进入设计商讨**：内容模型（分层 / 事件 / 权重衰减）的定案与待商讨项
-  见 `developDoc/MEMORY.md`
+  见 `developDoc/MEMORY.md`；**2026-09-29 定：该内容模型（D16）进 v1.0**，
+  开工前先补完其第五节 8 条待商讨
 - `knowledge/` —— **知识库（2026-09-18 定案，首期已实现）**：面向外部资料的独立 RAG
   检索，含摄入、分块、来源管理、检索语义。**不做 skill**（属内部底层设施，经大总线
   暴露 `knowledge.ingest` / `knowledge.sources` / `knowledge.remove` /
@@ -389,8 +390,9 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 ## 开发路线
 
 > **当前聚焦：v1.0（国庆前后发布）= memory + persona 基础功能**——人格载体 /
-> 会话落库 / 大会话分组 / 上下文 compact / WebUI（**autorun 同日决定暂不做，
-> 也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与 `developDoc/discuss-2026-09-28.md`；
+> 会话落库 / 大会话分组 / 上下文 compact / **记忆内容模型（D16）** / WebUI
+> （**autorun 同日决定暂不做，也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与
+> `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨是开工前唯一的硬前置**；
 > 详细排期见 `PROGRESS.md`「当前聚焦」。
 > WebUI 管理后台见 `developDoc/WEBUI.md`，启动编排见 `developDoc/SERVE.md`。
 
@@ -501,7 +503,11 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 ### BACKLOG 全量商讨定案（2026-09-28，来源 `developDoc/discuss-2026-09-28.md`）
 
 > 8 条 BACKLOG 一次性过完，条目级结论已回写 `developDoc/BACKLOG.md`；
-> 完整 D1–D13 与代码级勘察卡片（含 `文件:行号`）见该文件。
+> 完整 **D1–D16** 与代码级勘察卡片（含 `文件:行号`）见该文件；**颗粒度分级表**
+> （A 可直接实现 / B 粗定 / C 只留方向）也在该文件末尾。
+>
+> **级别提醒**：下面 D6 / D11 / D12 三条，以及 D15 的「场合与去向」子项，都是
+> **C 级——只定方向、v1.0 不写代码**，不是"直接照做"；A/B 级才是照做项。
 
 - **人格与记忆（D1/D2）**：**「多人格」= 多个人**（各自会话、各自记忆，互相是不同的人）；
   载体 = `data/personas/<id>/` **文件**（PG 只存 id 绑定）；运行形态 = **单进程多会话**；
@@ -534,13 +540,19 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   任务实例落 `data/autorun/tasks.toml`；模块级 `enabled` + 宽容降级。
   **同日追加决定：暂不实现（v1.0 也不做）**，只留设计文档，不写代码
 - **文档站（D12）**：**短期不做**（多一个站多一份维护，功能未稳）
-- **其他（D13）**：WebUI 配置页体验要在 v1.0 一并改（现状"选项名 + 数值框"跟直接改
-  配置文件只差一个 UI）
+- **其他收尾（D13）**：WebUI 配置页体验要在 v1.0 一并改（现状"选项名 + 数值框"跟直接改
+  配置文件只差一个 UI）；同条还收着「3 个测试 skill 样本先放 `developDoc/skills-backup/`」
+- **记忆内容模型（D16，商讨中）**：分层 / 三类产物（事件 · 对话总结 · 周记月记）/
+  写入时机（**大会话结束**）/ 权重衰减方向已定；**用户 2026-09-29 定：D16 进 v1.0**，
+  但**开工前必须先补完 `developDoc/MEMORY.md` 第五节 8 条待商讨**（衰减规则 / 防刷分 /
+  周记聚合 / 注入预算 / 一级与二三级关系 / 表结构 / WebUI 可见性 / 热冷两轴表结构收敛）。
+  这是 v1.0 范围内**唯一挂着的 B 级项**（颗粒度表见 `discuss-2026-09-28.md` 末尾）
 
 ## 待定（勿替用户做决定）
 
-- 记忆架构：三层记忆模型（感觉/短期/长期，含反思、遗忘权重、时间线冲突处理）
-  用户构想中、未完善、以后可能换
+- 记忆架构：**已收拢到 `developDoc/MEMORY.md`**——分层与「事件」定义已定案；
+  **未定的只剩内容模型的 8 条待商讨**（D16，**已定进 v1.0**，开工前必须补完）。
+  原「感觉/短期/长期 + 反思 + 时间线冲突」的构想由该文件承接，不再散记在这里
 - STT 选型（候选：Groq Whisper / 通义听悟）
 - 人格系统实现方式（提示词工程 vs MCP）—— **提示词工程已落地**（2026-08-12，
   persona 模块）；未来是否引入 MCP 按需再议
@@ -639,6 +651,6 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 | 开发路线总体（候选参考） | `referenceDocumentation/总览-bydsv4fpre.html` |
 | 开发进度（每次开发前先读） | `PROGRESS.md` |
 | 后续待办（未排期的中长期方向） | `developDoc/BACKLOG.md` |
-| **BACKLOG 全量商讨记录（2026-09-28，D1–D13 定案 + 勘察卡片）** | `developDoc/discuss-2026-09-28.md` |
+| **BACKLOG 全量商讨记录（2026-09-28，D1–D16 定案/商讨 + 勘察卡片 + 颗粒度分级表）** | `developDoc/discuss-2026-09-28.md` |
 | **v1.0 硬目标：可迁移性 + 单一会话原则（D14/D15）** | `developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
 | 开发进度归档（历史条目与踩坑记录，查旧事用） | `developDoc/PROGRESS-ARCHIVE.md` |
