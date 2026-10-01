@@ -49,6 +49,15 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     settings = get_settings()
     logger.info(f"数据目录: {settings.data_dir}")
 
+    # data/ 分层（可迁移性 D14）：必须带的项缺了只提示——首次运行本来就没有
+    from .datadir import CARRIED_PATHS, missing_carried
+
+    missing = missing_carried(settings.data_dir)
+    if missing:
+        logger.info(f"data/ 分层: 缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）")
+    else:
+        logger.info(f"data/ 分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
+
     # 模块状态：与 `aris serve` 共用同一份探针（不再各写一套自检）
     from .serve import probe_all
 
@@ -559,11 +568,11 @@ def _cmd_chat(args: argparse.Namespace) -> int:
 
 
 def _db_env_summary(env) -> str:
-    """数据库环境一行摘要（来源 / 可执行 / 数据目录 / 端口 / 库名）。"""
+    """数据库环境一行摘要（来源 / 可执行 / 数据目录 / 端口 / 角色 / 库名）。"""
     bin_dir = str(env.bin_dir) if env.bin_dir else "（未安装）"
     return (
         f"来源: {env.source} | 可执行: {bin_dir} | 数据目录: {env.pgdata} | "
-        f"端口: {env.port} | 库: {env.dbname}"
+        f"端口: {env.port} | 角色: {env.user} | 库: {env.dbname}"
     )
 
 
@@ -610,7 +619,16 @@ def _cmd_db(args: argparse.Namespace) -> int:
         return 1
 
     if action == "start":
-        logger.info("数据库已启动" if start(env) else "数据库已在运行")
+        from aris.store import align_user, choose_port
+
+        env = choose_port(env)  # 端口被占则换一个可用端口（不写配置）
+        started = start(env)
+        try:
+            env = align_user(env)  # 换机后角色名可能与宿主用户名不同，在线复核并写标记
+        except BootstrapError as e:
+            logger.warning(f"角色探测未完成：{e}")
+        state = "已启动" if started else "已在运行"
+        logger.info(f"数据库{state}（端口 {env.port}，角色 {env.user}）")
         return 0
 
     if action == "stop":

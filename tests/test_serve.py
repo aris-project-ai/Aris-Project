@@ -135,6 +135,7 @@ def test_builtin_steps_shape() -> None:
     names = [s.name for s in steps]
     assert names == [
         "services",
+        "data",
         "core",
         "character",
         "behavior",

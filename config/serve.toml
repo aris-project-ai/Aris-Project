@@ -17,6 +17,6 @@ preload_embedding = true
 # 是否把 WebUI 一并拉起（host / port 仍归 config/webui.toml）
 web_enabled = true
 
-# 默认跳过的步骤（可选值：core / character / behavior / store.db / store.embed /
-# knowledge / webui）；CLI --skip 在本列表基础上追加
+# 默认跳过的步骤（可选值：services / data / core / character / behavior / store.db /
+# store.embed / knowledge / webui）；CLI --skip 在本列表基础上追加
 skip = []

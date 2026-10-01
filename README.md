@@ -100,7 +100,13 @@ src/aris/
 └── csrc/           # C 扩展（ctypes 按需加载，可选编译）
 
 config/             # 配置文件（见上表）
-data/               # 运行时数据（日志等），不进 git
+data/               # 运行时数据，不进 git（换机时整体拷走，见「换机与迁移」）
+├── pgdata/         #   记忆本体（PostgreSQL 数据目录）——丢了就丢记忆
+├── knowledge/      #   知识库原始资料
+├── characters/     #   角色：人设文件（D1，模块名 character）
+├── skills/         #   技能目录（D7）
+├── autorun/        #   定时任务实例（暂未启用）
+└── pg/ models/     #   可重建：便携 PG 二进制、embedding 模型（丢了自动重获取）
 developDoc/         # 模块级开发文档
 referenceDocumentation/  # 候选参考文档
 ```
@@ -113,6 +119,29 @@ referenceDocumentation/  # 候选参考文档
 - 运行时数据（日志、数据库文件等）统一放 `data/`，**不进 git**
 - 备份建议：定期 `rsync -av data/ /backup/aris-data/`；将来用 PostgreSQL 时用 `pg_dump`
 - 密钥（API key）一律放 `.env`，同样不进 git
+
+## 换机与迁移
+
+**换主机 = 新机 `git clone` → 把原机 `data/` 整体拷过来 → `uv run aris serve`。**
+
+```bash
+# 原机：备份（data/ 不进 git，只能这么搬）
+rsync -av data/ /backup/aris-data/
+# 新机
+git clone <repo> && cd Project-Aris && uv sync
+rsync -av /backup/aris-data/ data/
+uv run aris serve
+```
+
+- **必须带**：`pgdata/`（记忆本体）、`knowledge/`、`characters/`、`skills/`、`autorun/`
+- **可重建**：`pg/`（便携 PG 二进制）、`models/`（embedding 模型）——不带也行，
+  启动时发现缺了或跑不起来会自动重新获取（需联网）
+- **启动幂等**：缺目录就建、缺库就建、库没跑就自启；重复执行无副作用
+- 两种常见情况的提示：
+  - **新机用户名不同** → PG 数据目录属主变了，`aris serve` 会直接给出确切的 `chown`
+    命令（不会自动改文件属主）；`pgdata` 里的角色名有标记文件兜底，拷过来就能认
+  - **55432 端口被占** → 自动改用空闲端口，**不写进任何配置**；运行中的实例会把真实
+    端口留在 socket 文件名里，`aris db psql` 等命令照样找得到
 
 ## 文档索引
 
