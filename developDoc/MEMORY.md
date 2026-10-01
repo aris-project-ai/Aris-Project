@@ -277,7 +277,7 @@ w_eff = (weight + hit_count × HIT_GAIN) >> floor(Δt / H)，  Δt = now − las
 
 ### 5.2 放在哪、何时取、失败怎么办
 
-- **system prompt 保持静态**（只有 persona + 工具提示），**记忆块每轮临时拼在「历史尾部」**、
+- **system prompt 保持静态**（只有 character + 工具提示），**记忆块每轮临时拼在「历史尾部」**、
   **不写进 `history`**；精确位置（2026-10-01 定）：**常驻三块放末条 user 之前**，
   **12h 兜底的检索结果放末条 user 之后**——两者别混
   - 理由（D15 那条）：system 一动，整个提示缓存的**前缀全失效**；放在尾部则前缀照命，
@@ -345,7 +345,7 @@ memory_search(query, scope="refined", mode="search", limit=5)
 ## 七、表结构（2026-09-29 定案）
 
 **二级三级同表**（用户定："反正二三级是按时间分的"）；表里的 `cid` = **角色 id**
-（character id，创建角色时生成，改名 / 改人设都不影响；目录 `data/personas/<cid>/`）：
+（character id，创建角色时生成，改名 / 改人设都不影响；目录 `data/characters/<cid>/`）：
 
 ```sql
 memory_entries (
@@ -371,7 +371,7 @@ memory_entries (
 )
 ```
 
-- 索引：`(persona_id, tier, kind, occurred_from DESC)`（注入与列举）、
+- 索引：`(cid, tier, kind, occurred_from DESC)`（注入与列举）、
   `WHERE deleted_at IS NULL`（活跃）、HNSW on `embedding` **且只对非空行建**
   （`WHERE embedding IS NOT NULL`——只有事件进图）
 - 迁移：owner = `memory`，走 `store/migrate.py` 的 `Migration(owner, version, ...)`

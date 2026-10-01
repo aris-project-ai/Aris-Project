@@ -310,7 +310,7 @@ session_days = 7
   $d^2_{12}=\frac{m(n-m)}{n}(\bar x_2-\bar x_1)^2$ 在工程上等价于**取最大消息间隔处切分**；
   数据点 = **消息时间戳**；递归切到子段"足够连续"为止（**不切太细**——连续聊几个小时算同一段）
 - **大会话是记忆整理的触发单元**（"这段聊完了"），不是小会话
-- **会话历史落 PG**（2026-09-28 定案）：`memory_sessions`（含 `persona_id` / `summary`）/
+- **会话历史落 PG**（2026-09-28 定案）：`memory_sessions`（含 `cid` / `summary`）/
   `memory_messages` / `memory_conversations`；`chat.log` 只记请求级人类可读日志
 - 两层边界都是自动的——用户（语音交互）完全不需要关心会话管理
 

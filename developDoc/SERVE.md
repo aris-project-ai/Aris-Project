@@ -23,7 +23,7 @@ serve 是**组装根 + 启动编排**，相当于一次 `init`：把各模块按
 
 | 类 | 模块 | 需要启动动作吗 |
 |---|---|---|
-| ① import 即就绪 | `core.llm`、`persona`、`behavior`（工具 / skills）、`http.request` | **不需要**——import 触发 `provide()` 即完成 |
+| ① import 即就绪 | `core.llm`、`character`、`behavior`（工具 / skills）、`http.request` | **不需要**——import 触发 `provide()` 即完成 |
 | ② 需要外部资源 / 耗时 | `store`（PG 起没起、embedding 预热）、`knowledge`（迁移、索引、计数） | **需要**真实步骤 |
 | ③ 入口 | `webui`（HTTP server）；将来 `voice`、平台适配 | 由 serve 决定是否拉起 |
 
@@ -39,7 +39,7 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 |---|---|---|---|
 | 0 | `services` | 核验各模块声明的依赖服务都已注册（缺一即 ERROR 且非零退出） | **required** |
 | 1 | `core.llm` | import 触发注册；校验 `providers.toml` + 体检（缺 key / 无可用模型等） | optional |
-| 2 | `persona` / `behavior` | import 触发注册（工具、skills 菜单） | optional |
+| 2 | `character` / `behavior` | import 触发注册（工具、skills 菜单） | optional |
 | 3 | `store.db` | 探活；没跑则**自启**便携 PG；跑迁移到最新 | **required** |
 | 4 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
 | 5 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 3） |
@@ -53,7 +53,7 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 ```
 aris serve v0.4.2  data=…/data  pid=12345
 ✓ core.llm     3 提供方，默认 deepseek-v4-flash-free
-✓ persona      persona.system_prompt
+✓ character      character.system_prompt
 ✓ behavior     3 工具 / 4 skills
 ✓ store.db     PG 17.11 @127.0.0.1:55432（自启）
 ✓ store.embed  后台预热中（Bekko a25m，384 维）

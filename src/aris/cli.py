@@ -544,7 +544,7 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     session = ChatSession(
         engine,
         model_id=args.model or providers.resolve_default_model(),
-        system_prompt=args.system,  # None 时使用 persona 人设（提示词工程）
+        system_prompt=args.system,  # None 时使用 character 人设（提示词工程）
         data_dir=settings.data_dir,
         thinking=args.thinking,
         tools_enabled=not args.no_tools,

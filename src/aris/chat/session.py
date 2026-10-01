@@ -32,7 +32,7 @@ from .commands import (
     parse_command,
 )
 
-# 兜底人设：仅当 persona.system_prompt 服务未注册时使用（正常路径不会走到）
+# 兜底人设：仅当 character.system_prompt 服务未注册时使用（正常路径不会走到）
 _FALLBACK_SYSTEM_PROMPT = "你是 Aris，一个拟人 AI，说话简洁自然。"
 
 # 工具可用时追加到系统提示词
@@ -42,8 +42,8 @@ TOOLS_SYSTEM_HINT = (
 
 
 def _default_system_prompt() -> str:
-    """默认系统提示词：经跨模块通讯总线（CMCB）取 persona 人设，服务缺失时用兜底文本。"""
-    prompt = call("persona.system_prompt")
+    """默认系统提示词：经跨模块通讯总线（CMCB）取 character 人设，服务缺失时用兜底文本。"""
+    prompt = call("character.system_prompt")
     return prompt if prompt else _FALLBACK_SYSTEM_PROMPT
 
 

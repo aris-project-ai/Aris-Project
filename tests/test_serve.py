@@ -136,7 +136,7 @@ def test_builtin_steps_shape() -> None:
     assert names == [
         "services",
         "core",
-        "persona",
+        "character",
         "behavior",
         "store.db",
         "store.embed",

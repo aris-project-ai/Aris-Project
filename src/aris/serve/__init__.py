@@ -57,7 +57,7 @@ def assemble() -> None:
     import aris.behavior  # noqa: F401  —— loop.run / tools.execute / skills.*
     import aris.core.llm  # noqa: F401  —— llm.stream / llm.race / llm.deltas
     import aris.knowledge  # noqa: F401  —— knowledge.*
-    import aris.persona  # noqa: F401  —— persona.system_prompt
+    import aris.character  # noqa: F401  —— character.system_prompt
     import aris.store  # noqa: F401  —— store.*
     import aris.webui  # noqa: F401  —— webui.start / webui.probe
     from aris.behavior.skills import manager as _skills  # noqa: F401

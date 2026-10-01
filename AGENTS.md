@@ -299,8 +299,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   - 待实现：PDF 与混合检索（第二阶段）
   详见 `developDoc/KNOWLEDGE-BASE.md`
 - `voice/` —— STT（语音识别）、TTS（语音合成）
-- `persona/` —— 人格系统（提示词工程起步，2026-08-12）：注册
-  `persona.system_prompt` 服务，其他模块经 `core.call` 取人设，不再硬编码；
+- `character/` —— 人格系统（提示词工程起步，2026-08-12）：注册
+  `character.system_prompt` 服务，其他模块经 `core.call` 取人设，不再硬编码；
   世界观/人际关系/成长轨迹后续在此演进
 - `behavior/` —— 行为（函数调用已实现）：`registry.py` 工具注册表、`loop.py` agent loop
   （LLM↔工具循环）、`tools/` 内置工具集、`skills/` 技能系统（2026-08-12 落地：
@@ -328,7 +328,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   （定位像 skill 一样是外围，另有「特殊列表」待商讨）。归属切两半：机制参数 →
   `config/autorun.toml`；任务实例 → `data/autorun/tasks.toml`（与 `data/skills/` 同类，
   不进 git）。模块级 `enabled` + 宽容降级。**暂不做的原因**：v1.0 优先保
-  memory + persona（同日已毙掉多项原计划在 1.0 完善的功能）。
+  memory + character（同日已毙掉多项原计划在 1.0 完善的功能）。
   设计留存见 `developDoc/discuss-2026-09-28.md` D11
 - 插件系统：**后续可能增加**——MCP 服务器可做同样的事，
   届时再评估是否独立成模块
@@ -370,7 +370,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - **启动必须幂等**：缺什么补什么，重复执行无副作用
 - **跨平台要能降级重获取**：便携 PG 二进制是平台相关的（Linux x86_64 ≠ macOS ≠ aarch64），
   探测到不兼容 → 走 `bootstrap_env()` 重新获取（联网）或报可操作错误，不许直接崩
-- **`data/` 分层**必须带：`pgdata/`（记忆全在这）、`knowledge/`、`personas/`、`skills/`、
+- **`data/` 分层**必须带：`pgdata/`（记忆全在这）、`knowledge/`、`characters/`、`skills/`、
   `autorun/tasks.toml`；可重建：`pg/`、`models/`、各类缓存；**`.venv/` 不在 `data/`**（新机 `uv sync`）
 - **已知三缺口**（实现时处理）：① PG 二进制平台相关（要"能跑"验证而非"存在"）②
   `pgdata` 属主绑定 `$USER`（换机用户名不同就连不上，需统一定成与主机无关的角色名）
@@ -401,7 +401,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 
 ## 开发路线
 
-> **当前聚焦：v1.0（国庆前后发布）= memory + persona 基础功能**——人格载体 /
+> **当前聚焦：v1.0（国庆前后发布）= memory + character 基础功能**——人格载体 /
 > 会话落库 / 大会话分组 / 上下文 compact / **记忆内容模型（D16）** / WebUI
 > （**autorun 同日决定暂不做，也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与
 > `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨已于 2026-09-29 补完**，
@@ -414,7 +414,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 2. 接入 LLM —— **已完成**（2026-08-09，`core/llm`，见 PROGRESS.md）
 3. 跑通文字对话 —— **已完成**（2026-08-09，`aris chat`，见 PROGRESS.md）
 4. 记忆系统（PostgreSQL + pgvector）—— **v1.0 主线**（载体与形态已定，D1/D2）
-5. 人格系统 —— **提示词工程起步，已完成简单版**（2026-08-12，`persona/`）；
+5. 人格系统 —— **提示词工程起步，已完成简单版**（2026-08-12，`character/`）；
    世界观/人际关系/成长轨迹后续演进
 6. 语音链路（STT → LLM → TTS）
 7. 行为扩展（函数调用 / MCP 服务器 / Skills）—— **函数调用已完成**（2026-08-09），
@@ -493,8 +493,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   API 已停新申请（2027-01 停服），可考虑 Gemini API Grounding（每日免费额度）
   接 Google 搜索
 - **TTS**：Edge TTS 起步（免费），Azure TTS 备选
-- **人格系统（2026-08-12）**：**提示词工程起步**（persona 模块），注册
-  `persona.system_prompt` 服务，chat 默认经 `core.call` 取人设，`--system` 可覆盖；
+- **人格系统（2026-08-12）**：**提示词工程起步**（character 模块），注册
+  `character.system_prompt` 服务，chat 默认经 `core.call` 取人设，`--system` 可覆盖；
   人设文本轻量结构化（简介/性格/语气/边界），世界观/人际关系/成长轨迹后续演进。
   提示词工程 vs MCP 之争暂以提示词工程落地，未来可按需再议
 - **提供商/模型管理（2026-08-14）**：`providers.toml` 顶层 `default_model`
@@ -523,7 +523,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 > **C 级——只定方向、v1.0 不写代码**，不是"直接照做"；A/B 级才是照做项。
 
 - **人格与记忆（D1/D2）**：**「多人格」= 多个人**（各自会话、各自记忆，互相是不同的人；
-  **不做"人格分裂"**）；载体 = `data/personas/<cid>/` **文件**（PG 只存 id 绑定）；
+  **不做"人格分裂"**）；载体 = `data/characters/<cid>/` **文件**（PG 只存 id 绑定）；
   **`cid`（character id）在创建角色时生成，改名 / 改人设都不影响它**（2026-10-01 定）；
   运行形态 = **单进程多会话**；**记忆按 `cid` 分区**（记忆表第一版就带该列）
 - **会话模型（D2/D3/D4）**：**小会话是先天属性**（一次 LLM 调用的上下文，不需我们切）；
@@ -547,7 +547,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   自动识别开关（默认关，扫**提供方模型 id** 含 `free`）→ 同一模型 id 内**免费优先**，
   免费试完再走 `fallback_models` 链；示例配置去掉默认降级值、`race_fallback`
   默认 `false`、关掉 SDK 内建重试
-  - **2026-10-01 定：整条移出 v1.0**（时间已进 10 月，v1.0 只保 memory + persona）
+  - **2026-10-01 定：整条移出 v1.0**（时间已进 10 月，v1.0 只保 memory + character）
 - **多模态细节（D10）**：**视觉三挡开关** `vision_transcribe = none | auto | force`
   （auto = 主模型不支持视觉才转述）；兜底可配 `transcribe` / `reject` 等，
   **换模型不在候选**；暂不让模型主动调视觉模型看图
@@ -580,14 +580,14 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 
 - STT 选型（候选：Groq Whisper / 通义听悟）
 - 人格系统实现方式（提示词工程 vs MCP）—— **提示词工程已落地**（2026-08-12，
-  persona 模块）；未来是否引入 MCP 按需再议
+  character 模块）；未来是否引入 MCP 按需再议
 - **打断 vs 缓存输入策略（未定）**：Aris 流式回复期间用户提前输入的文本，当前
   TUI 直接丢弃（`_discard_pending_input`）。未来可能改为：缓存输入 → 按场景判断
   —— 交给 Aris（相当于「打断 + 继续听」）或丢弃并假装没听见（「装没听见」）。
   判断依据待定（如语气、上下文、用户意图）。实现前先定方案
 - Python 静态检查/格式化工具（ruff vs black+isort+flake8）
 - ~~人格与对话历史的持久化载体~~（**2026-09-28 已定案，2026-10-01 补 `cid`**：
-  角色载体 = `data/personas/<cid>/` 文件（PG 只存 id 绑定，`cid` 创建时生成）；
+  角色载体 = `data/characters/<cid>/` 文件（PG 只存 id 绑定，`cid` 创建时生成）；
   对话历史 = **落 PG**；运行形态 = **单进程多会话**；**记忆按 `cid` 分区**。
   详见 `developDoc/discuss-2026-09-28.md` D1/D2）
 - ~~总线改名 CMCB~~（已完成：2026-09-19 文档与注释统一改名，见「已定案」）
