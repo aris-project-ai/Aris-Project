@@ -62,7 +62,7 @@ skills/<name>/
 | `src/aris/behavior/skills/frontmatter.py` | SKILL.md frontmatter 简易解析（name/description） |
 | `src/aris/behavior/skills/note/` | demo skill：备忘（SKILL.md + tools.py） |
 
-`skills.menu` 服务注册于 `SkillManager.__init__`（与 `persona.system_prompt`
+`skills.menu` 服务注册于 `SkillManager.__init__`（与 `character.system_prompt`
 类似的模块级总线服务），`activate_skill` 是注册在 `ToolRegistry` 里的普通工具
 （经 `tools.execute` 总线执行）。
 

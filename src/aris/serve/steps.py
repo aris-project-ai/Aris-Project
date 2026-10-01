@@ -2,7 +2,7 @@
 
 三类步骤（见 developDoc/SERVE.md 第 2 节）：
 
-- ① **import 即就绪**（core / persona / behavior）：``start=None``，探针只做自检
+- ① **import 即就绪**（core / character / behavior）：``start=None``，探针只做自检
 - ② **需要外部资源**（store.db / store.embed / knowledge）：启动动作由模块自己经
   总线提供（``store.start`` / ``store.embed_preload`` / ``knowledge.start``）
 - ③ **入口**（webui）：``blocks=True``，由编排方在打完启动清单后调用（它会阻塞
@@ -73,10 +73,10 @@ def _probe_llm() -> str:
     return f"{len(config.providers)} 个提供方 / {models} 个模型，默认 {default}{tail}"
 
 
-def _probe_persona() -> str:
+def _probe_character() -> str:
     """探针：人设服务已注册。"""
-    if not has_service("persona.system_prompt"):
-        raise RuntimeError("persona.system_prompt 未注册")
+    if not has_service("character.system_prompt"):
+        raise RuntimeError("character.system_prompt 未注册")
     return "system_prompt 已注册"
 
 
@@ -195,7 +195,7 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
     return [
         ServeStep("services", "services", _probe_services, level="required"),
         ServeStep("core", "core.llm", _probe_llm),
-        ServeStep("persona", "persona", _probe_persona),
+        ServeStep("character", "character", _probe_character),
         ServeStep("behavior", "behavior", _probe_behavior),
         ServeStep(
             "store.db",

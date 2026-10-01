@@ -16,7 +16,7 @@
 项目早期模块间直接 `import` 互相拉通（`chat.session → behavior → core.llm`），
 存在三个问题：
 
-1. **耦合**：后期加模块（auto 定时任务、memory、voice、persona）时，
+1. **耦合**：后期加模块（auto 定时任务、memory、voice、character）时，
    模块间会形成蜘蛛网式依赖。
 2. **不可观测**：模块间互相调用了什么、耗时多少、成功与否，完全不可查，
    后期做 WebUI 监控无从下手。
@@ -128,7 +128,7 @@ summary = query_summary()            # 聚合统计
 | `tools.execute` | `ToolRegistry.__init__` | 执行工具，返回文本结果 | `behavior/loop.py` |
 | `loop.run` | `AgentLoop.__init__` | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
 | `loop.set_model` | `AgentLoop.__init__` | 切换模型：更新 loop 内部 model id | `chat/session.py` |
-| `persona.system_prompt` | `persona/__init__.py` | 返回 Aris 系统提示词 | `chat/session.py`（默认人设，`--system` 可覆盖） |
+| `character.system_prompt` | `character/__init__.py` | 返回 Aris 系统提示词 | `chat/session.py`（默认人设，`--system` 可覆盖） |
 | `skills.menu` | `SkillManager.__init__` | 返回技能清单（注入 system prompt 供模型判断何时激活） | `chat/session.py`（工具启用时） |
 | `audit.recent` | `core/bus.py` 模块级 | 最近审计流水（分页，按 wall_ts 倒序） | `webui` 审计页 |
 | `audit.summary` | `core/bus.py` 模块级 | 审计聚合统计 | `webui` 仪表盘 |
@@ -162,13 +162,13 @@ summary = query_summary()            # 聚合统计
 - `chat/session.py`：调 `loop.run` 走总线。
 - `cli.py` `llm test`：调 `llm.stream` 走总线。
 
-### 已迁移（第二批：persona，2026-08-12）
+### 已迁移（第二批：character，2026-08-12）
 
-- `persona/__init__.py`：模块级 `provide("persona.system_prompt")`。
+- `character/__init__.py`：模块级 `provide("character.system_prompt")`。
 - `chat/session.py`：默认系统提示词从本地硬编码改为
-  `call("persona.system_prompt")`（服务缺失时用兜底文本），`--system` 可覆盖。
+  `call("character.system_prompt")`（服务缺失时用兜底文本），`--system` 可覆盖。
 
-> 注：persona 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
+> 注：character 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
 > 全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
 
 ### 已迁移（第三批：Skills，2026-08-12）

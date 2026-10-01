@@ -13,7 +13,7 @@
 | `core/` | 完成：CMCB 总线（core 16 个服务，全项目 52 个注册点；含事件广播 + 审计）+ LLM 多提供方 / fallback / 流式 / 工具调用 |
 | `behavior/` | 完成：agent loop、工具注册表、内置工具（`web_search` / `web_open` / `knowledge_search`）、skills 系统 |
 | `chat/` | 完成：会话逻辑 + TUI（`aris chat`），定位开发调试 |
-| `persona/` | 提示词工程版（单一 `persona.system_prompt`）；多人格见 BACKLOG #4 |
+| `character/` | 提示词工程版（单一 `character.system_prompt`）；多人格见 BACKLOG #4 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库页 |
 | `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪 |
 | `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper |
@@ -33,6 +33,16 @@
 
 ## 最近动态
 
+### 2026-10-01：persona → character 改名（代码 + 文档）
+
+- 用户定：模块名由 `persona/` 改为 **`character/`**（推翻同日早些时候「保留 persona」的决定）
+- **代码**：`git mv src/aris/persona src/aris/character`；服务名 `persona.system_prompt` →
+  `character.system_prompt`；serve 步骤名与探针 `_probe_character` 同步；`config/serve.toml`
+  可选值、`tests/test_serve.py` 同步
+- **文档**：`data/personas/` → `data/characters/`、`persona.toml` → `character.toml`，
+  记忆分区列 `persona_id` → **`cid`**（与 D1 的 `cid` 收口）；全仓 21 个文件
+- 验证：`uv run pytest` **103 passed, 10 skipped**
+- **v1.0 施工开始**：M0（可迁移性与启动幂等）开工，方案见 `developDoc/V1.0-PLAN.md`
 ### 2026-10-01：版本发行改三线 + 记忆形态微调（文档，未写代码）
 
 - **版本发行改成三线、数字共用**（取代 2026-09-24 的 beta 方案）：
@@ -53,7 +63,7 @@
   工具描述加"不必只查与当前对话相关"的提示
 - **用户干预两条都要**：**钉住**（不衰减）+ **可见性** `normal|private|sealed`；
   WebUI `/memory` 另加**统计**与**批量管理**
-- **模块名定 `persona`（人格）**，id 用 `cid`——不改成 `character`
+- **模块名 `persona` → `character`（人格）**（当日原定 persona，同日改），id 用 `cid`
 - **测试用本地小模型**：只做测试用（用户稍后接入）；embedding 本来就是本地
   Bekko a25m（384 维，不花钱）
 
@@ -103,13 +113,13 @@
 
 ### 2026-09-28：BACKLOG 8 条全量商讨（纯商讨，未写代码）
 
-- **目标**：为国庆前后发布 **v1.0**（memory + persona 基础功能）铺路，一次性把 8 条
+- **目标**：为国庆前后发布 **v1.0**（memory + character 基础功能）铺路，一次性把 8 条
   BACKLOG 全部过完；按 v1.0 相关性排序商讨
 - **方法**：8 个只读子代理并行做代码级勘察（产出含 `文件:行号` 的卡片）→ 逐条拍板；
   产物 = **`developDoc/discuss-2026-09-28.md`**（勘察卡片 + D1–D16 定案/商讨）
 - **核心定案**（完整见该文件与 `AGENTS.md`「BACKLOG 全量商讨定案」）：
-  - **D1 人格**：「多人格」= **多个人**（各自会话/记忆）；载体 = `data/personas/<id>/`
-    文件；**单进程多会话**；**记忆按 `persona_id` 分区**
+  - **D1 人格**：「多人格」= **多个人**（各自会话/记忆）；载体 = `data/characters/<id>/`
+    文件；**单进程多会话**；**记忆按 `cid` 分区**
   - **D2–D5 会话与压缩**：小会话是**先天属性**（不需切）；**大会话 = 纯时间聚类**
     （k=2 的 1D k-means ⇒ 取最大消息间隔切分）；**compact 后同一会话继续**；
     原文全量保留 + 可归档；触发用字符估算 × `context_length` 比例
@@ -139,7 +149,7 @@
 ### 2026-09-24：v0.4.2 发布（首个带 beta 标记的版本）
 
 - **为什么是 v0.4.2 而不是 v0.4.5**：serve 是「clone 下来一条命令起服务」的体验入口，
-  本打算攒到 v0.4.5；但 memory / persona 从开发到完善可能吃掉好几个版本号、把 v1.0
+  本打算攒到 v0.4.5；但 memory / character 从开发到完善可能吃掉好几个版本号、把 v1.0
   提前，于是 serve 收在 v0.4.1，把 v0.4.2 留给**真实走一遍新的版本机制**
   （上一轮只是 0.4.1 → 0.4.2 → 回滚的演练，不算真发布）
 - **本版内容** = v0.4.1 的全部能力（serve 一条命令起服务）+ 版本机制与发布规范落地：
@@ -253,7 +263,7 @@
 - 新增 `developDoc/SERVE.md`（定位/三类服务/启动顺序/自启策略/失败分级/配置/接缝/
   实现次序）；`AGENTS.md` 模块划分与文档索引同步
 - 商讨补充定案：**`aris chat` 是纯前端，与 serve 互不干涉**（既不自启也不被自启，
-  不触发 PG 自启与预热）；**人格与对话历史的载体先置着**（`data/personas/` 文件 vs
+  不触发 PG 自启与预热）；**人格与对话历史的载体先置着**（`data/characters/` 文件 vs
   PG 表、会话是否落 PG —— 做 #4/#5 前必须先定，记入 BACKLOG #4 与 AGENTS 待定）
 - **下一步：按 SERVE.md 第 10 节开始实现 serve**；真 API 实测等用户找低成本方案
 - 未写代码，实现次序见文档第 10 节
@@ -292,7 +302,7 @@
 
 ## 当前聚焦
 
-**目标：国庆前后发布 v1.0**（memory + persona 基础功能；文档站、对外接口、autorun、
+**目标：国庆前后发布 v1.0**（memory + character 基础功能；文档站、对外接口、autorun、
 知识库第二阶段等**已明确挤出 1.0**，见商讨 D6/D11/D12）。决策依据全部在
 `developDoc/discuss-2026-09-28.md`（结合 `AGENTS.md`「BACKLOG 全量商讨定案」）。
 
@@ -308,8 +318,8 @@
    `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）：`data/` 分层可迁移自检、
    跨平台 PG 重获取、`pgdata` 属主与端口缺口；会话复用最新小会话 + 冷却 3~5 天 +
    串行排队 + 消息带场合/说话者
-2. **人格载体 + 会话落库**（D1/D2，`persona/` + `memory/`）：`data/personas/<id>/` 文件、
-   `persona_id` 贯穿、`memory_sessions` / `memory_messages` / `memory_conversations`
+2. **人格载体 + 会话落库**（D1/D2，`character/` + `memory/`）：`data/characters/<id>/` 文件、
+   `cid` 贯穿、`memory_sessions` / `memory_messages` / `memory_conversations`
    三表（owner=`memory`，用 `store/` 迁移机制）
 3. **大会话分组**（D3/D4）：按消息时间戳做 k=2 的 1D k-means（取最大间隔切分），
    物化 + 可重算
@@ -326,7 +336,7 @@
 - **Skills 迁 `data/skills/`**（D7，改动小可插队）
 
 > **2026-10-01 定**：**Responses API / 多模态底层 / 提供商降级与成本纪律
-> （D8/D9/D10）整条移出 v1.0**（时间已进 10 月，v1.0 只保 memory + persona），
+> （D8/D9/D10）整条移出 v1.0**（时间已进 10 月，v1.0 只保 memory + character），
 > v1.0 之后再做。
 
 **明确不做（1.0 之后）**：对外接口/插件（D6）、文档站（D12）、

@@ -90,7 +90,7 @@ src/aris/
 ├── core/           # 基础设施：跨模块通讯总线 CMCB（bus）+ LLM 提供方抽象
 │   ├── bus.py      #   服务注册表 + 事件总线 + 审计
 │   └── llm/        #   提供方抽象 / fallback / 流式 / 工具调用
-├── persona/        # 人格（提示词工程起步）：system_prompt 服务
+├── character/        # 人格（提示词工程起步）：system_prompt 服务
 ├── behavior/       # 行为：agent loop + 工具注册表 + 内置工具
 │   ├── tools/      #   内置工具：web_search（Bing 主链路 + Tavily 兜底）、web_open、get_current_time
 │   └── skills/     #   skill 技能系统：目录化、按需激活（demo：note 备忘）
