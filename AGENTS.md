@@ -267,9 +267,9 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
     `store.connect` / `store.migrate.*` / `store.vector.*`）
   - 待实现：无既定项（将来按需扩展，如云端 provider）
 - `memory/` —— 记忆系统：Embedding + 数据库（复用 `store/`，不自建第二套）。
-  **2026-09-28 起进入设计商讨**：内容模型（分层 / 事件 / 权重衰减）的定案与待商讨项
-  见 `developDoc/MEMORY.md`；**2026-09-29 定：该内容模型（D16）进 v1.0**，
-  开工前先补完其第五节 8 条待商讨
+  **2026-09-28 起商讨、2026-09-29 全部定案**：内容模型（分层 / 事件 / 两周记 / 权重与
+  惰性衰减 / 注入与 compact 关系 / 表结构）见 `developDoc/MEMORY.md`；**D16 已定进 v1.0，
+  8 条待商讨已补完 → 颗粒度 A 级**，v1.0 主线不再有挂起项
 - `knowledge/` —— **知识库（2026-09-18 定案，首期已实现）**：面向外部资料的独立 RAG
   检索，含摄入、分块、来源管理、检索语义。**不做 skill**（属内部底层设施，经大总线
   暴露 `knowledge.ingest` / `knowledge.sources` / `knowledge.remove` /
@@ -392,8 +392,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 > **当前聚焦：v1.0（国庆前后发布）= memory + persona 基础功能**——人格载体 /
 > 会话落库 / 大会话分组 / 上下文 compact / **记忆内容模型（D16）** / WebUI
 > （**autorun 同日决定暂不做，也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与
-> `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨是开工前唯一的硬前置**；
-> 详细排期见 `PROGRESS.md`「当前聚焦」。
+> `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨已于 2026-09-29 补完**，
+> 现在没有前置项（只剩实现时调的参）；详细排期见 `PROGRESS.md`「当前聚焦」。
 > WebUI 管理后台见 `developDoc/WEBUI.md`，启动编排见 `developDoc/SERVE.md`。
 
 1. **搭标准项目骨架**（轻量）：目录结构 + 配置系统 + 日志 + CLI 入口，各模块留占位
@@ -542,17 +542,21 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - **文档站（D12）**：**短期不做**（多一个站多一份维护，功能未稳）
 - **其他收尾（D13）**：WebUI 配置页体验要在 v1.0 一并改（现状"选项名 + 数值框"跟直接改
   配置文件只差一个 UI）；同条还收着「3 个测试 skill 样本先放 `developDoc/skills-backup/`」
-- **记忆内容模型（D16，商讨中）**：分层 / 三类产物（事件 · 对话总结 · 周记月记）/
-  写入时机（**大会话结束**）/ 权重衰减方向已定；**用户 2026-09-29 定：D16 进 v1.0**，
-  但**开工前必须先补完 `developDoc/MEMORY.md` 第五节 8 条待商讨**（衰减规则 / 防刷分 /
-  周记聚合 / 注入预算 / 一级与二三级关系 / 表结构 / WebUI 可见性 / 热冷两轴表结构收敛）。
-  这是 v1.0 范围内**唯一挂着的 B 级项**（颗粒度表见 `discuss-2026-09-28.md` 末尾）
+- **记忆内容模型（D16，2026-09-29 已定案）**：分层**按时间**（二级近 14~15 天 / 三级近 1 年）；
+  三类产物 = **事件**（唯一向量化）/ 对话总结 / **两周记**（取消周记月记；总结类**不向量化**，
+  避免检索到残缺片段）；写入时机 = 大会话结束（+ 每两周出两周记）；
+  权重 `w_eff = (weight + hit) × 2^(−Δt/H)`，**读时惰性算**（无 autorun 也能跑）、
+  命中 +1 且一次调用内去重、封顶 8.0、关键阈值 5.0、负数 = 软隐藏；
+  注入三块（关键记忆 / 近 14 天事件 / 最近两周记）**不设 token 预算**、拼在**历史尾部**且
+  不写进 history（保 KV cache 前缀）；默认 **Aris 自主调 `memory_search`**，12 小时没用过则
+  **兜底主动检索**并把结果插在询问之后；`system prompt` 与记忆块**不参与 compact**，
+  压缩后重拼（摘要 + compact 前 3 条原文，为了"顺下来"）；二三级**同表** `memory_entries`
+  （`embedding` 可空，只有事件有）；WebUI 加 `/memory` 页（改权重 / 软隐藏 / **硬删除**，
+  不触发 LLM）；v1.0 **只建热表 384 维**。全部细节见 `developDoc/MEMORY.md`；
+  颗粒度表 D16 = **A**
 
 ## 待定（勿替用户做决定）
 
-- 记忆架构：**已收拢到 `developDoc/MEMORY.md`**——分层与「事件」定义已定案；
-  **未定的只剩内容模型的 8 条待商讨**（D16，**已定进 v1.0**，开工前必须补完）。
-  原「感觉/短期/长期 + 反思 + 时间线冲突」的构想由该文件承接，不再散记在这里
 - STT 选型（候选：Groq Whisper / 通义听悟）
 - 人格系统实现方式（提示词工程 vs MCP）—— **提示词工程已落地**（2026-08-12，
   persona 模块）；未来是否引入 MCP 按需再议
@@ -638,7 +642,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 | 技能系统（`behavior.skills`） | `developDoc/SKILLS.md` |
 | 联网搜索方案（演进历史 / 留档） | `developDoc/WEB-SEARCH.md` |
 | `memory` 模块（Embedding / 检索） | `developDoc/EMBEDDING.md` |
-| **记忆系统设计（分层 / 事件 / 权重衰减；商讨中）** | `developDoc/MEMORY.md` |
+| **记忆系统设计（分层 / 事件 / 两周记 / 衰减 / 注入 / 表结构；2026-09-29 定案）** | `developDoc/MEMORY.md` |
 | 知识库（独立 RAG 知识检索；议题全部定案） | `developDoc/KNOWLEDGE-BASE.md` |
 | LLM 提供商/模型管理（list/check/fetch/退休） | `developDoc/LLM-PROVIDER-MGMT.md` |
 | `voice` 模块（STT / TTS） | `developDoc/stt&&tts选型.md` |
