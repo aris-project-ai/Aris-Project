@@ -393,7 +393,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 > 会话落库 / 大会话分组 / 上下文 compact / **记忆内容模型（D16）** / WebUI
 > （**autorun 同日决定暂不做，也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与
 > `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨已于 2026-09-29 补完**，
-> 现在没有前置项（只剩实现时调的参）；详细排期见 `PROGRESS.md`「当前聚焦」。
+> 现在没有前置项（只剩实现时调的参）；**施工顺序与验收口径见 `developDoc/V1.0-PLAN.md`**
+> （M0–M9），进度记在 `PROGRESS.md`「当前聚焦」。
 > WebUI 管理后台见 `developDoc/WEBUI.md`，启动编排见 `developDoc/SERVE.md`。
 
 1. **搭标准项目骨架**（轻量）：目录结构 + 配置系统 + 日志 + CLI 入口，各模块留占位
@@ -657,4 +658,5 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 | 后续待办（未排期的中长期方向） | `developDoc/BACKLOG.md` |
 | **BACKLOG 全量商讨记录（2026-09-28，D1–D16 定案/商讨 + 勘察卡片 + 颗粒度分级表）** | `developDoc/discuss-2026-09-28.md` |
 | **v1.0 硬目标：可迁移性 + 单一会话原则（D14/D15）** | `developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
+| **v1.0 施工方案（阶段 M0–M9 / 验收 DoD / 风险 / 待拍板）** | `developDoc/V1.0-PLAN.md` |
 | 开发进度归档（历史条目与踩坑记录，查旧事用） | `developDoc/PROGRESS-ARCHIVE.md` |
