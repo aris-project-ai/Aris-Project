@@ -569,9 +569,12 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   不写进 history（保 KV cache 前缀）；默认 **Aris 自主调 `memory_search`**，12 小时没用过则
   **兜底主动检索**并把结果插在询问之后；`system prompt` 与记忆块**不参与 compact**，
   压缩后重拼（摘要 + compact 前 3 条原文，为了"顺下来"）；二三级**同表** `memory_entries`
-  （`embedding` 可空，只有事件有）；WebUI 加 `/memory` 页（改权重 / 软隐藏 / **硬删除**，
-  不触发 LLM）；v1.0 **只建热表 384 维**。全部细节见 `developDoc/MEMORY.md`；
-  颗粒度表 D16 = **A**
+  （`embedding` 可空，只有事件有）；WebUI 加 `/memory` 页（改权重 / 软隐藏 / **钉住** /
+  **可见性** `normal|private|sealed` / **硬删除** / 统计与批量管理，不触发 LLM）；
+  v1.0 **只建热表 384 维**。**工具 `memory_search`（2026-10-01 定）**：默认 `scope=refined`
+  查**事件（向量+权重）+ 总结/两周记（关键词匹配）**，可切 `scope=raw` 查**原文**；
+  `mode=random` 走**按权重加权随机**的"主动随机回忆"（不计 hit）；工具描述里提示
+  「不必只查与当前对话相关的记忆」。全部细节见 `developDoc/MEMORY.md`；颗粒度表 D16 = **A**
 
 ## 待定（勿替用户做决定）
 

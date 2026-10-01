@@ -230,6 +230,8 @@ w_eff = (weight + hit_count × HIT_GAIN) >> floor(Δt / H)，  Δt = now − las
 
 - **衰减 = 每过一个半衰期整体右移一位**（`>>`）：整数、精确、可重复；PG 里就是
   位运算（`(weight + hit_count*100) >> floor(extract(epoch from now()-last_reinforced_at)/(H*86400))`）
+- **钉住（2026-10-01 定）**：`pinned_at IS NOT NULL` → **跳过衰减**（`w_eff = weight + hit×100`），
+  注入时**优先于同权重的其他条目**，但仍受「关键记忆 ≤7 条」的配额限制
 - 想更平滑就把 `H` 调小（衰减步长恒为"一个半衰期折半"），不必引入小数
 - 负权重 = 软隐藏（4.4），数值上直接判 `< 0`
 
@@ -294,10 +296,33 @@ w_eff = (weight + hit_count × HIT_GAIN) >> floor(Δt / H)，  Δt = now − las
   - 立意：Aris 可能"忘记用记忆"，兜底保证它至少隔一段时间就真的看一眼记忆
   - 兜底这一次**算真实检索 → 计 hit**（去重规则同 4.3）
 
-### 5.4 按时间取历史产物（2026-09-29 定案）
+### 5.4 总结类产物的取用方式（2026-09-29 定，2026-10-01 修订）
 
-- 两周记 / 对话总结**不向量化**，所以给它们的入口是**时间**而不是相似度：
-  WebUI `/memory` 按时间浏览；给 Aris 的工具也按时间范围取（如"上个月的两周记"）
+- 两周记 / 对话总结**不向量化**（它们比 embedding 模型的输入窗口长，切块或截断会查出
+  **残缺的周记**），所以走**两条非向量通路**：
+  - **按时间取**：WebUI `/memory` 按时间浏览；工具按时间范围取（如"上个月的两周记"）
+  - **关键词匹配**（2026-10-01 加）：`content ILIKE '%关键词%'`，按时间倒序取前 N——
+    中文**不做分词/FTS**（那属知识库第二阶段），v1.0 够用
+
+### 5.5 工具能力（2026-10-01 定案）
+
+`memory_search` 一个工具、两个维度：
+
+```
+memory_search(query, scope="refined", mode="search", limit=5)
+```
+
+| 维度 | 取值 | 行为 |
+|---|---|---|
+| `scope` | `refined`（**默认**） | 三类提炼物一起查：**事件**走向量相似度 + 权重微调；**总结 / 两周记**走**关键词匹配**（按时间倒序） |
+| | `raw` | 查**原文**（`memory_messages.content` 关键词匹配，按时间倒序，带 `session_id` 与时间） |
+| `mode` | `search`（**默认**） | 正常检索，命中计 hit（去重规则同 4.3） |
+| | `random` | **主动随机回忆**：在本角色活跃记忆里按 `w_eff` **加权随机**抽 `limit` 条（权重越高越可能被抽到；低于消失阈值的不参与）。**不计 hit**（避免随机刷分） |
+
+- **返回**：每条带 `kind`（`event` / `summary` / `digest` / `raw`）、时间、权重、来源
+- **工具描述里加一条提示词**（2026-10-01 定）：「不必只查与当前对话相关的记忆——也可以查
+  很久以前的事、查某个人、查某段时间、或者干脆随机想起来点什么」
+- 与 5.4 的关系：`refined` 的总结类与 `raw` 都走关键词，**都不碰向量**
 
 ---
 
@@ -338,6 +363,8 @@ memory_entries (
     session_id         uuid,                           -- 来源小会话（溯源）
     source_ref         jsonb       NOT NULL DEFAULT '{}'::jsonb,
     schema_version     text        NOT NULL,
+    pinned_at          timestamptz,                   -- 钉住：不衰减（2026-10-01）
+    visibility         text        NOT NULL DEFAULT 'normal',  -- normal | private | sealed
     meta               jsonb       NOT NULL DEFAULT '{}'::jsonb,
     created_at         timestamptz NOT NULL DEFAULT now(),
     deleted_at         timestamptz                     -- 软删（沿用 knowledge 两表风格）
@@ -364,6 +391,14 @@ memory_entries (
   - **改权重**（特别记忆 / 取消）、**软隐藏 / 恢复**（负数权重）
   - **硬删除**（二次确认；只删提炼物，不动原文）
   - 按时间浏览两周记 / 对话总结（不走向量）
+- **用户干预（2026-10-01 定，两条都要）**
+  - **钉住 / 取消钉住**（`pinned_at`）：不衰减、注入优先（仍占 ≤7 配额）
+  - **可见性**（`visibility`）：`normal` / `private`（**不进注入**，仍可被检索）/
+    `sealed`（**不注入不检索**，只在 WebUI / CLI 可见）——与"负数 = 软隐藏"是两个维度
+- **统计（2026-10-01 定）**：各 `kind`/`tier` 条数、平均与最高 `w_eff`、最近 7 天新增、
+  命中次数分布、衰减最快 top 10
+- **管理（2026-10-01 定）**：按 `cid`/`tier`/`kind`/`visibility` 过滤 + **批量**改权重 /
+  隐藏 / 钉住 / 删除
 - **页面上不触发任何 LLM 调用**（改权重是手工动作）
 - 数据仍走总线（`memory.list` / `memory.set_weight` / `memory.hide` / `memory.purge` 等，
   与 WebUI 现有"全部路由走 `core.call`"的约定一致）
@@ -390,6 +425,7 @@ memory_entries (
 3. 两周记的聚合提示词，与"避免重复与超长"的具体写法（上限 1200 字是实现约束）
 4. compact 尾巴保留条数（默认 3）、compact 触发比例（D5 已定用字符估算）
 5. 兜底主动检索的间隔（默认 12 小时）与返回条数
+7. `random` 随机回忆的条数与加权方式（现定按 `w_eff` 加权随机）
 6. 回归样例的**通过判据**（正例条数/要点对上、反例 0 条；是否需要 LLM 判分）
 
 ---
@@ -405,4 +441,5 @@ memory_entries (
 | `autorun` 暂不做 | ✅ 无依赖 | 衰减惰性计算、归纳走大会话边界事件驱动、两周记按窗口触发，都不需要调度器 |
 | 知识库与记忆两条独立通路 | ✅ 兼容 | 记忆的 emb+SQL 检索独立于 `knowledge_search` |
 | `EMBEDDING.md` 热/冷分 provider | ✅ 已收敛 | **v1.0 只用热(384)**，冷库暂不做，不预留冷列（见第九节） |
-| 总结类产物不向量化 | ✅ 已定 | 避免"检索到残缺周记"；靠时间直取（5.4） |
+| 总结类产物不向量化 | ✅ 已定 | 避免"检索到残缺周记"；靠**时间直取 + 关键词匹配**（5.4） |
+| 钉住 / 可见性（用户干预） | ✅ 已定 | 两个独立维度：`pinned_at` 只管衰减，`visibility` 只管注入/检索 |
