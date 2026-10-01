@@ -38,12 +38,13 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 | # | 步骤 | 动作 | 失败档位 |
 |---|---|---|---|
 | 0 | `services` | 核验各模块声明的依赖服务都已注册（缺一即 ERROR 且非零退出） | **required** |
-| 1 | `core.llm` | import 触发注册；校验 `providers.toml` + 体检（缺 key / 无可用模型等） | optional |
-| 2 | `character` / `behavior` | import 触发注册（工具、skills 菜单） | optional |
-| 3 | `store.db` | 探活；没跑则**自启**便携 PG；跑迁移到最新 | **required** |
-| 4 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
-| 5 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 3） |
-| 6 | `webui` | 端口探测 → 起 HTTP（见 §4） | optional |
+| 1 | `data` | 幂等创建 `data/` 下必须带的目录（`characters/` / `skills/` / `autorun/`）；可迁移性 D14 | optional |
+| 2 | `core.llm` | import 触发注册；校验 `providers.toml` + 体检（缺 key / 无可用模型等） | optional |
+| 3 | `character` / `behavior` | import 触发注册（工具、skills 菜单） | optional |
+| 4 | `store.db` | 探活；没跑则**自启**便携 PG（端口被占则换端口、二进制跑不起来则重获取、角色名在线对齐）；跑迁移到最新 | **required** |
+| 5 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
+| 6 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 4） |
+| 7 | `webui` | 端口探测 → 起 HTTP（见 §4） | optional |
 
 说明：探针是「只读 + 可失败」的体检（`aris doctor` 复用同一份），启动动作才是真正
 拉东西；`--dry-run` 只跑前者。
@@ -51,13 +52,15 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 终端输出形态（清单结构化，便于日志检索）：
 
 ```
-aris serve v0.4.2  data=…/data  pid=12345
+aris serve v1.0.0  data=…/data  pid=12345
+✓ services     各模块声明的 24 个依赖服务全部就绪
+✓ data         …/data：必须带的目录齐备
 ✓ core.llm     3 提供方，默认 deepseek-v4-flash-free
-✓ character      character.system_prompt
+✓ character    character.system_prompt
 ✓ behavior     3 工具 / 4 skills
-✓ store.db     PG 17.11 @127.0.0.1:55432（自启）
-✓ store.embed  后台预热中（Bekko a25m，384 维）
-✓ knowledge    1 文档 / 129 块，迁移已最新
+✓ store.db     PG @127.0.0.1:55432（本次自启，角色 aris）；应用迁移 0 条
+✓ store.embed  384 维；后台预热中（Bekko a25m）
+✓ knowledge    1 文档 / 129 块，索引已就绪
 ✓ webui        http://127.0.0.1:9690（免鉴权模式：仅本机）
 各模块声明的 24 个依赖服务全部就绪 · Ctrl-C 停止
 ```
@@ -82,6 +85,22 @@ aris serve v0.4.2  data=…/data  pid=12345
 - **例外（已实现时补的规则）**：若本次没有任何常驻步骤（webui 未启用或被 `--skip`），
   serve 启动完就退出，此时**不执行收尾停止**——否则「起了又立刻停」等于白折腾，
   `aris serve --only store.db` 这种用法也会彻底没用。日志会说明库保持运行。
+
+#### 换机与启动幂等（D14，2026-10-01 M0 落地）
+
+换机 = 新机 `git clone` → 拷 `data/` → `uv run aris serve`。四个缺口依次在这条路径上处理
+（实现全在 `store/pgenv.py` + `store/bootstrap.py`，不落任何"已验证状态"进库）：
+
+| # | 缺口 | 处理 | 失败时 |
+|---|---|---|---|
+| ① | 便携 PG 二进制**平台相关**（Linux x86_64 ≠ macOS ≠ aarch64） | `probe_runnable()` 真的执行一次 `postgres --version`（不是查 `.exists()`）；跑不起来且来源是 `data/pg` → `bootstrap_env(force=True)` 删掉这个**可重建**目录重新获取 | 系统装的 PG 跑不起来 → 报错并给可操作提示 |
+| ② | `pgdata` 属主绑定旧用户名 | `ownership_error()` 比对属主与当前 euid，**不自动 chown**，把命令写清楚 | 报可操作错误（`sudo chown -R …` 或删 `pgdata` 重建） |
+| ② | 集群**角色名**是 initdb 时写下的（旧主机用户名） | 新建集群统一 `initdb -U aris`（与主机无关）；老集群用 `align_user()` 实连候选角色：本机用户名 / `aris` / 从 `pg_authid` **离线扫出**的角色名 / `pgdata` 属主 / `postgres`，命中即写 `pgdata/aris-role`（随数据一起搬走） | 全不通 → 提示用 `ARIS_PG_USER` 指定 |
+| ③ | 固定端口可能被占 | `choose_port()` 启动前探测，被占则向内核要一个空闲端口；端口**不写任何配置**，运行中实例的端口留在 socket 文件名（`.s.PGSQL.<port>`）里，`aris db status/psql` 等独立进程据此反推 | —— |
+
+另外两处启动幂等：`data/` 分层由步骤 `data` 负责（`datadir.ensure_dirs()`），
+崩溃残留的 `postmaster.pid` 与 `.s.PGSQL.*`（含 `.lock`）由 `_clear_stale_runtime()`
+在启动前清掉（只清第一次也是唯一一次：`is_running()` 已确认服务不在）。
 
 ### embedding：启动即预热（后台 + 就绪标志）
 

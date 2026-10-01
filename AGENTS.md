@@ -51,6 +51,9 @@
   需联网数分钟），WebUI 落在 `http://127.0.0.1:9690`。发行形态见「版本号更新」的
   **三类版本**（2026-10-01 定：`beta-vX.Y.Z` 开发时版 / `vX.Y.ZbN` 候选 / `vX.Y.Z` 正式版）。
 - 骨架、LLM 接入、文字对话、行为扩展（函数调用）、联网搜索、人格系统均已完成。
+- **v1.0 施工中（2026-10-01 起）**：阶段划分与验收见 `developDoc/V1.0-PLAN.md`，
+  进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）已完成**；
+  模块名 `persona/` 已改为 **`character/`**。
 - **启动编排 `serve/` 已完成（v0.4.1）**：`aris serve [--only/--skip/--dry-run]` 一条命令
   拉起 PG（缺则自建、没跑则自启、退出只停自己拉起的）、后台预热 embedding、建知识表、
   并入 WebUI（端口冲突则拒启 web 并提示）；`aris doctor` 与它共用同一份探针。
@@ -372,9 +375,12 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   探测到不兼容 → 走 `bootstrap_env()` 重新获取（联网）或报可操作错误，不许直接崩
 - **`data/` 分层**必须带：`pgdata/`（记忆全在这）、`knowledge/`、`characters/`、`skills/`、
   `autorun/tasks.toml`；可重建：`pg/`、`models/`、各类缓存；**`.venv/` 不在 `data/`**（新机 `uv sync`）
-- **已知三缺口**（实现时处理）：① PG 二进制平台相关（要"能跑"验证而非"存在"）②
-  `pgdata` 属主绑定 `$USER`（换机用户名不同就连不上，需统一定成与主机无关的角色名）
-  ③ 固定端口可能被占
+- **三缺口已处理（2026-10-01，v1.0 M0）**：① PG 二进制平台相关 → 启动时真跑一次
+  `postgres --version`，`data/pg` 跑不起来就删掉重获取（`pgdata` 不动）② `pgdata`
+  属主绑定旧用户名 → **不自动 chown**，报可操作错误；角色名新建集群统一 `initdb -U aris`，
+  老集群 `align_user()` 实连候选（含从 `pg_authid` 离线扫出的名字）并写 `pgdata/aris-role`
+  ③ 固定端口被占 → `choose_port()` 换空闲端口，**端口不落任何配置**（运行中实例的端口
+  留在 socket 文件名里，供独立进程反推）
 
 ### 单一会话原则（D15）
 
@@ -456,6 +462,15 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   代码只认 DSN，不感知实例来源。**pgvector 取预编译包、不源码编译**：本机
   Xeon E5-2673 v3 无 AVX-512，pgvector 的 `USE_TARGET_CLONES` 已在运行期给出
   FMA 快路径，`-march=native` 无额外收益。详见 `developDoc/KNOWLEDGE-BASE.md` 第 3 节
+- **可迁移性与启动幂等（2026-10-01 定案并落地，D14 / v1.0 M0）**：**换机 = 新机
+  `git clone` → 把原机 `data/` 整体拷走 → `uv run aris serve`**。配套四条：
+  ① **不得把"已验证状态"存进库**，一切启动时重新探测（二进制可运行性、角色名、端口）；
+  ② **启动幂等**，缺目录 / 缺库 / 库没跑都自动补齐，重复执行无副作用；
+  ③ **端口与角色名都不写配置文件**——端口只在运行期拼进 DSN（运行中实例的端口留在
+  socket 文件名里），角色名新建集群用与主机无关的 `aris`、老集群写 `pgdata/aris-role` 标记；
+  ④ `data/` 分层：**必须带** `pgdata/` `knowledge/` `characters/` `skills/` `autorun/`
+  （`datadir.py` 的 `CARRIED_PATHS`），**可重建** `pg/` `bin/` `models/` `logs/`
+  （`REBUILDABLE_PATHS`）；换机操作见 `README.md`「换机与迁移」与 `SERVE.md` §4
 - **知识库边界与检索接口（2026-09-18）**：新建 `store/`（embedding + PostgreSQL/pgvector
   基础设施）与 `knowledge/`（知识库业务）两模块，依赖单向 `knowledge → 总线 → store`，
   `memory/` 后续复用 `store/`；**知识库不做 skill**（属内部底层设施），能力经大总线
@@ -610,6 +625,9 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `PgEnv` 内路径一律转绝对
 - **`pkill -f 'data/pgdata'` 会杀掉自己的 shell**（模式自匹配），换精确匹配
 - 便携实例是**项目本地**的：不注册系统服务、不随开机自启，用 WebUI 前先 `aris db start`
+- **崩溃后残留的 socket 锁文件也会挡住启动**：只清 `postmaster.pid` 不够，run 目录里的
+  `.s.PGSQL.*`（含 `.lock`）会让 `pg_ctl` 报 `lock file ... already exists` 直接拒启
+  （已收进 `bootstrap._clear_stale_runtime()`，启动前一并清）
 
 ### 依赖 / 环境
 - **torch 与 torchvision 必须同锁 `pytorch-cpu` 源**：否则 torchvision 装成 CUDA wheel，

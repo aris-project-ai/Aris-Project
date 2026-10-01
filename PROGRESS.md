@@ -16,7 +16,7 @@
 | `character/` | 提示词工程版（单一 `character.system_prompt`）；多人格见 BACKLOG #4 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库页 |
 | `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪 |
-| `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper |
+| `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper；**可迁移性（v1.0 M0）**：二进制可运行验证 + 重获取、属主可操作报错、角色探测对齐、端口自动避让 |
 | `knowledge/` | 首期完成：两表 / 分块 / 摄入 / 纯向量检索 / CLI / agent 工具 / WebUI 页 |
 | `memory/` | **设计已定案（2026-09-29）**：内容模型见 `developDoc/MEMORY.md`（分层 / 事件 / 两周记 / 惰性衰减 / 注入 / 表结构）；会话与消息表见 D2。**D16 = A 级，8 条待商讨已补完** |
 | `voice/` | **占位**（选型见 `developDoc/stt&&tts选型.md`） |
@@ -32,6 +32,36 @@
 - 已知陷阱（踩坑档案，修完就补）：`AGENTS.md`「已知陷阱」节
 
 ## 最近动态
+
+### 2026-10-01：v1.0 M0 —— 可迁移性与启动幂等（D14）
+
+- **目标**：换机 = 新机 `git clone` → 拷 `data/` → `uv run aris serve` 直接起。M0 排在
+  最前是因为 **PG 角色名必须在建任何新表之前定死**（否则 memory 三表建在旧角色名下，
+  将来统一角色名就变成真数据迁移）
+- 四个缺口全部落地（实现都在 `store/pgenv.py` + `store/bootstrap.py`）：
+  - **二进制可运行**：新增 `probe_runnable()`，真跑一次 `postgres --version`（文件在 ≠
+    能跑）；`data/pg` 跑不起来 → `bootstrap_env(force=True)` 删掉这个**可重建**目录重获取，
+    `data/pgdata` 绝不动
+  - **属主**：新增 `ownership_error()`——属主不是当前用户就报**可操作错误**（不自动 chown）
+  - **角色名**：新建集群统一 `initdb -U aris`（与主机无关）；老集群 `align_user()` 实连候选
+    角色并写 `pgdata/aris-role` 标记。候选里加了 `legacy_role_hints()`——从 `pg_authid`
+    数据文件里**离线扫**出角色名（换机后老主机用户名根本猜不到），命中仍以在线实连为准
+  - **端口**：`choose_port()` 被占则向内核要空闲端口，**不写任何配置**；运行中实例端口
+    留在 unix socket 文件名（`.s.PGSQL.<port>`）里，`aris db status/psql` 等独立进程反推
+- **`data/` 分层**：新增 `datadir.py`（`CARRIED_PATHS` / `REBUILDABLE_PATHS`）；
+  serve 新增 **`data` 步骤**幂等创建 `characters/` `skills/` `autorun/`；`aris doctor`
+  打印分层完整性
+- **顺手修一个真 bug**：崩溃后只清 `postmaster.pid` **不够**——run 目录里的
+  `.s.PGSQL.*`（含 `.lock`）会让下一次 `pg_ctl start` 报 `lock file already exists`
+  直接拒启；`_clear_stale_runtime()` 两类一起清（实测踩到）
+- **实测**（都用真数据库跑过）：
+  - 拷 `data/`（pg + pgdata + knowledge，231MB）到别处 → `aris doctor` 全绿 →
+    `aris db start` 起得来 → `psql` 连得上（**换机三步成立**）
+  - 占住 55432 → 自动改用 34557，`detect()` 在**另一个进程**里也能反推出 34557
+  - `initdb -U otheradmin` 造集群（宿主是 kasamorin）→ 离线候选扫出 `otheradmin` →
+    在线对齐成功 → 标记文件写入 → `psql` 实连 `otheradmin`
+- 文档：`README.md` 新增「换机与迁移」小节、`SERVE.md` §4 新增缺口表与处理
+- 测试：新增 `tests/test_store_portability.py`；`uv run pytest` **117 passed, 10 skipped**
 
 ### 2026-10-01：persona → character 改名（代码 + 文档）
 
@@ -310,7 +340,10 @@
 > 已改「定案」、颗粒度表 D16 = A），v1.0 主线无挂起项，只剩实现时调的参。
 
 > **施工方案（阶段划分 / 每阶段改动面 / 验收 / 风险）见 `developDoc/V1.0-PLAN.md`**，
-> 下方是主线摘要；方案里有「待拍板」3 条。
+> 下方是主线摘要。
+>
+> **施工进度（M0–M9）**：**M0 ✅**（2026-10-01，可迁移性与启动幂等）→
+> **M1 进行中**（serve 上收 / 组装根）。
 
 **v1.0 主线（按依赖顺序）**：
 

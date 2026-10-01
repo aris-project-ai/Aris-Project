@@ -3,8 +3,9 @@
 三类步骤（见 developDoc/SERVE.md 第 2 节）：
 
 - ① **import 即就绪**（core / character / behavior）：``start=None``，探针只做自检
-- ② **需要外部资源**（store.db / store.embed / knowledge）：启动动作由模块自己经
-  总线提供（``store.start`` / ``store.embed_preload`` / ``knowledge.start``）
+- ② **需要外部资源**（data / store.db / store.embed / knowledge）：启动动作由模块自己
+  经总线提供（``store.start`` / ``store.embed_preload`` / ``knowledge.start``）；
+  ``data`` 只做 ``data/`` 目录分层（可迁移性 D14），没有对应模块
 - ③ **入口**（webui）：``blocks=True``，由编排方在打完启动清单后调用（它会阻塞
   到 Ctrl-C）
 
@@ -92,19 +93,52 @@ def _probe_behavior() -> str:
     return "skills 服务已注册（工具与 loop 按需构造）"
 
 
+def _probe_data() -> str:
+    """探针：``data/`` 分层完整性（可迁移性 D14；只读，缺失只提示）。"""
+    from ..datadir import missing_carried
+
+    data_dir = get_settings().data_dir
+    missing = missing_carried(data_dir)
+    if missing:
+        return f"{data_dir}：缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）"
+    return f"{data_dir}：必须带的目录齐备"
+
+
+def _start_data() -> str:
+    """启动动作：幂等创建 ``data/`` 下必须带的目录（换机后拷过来就能起）。"""
+    from ..datadir import ensure_dirs
+
+    created = ensure_dirs(get_settings().data_dir)
+    return f"新建 {', '.join(created)}" if created else "目录已齐备，无新建"
+
+
 def _probe_db(init_if_missing: bool) -> str:
-    """探针：数据库实例是否存在、是否在跑、有多少待执行迁移（不启动）。"""
+    """探针：数据库实例是否存在、是否在跑、有多少待执行迁移（不启动）。
+
+    同时报可迁移性三缺口（D14）：二进制能否在本机运行、数据目录属主是否当前用户、
+    端口是否被占——这些是"换机后起不来"的三个真实原因，必须在启动前说清楚。
+    """
     info: dict[str, Any] = call("store.db_status") or {}
     if not info:
         raise RuntimeError("store.db_status 未注册")
+    if not info.get("runnable", True):
+        raise RuntimeError(
+            f"便携 PostgreSQL 在本机跑不起来：{info.get('runnable_detail')}"
+            "——启动时会自动重新获取（需联网）"
+        )
+    if info.get("ownership_error"):
+        raise RuntimeError(str(info["ownership_error"]))
     if not info.get("installed"):
         if init_if_missing:
             return f"未初始化（启动时将自动获取，需联网）@127.0.0.1:{info['port']}"
         raise RuntimeError("便携数据库尚未初始化：执行 `aris db init`")
     if not info.get("running"):
-        return f"未运行（启动时将自启）@127.0.0.1:{info['port']}"
+        return f"未运行（启动时将自启）@127.0.0.1:{info['port']}；角色 {info.get('user')}"
     pending = len(info.get("pending_migrations") or [])
-    return f"PG 运行中 @127.0.0.1:{info['port']}；待执行迁移 {pending} 条"
+    return (
+        f"PG 运行中 @127.0.0.1:{info['port']}；角色 {info.get('user')}；"
+        f"待执行迁移 {pending} 条"
+    )
 
 
 def _start_db(autostart: bool, init_if_missing: bool) -> str:
@@ -123,7 +157,10 @@ def _start_db(autostart: bool, init_if_missing: bool) -> str:
     else:
         origin = "已就绪"
     migrations = len(info.get("migrations") or [])
-    return f"PG @127.0.0.1:{info['port']}（{origin}）；应用迁移 {migrations} 条"
+    return (
+        f"PG @127.0.0.1:{info['port']}（{origin}，角色 {info.get('user')}）；"
+        f"应用迁移 {migrations} 条"
+    )
 
 
 def _probe_embed() -> str:
@@ -194,6 +231,7 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
     embed_start = _start_embed if config.preload_embedding else None
     return [
         ServeStep("services", "services", _probe_services, level="required"),
+        ServeStep("data", "data", _probe_data, start=_start_data),
         ServeStep("core", "core.llm", _probe_llm),
         ServeStep("character", "character", _probe_character),
         ServeStep("behavior", "behavior", _probe_behavior),
