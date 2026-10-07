@@ -9,6 +9,10 @@
 
 中间轮（tool_calls + tool 结果）只在循环内存在，不修改传入的消息列表——
 持久历史（ChatSession.history）只收最终回答，工具细节不污染。
+
+M1 上收后本类是**进程共享**的（一份实例由 `serve.assemble()` 持有，见
+`behavior/runtime.py`）：引擎与工具注册表经注入拿到，直接调用（同一次装配
+的对象，不走总线）；模型 id 按调用传，不存实例状态。
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from aris.cfgtoml import load_config
-from aris.core.bus import call, provide
+from aris.core.bus import provide
 from aris.core.llm.engine import LLMEngine
 from aris.core.llm.message import ChatRequest, FinishReason, Message, MessageRole
 
@@ -79,52 +83,54 @@ class AgentLoop:
         engine: LLMEngine,
         *,
         registry: ToolRegistry,
-        model_id: str,
         max_rounds: int | None = None,
         temperature: float | None = None,  # 采样温度（config/chat.toml）
         top_p: float | None = None,  # 核采样概率质量（config/chat.toml）
     ) -> None:
+        """建 loop。
+
+        **不持有 model_id**：运行时是进程共享的（M1 上收），模型是会话的状态；
+        存成实例字段会变成「最后一个会话的模型」，多人格下互相顶掉。
+        """
         self.engine = engine
         self.registry = registry
-        self.model_id = model_id
         self.max_rounds = _loop_config.max_rounds if max_rounds is None else max_rounds
         self.temperature = temperature
         self.top_p = top_p  # 传入 ChatRequest，由 formatters 写入请求体
         # 注册为统一服务：agent loop 统一走 core.call("loop.run", ...)
         provide("loop.run", self.iter_events)
-        provide("loop.set_model", self.set_model)
-
-    def set_model(self, model_id: str) -> None:
-        """切换模型：仅更新内部 model id，后续请求使用新模型。"""
-        self.model_id = model_id
 
     def iter_events(
         self,
         messages: list[Message],
         *,
+        model_id: str,
         thinking: bool | None = None,
         should_stop: ShouldStop | None = None,
         race_model: str | None = None,
+        tools_enabled: bool = True,
     ) -> Iterator[LoopEvent]:
         """迭代执行循环，产出事件流（流式文本 / 工具通知 / 结束标记）。
 
+        model_id：本次使用的模型（按调用传，见 `__init__`）。
+        tools_enabled=False 时请求不带任何工具定义（`--no-tools` 的会话）。
         race_model：传入降级后实际生效的模型 id 时，本轮改为「本家 vs 备选」
-        并发竞速（llm.race）；DONE 携带实际生效的 model_id / degraded /
-        race_possible，供上层决定下一轮是否继续竞速恢复。
+        并发竞速；DONE 携带实际生效的 model_id / degraded / race_possible，
+        供上层决定下一轮是否继续竞速恢复。
         以 interrupted 事件结束时表示被中断（调用方应回滚未完成的 user 消息）。
         """
         work = list(messages)
-        tools = self.registry.definitions()
+        tools = self.registry.definitions() if tools_enabled else []
         for _ in range(self.max_rounds):
             base_request = ChatRequest(
-                model_id=self.model_id,
+                model_id=model_id,
                 messages=work,
                 tools=tools,
                 thinking=thinking,
                 temperature=self.temperature,
                 top_p=self.top_p,
             )
-            if race_model is not None and race_model != self.model_id:
+            if race_model is not None and race_model != model_id:
                 fallback_request = ChatRequest(
                     model_id=race_model,
                     messages=work,
@@ -133,14 +139,14 @@ class AgentLoop:
                     temperature=self.temperature,
                     top_p=self.top_p,
                 )
-                deltas = call("llm.race", base_request, fallback_request)
+                deltas = self.engine.stream_deltas_race(base_request, fallback_request)
             else:
-                deltas = call("llm.deltas", base_request)
+                deltas = self.engine.stream_deltas(base_request)
             content = ""
             reasoning = ""
             tool_calls: list = []
             finish_reason: str | None = None
-            model_id: str | None = None
+            used_model: str | None = None
             degraded = False
             race_possible = False
             for delta in deltas:
@@ -158,7 +164,7 @@ class AgentLoop:
                 if delta.finish_reason:
                     finish_reason = delta.finish_reason
                     tool_calls = delta.tool_calls or []
-                    model_id = delta.model_id
+                    used_model = delta.model_id
                     degraded = delta.degraded
                     race_possible = delta.race_possible
 
@@ -167,7 +173,7 @@ class AgentLoop:
                 yield LoopEvent(
                     type=LoopEventType.DONE,
                     content=content,
-                    model_id=model_id or self.model_id,
+                    model_id=used_model or model_id,
                     degraded=degraded,
                     race_possible=race_possible,
                 )
@@ -188,7 +194,9 @@ class AgentLoop:
                 ctx = "\n".join(
                     m.content or "" for m in work if m.role != MessageRole.SYSTEM
                 )[-20000:]
-                result = call("tools.execute", tc.name, tc.arguments, context=ctx)
+                # 同模块内部调用（behavior.loop → behavior.registry），不走总线：
+                # registry 是注入的实例，走单槽服务会被别的会话顶掉
+                result = self.registry.execute(tc.name, tc.arguments, context=ctx)
                 yield LoopEvent(type=LoopEventType.TOOL, name=tc.name, result=result)
                 work.append(
                     Message(role=MessageRole.TOOL, content=result, tool_call_id=tc.id)
@@ -198,7 +206,7 @@ class AgentLoop:
         yield LoopEvent(
             type=LoopEventType.DONE,
             content=content,
-            model_id=model_id or self.model_id,
+            model_id=used_model or model_id,
             degraded=degraded,
             race_possible=race_possible,
         )

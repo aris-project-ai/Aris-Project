@@ -89,14 +89,15 @@ def user_messages(model_id: str, text: str = "你好") -> list[Message]:
 
 
 def make_loop(engine: LLMEngine) -> AgentLoop:
-    """构造默认 agent loop（空 registry + 默认模型）。"""
-    return AgentLoop(
-        engine,
-        registry=ToolRegistry(),
-        model_id=engine.providers.default_model or "m1",
-    )
+    """构造默认 agent loop（空 registry）。
+
+    模型 id 不再存在 loop 实例上（M1 上收：运行时进程共享），按调用经
+    ``events_of(..., model_id=...)`` 传，默认取引擎的默认模型。
+    """
+    return AgentLoop(engine, registry=ToolRegistry())
 
 
 def events_of(loop: AgentLoop, messages: list[Message], **kw):
-    """把 loop 事件流收集成列表。"""
+    """把 loop 事件流收集成列表（默认用该引擎的默认模型）。"""
+    kw.setdefault("model_id", loop.engine.providers.default_model or "m1")
     return list(loop.iter_events(messages, **kw))

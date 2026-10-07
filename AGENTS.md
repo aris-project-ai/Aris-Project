@@ -52,8 +52,8 @@
   **三类版本**（2026-10-01 定：`beta-vX.Y.Z` 开发时版 / `vX.Y.ZbN` 候选 / `vX.Y.Z` 正式版）。
 - 骨架、LLM 接入、文字对话、行为扩展（函数调用）、联网搜索、人格系统均已完成。
 - **v1.0 施工中（2026-10-01 起）**：阶段划分与验收见 `docs/developDoc/V1.0-PLAN.md`，
-  进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）已完成**；
-  模块名 `persona/` 已改为 **`character/`**。
+  进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）与 M1（serve
+  上收组装根）已完成**；模块名 `persona/` 已改为 **`character/`**。
 - **启动编排 `serve/` 已完成（v0.4.1）**：`aris serve [--only/--skip/--dry-run]` 一条命令
   拉起 PG（缺则自建、没跑则自启、退出只停自己拉起的）、后台预热 embedding、建知识表、
   并入 WebUI（端口冲突则拒启 web 并提示）；`aris doctor` 与它共用同一份探针。
@@ -106,7 +106,10 @@
   - head：前缀 + 简短中文描述，如 `feat: 添加登录功能`；前缀允许
     `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`，
     可带 scope（`feat(bus): ...`）
-  - body：换行后用中文写清改动动机与要点（为什么改、改了什么）
+  - body：换行后用中文写清改动动机与要点（为什么改、改了什么），**一两句即可，
+    不写成技术文档长文**；踩坑与背景记进本文件「已知陷阱」或 `PROGRESS.md`，不塞进 commit
+  - **一次提交只做一件事（代码与文档分开）**；**同一文件的改动一次改完**，
+    不要对同一文件连续多次编辑
   - 改动极小（body 无内容可写）时可省略 body，但 head 必须符合格式
   - **仓库自带 commit-msg hook**（`.githooks/`）校验 head 格式，安装方式见
     `scripts/install-git-hooks.sh`；hook 放行 merge/revert 提交
@@ -324,8 +327,10 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   自检与 `store.db`，其余 optional）+ **降级必须记日志**。组装根与依赖清单已上收：
   `serve.assemble()` 是唯一触发点、`services` 步骤核验各模块声明的
   `REQUIRED_SERVICES`、`aris doctor` 与 `aris serve --dry-run` 共用
-  `serve.probe_all()` 探针。**待做**：工具注册表 / agent loop / LLM engine 仍是
-  会话级对象（#4/#7 时由 serve 上收）。详见 `docs/developDoc/SERVE.md`
+  `serve.probe_all()` 探针。**工具注册表 / agent loop / LLM engine 已随 v1.0 M1 上收**
+  （2026-10-07）：`serve/assembly.py` 只装配一份**进程级运行时**（`behavior/runtime.py` 的
+  `BehaviorRuntime`），`ChatSession` 注入复用、不再自建；模型 id 不存 loop 实例、按调用传。
+  详见 `docs/developDoc/SERVE.md`
 - `autorun/` —— **定时与主动任务调度（2026-09-28 定案方向；同日追加决定：
   暂不实现，v1.0 也不做）**：**只留设计文档，不写代码**。定位 = 独立模块（平行于
   `behavior/`、`serve/`）、**纯调度器 + 触发源抽象**（定时 / 事件 / 手动），

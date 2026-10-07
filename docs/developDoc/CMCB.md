@@ -123,11 +123,10 @@ summary = query_summary()            # 聚合统计
 
 | 服务名 | 注册来源 | 用途 | 调用方 |
 |---|---|---|---|
-| `llm.stream` | `LLMEngine.__init__` | 纯文本流式（简单场景） | `cli.py llm test` |
-| `llm.deltas` | `LLMEngine.__init__` | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py` |
-| `tools.execute` | `ToolRegistry.__init__` | 执行工具，返回文本结果 | `behavior/loop.py` |
-| `loop.run` | `AgentLoop.__init__` | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
-| `loop.set_model` | `AgentLoop.__init__` | 切换模型：更新 loop 内部 model id | `chat/session.py` |
+| `llm.stream` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 纯文本流式（简单场景） | `cli.py llm test` |
+| `llm.deltas` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py`（内部直调注入的 engine） |
+| `tools.execute` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 执行工具，返回文本结果 | `behavior/loop.py`（内部直调注入的 registry；服务供外部经总线用） |
+| `loop.run` | `AgentLoop.__init__`（组装期 `serve.assemble()`） | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
 | `character.system_prompt` | `character/__init__.py` | 返回 Aris 系统提示词 | `chat/session.py`（默认人设，`--system` 可覆盖） |
 | `skills.menu` | `SkillManager.__init__` | 返回技能清单（注入 system prompt 供模型判断何时激活） | `chat/session.py`（工具启用时） |
 | `audit.recent` | `core/bus.py` 模块级 | 最近审计流水（分页，按 wall_ts 倒序） | `webui` 审计页 |
@@ -157,9 +156,10 @@ summary = query_summary()            # 聚合统计
 
 ### 已迁移（第一批：核心链路，贯穿 chat/behavior/core.llm）
 
-- `behavior/loop.py`：内部调 `llm.deltas` / `tools.execute` 走总线；
-  自身注册 `loop.run`。
-- `chat/session.py`：调 `loop.run` 走总线。
+- `behavior/loop.py`：内部改**直接调**注入的 `self.engine` / `self.registry`（同一份装配对象，
+  v1.0 M1 上收后是进程级共享实例——避免共享单槽服务被别的会话顶掉），仍注册 `loop.run`
+  供外部经总线用。
+- `chat/session.py`：经注入的运行时用 loop（`loop.run` 服务保留）。
 - `cli.py` `llm test`：调 `llm.stream` 走总线。
 
 ### 已迁移（第二批：character，2026-08-12）
@@ -217,8 +217,8 @@ summary = query_summary()            # 聚合统计
 
 - ~~`session.py` 中 `self.browser.close()`、`cleanup_stale_browser_processes()`~~
   → **已随浏览器链路删除**（2026-08-12），无需处理。
-- `loop.set_model` 已注册为 `loop.set_model` 服务（见服务表），
-  `session.set_model` 经 `call("loop.set_model", model_id)` 调用，已完成迁移。
+- ~~`loop.set_model`~~ → **已删除（v1.0 M1，2026-10-07）**：模型 id 不再存 loop 实例
+  （共享实例存模型 = "最后一个会话的模型"），改由 `iter_events(..., model_id=...)` 按调用传。
 
 ## 后续待办
 

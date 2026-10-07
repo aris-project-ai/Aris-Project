@@ -538,21 +538,19 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
 
 def _cmd_chat(args: argparse.Namespace) -> int:
-    """文字对话：有消息参数走单次问答，无参数进入交互循环。"""
+    """文字对话：有消息参数走单次问答，无参数进入交互循环。
+
+    v1.0 M1：引擎 / 工具注册表 / agent loop 不再在这里自建，走组装根
+    `serve.assemble()` 建好的**进程级运行时**（会话与它共享一份）。
+    """
     from aris.chat import ChatSession
-    from aris.core.llm import LLMEngine, load_providers
+    from aris.serve import assemble, get_runtime
 
     settings = get_settings()
-    providers = load_providers(settings.llm_providers_file)
-    engine = LLMEngine(
-        providers,
-        timeout=settings.llm_fallback_timeout,
-        first_token_stall=settings.llm_first_token_stall,
-        error_message=settings.llm_error_message,
-    )
+    assemble()  # 幂等；顺带注册 character / skills 等模块级服务
     session = ChatSession(
-        engine,
-        model_id=args.model or providers.resolve_default_model(),
+        runtime=get_runtime(),
+        model_id=args.model,  # None → 用 providers 的默认模型
         system_prompt=args.system,  # None 时使用 character 人设（提示词工程）
         data_dir=settings.data_dir,
         thinking=args.thinking,
