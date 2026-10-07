@@ -75,10 +75,19 @@ def _probe_llm() -> str:
 
 
 def _probe_character() -> str:
-    """探针：人设服务已注册。"""
-    if not has_service("character.system_prompt"):
-        raise RuntimeError("character.system_prompt 未注册")
-    return "system_prompt 已注册"
+    """探针：角色服务已注册，并报现有角色数（只读，不播种）。"""
+    if not has_service("character.system_prompt") or not has_service("character.list"):
+        raise RuntimeError("character 服务未注册")
+    roles = call("character.list") or []
+    names = "、".join(str(role.get("name")) for role in roles) or "无"
+    return f"{len(roles)} 个角色（{names}）"
+
+
+def _start_character() -> str:
+    """启动动作：确保至少有一个角色（空目录首次播种默认角色，幂等）。"""
+    cid = call("character.resolve")
+    roles = call("character.list") or []
+    return f"{len(roles)} 个角色，默认 {cid}"
 
 
 def _probe_behavior() -> str:
@@ -247,7 +256,7 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
         ServeStep("services", "services", _probe_services, level="required"),
         ServeStep("data", "data", _probe_data, start=_start_data),
         ServeStep("core", "core.llm", _probe_llm),
-        ServeStep("character", "character", _probe_character),
+        ServeStep("character", "character", _probe_character, start=_start_character),
         ServeStep("behavior", "behavior", _probe_behavior, start=_start_behavior),
         ServeStep(
             "store.db",

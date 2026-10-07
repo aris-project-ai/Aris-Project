@@ -20,7 +20,7 @@ from pathlib import Path
 
 from aris.cfgtoml import load_config
 from ..behavior import BehaviorRuntime, LoopEventType
-from ..core import call
+from ..core import call, has_service
 from ..core.llm import ChatRequest, LLMEngine, Message, MessageRole
 from .commands import (
     COMMAND_HELP,
@@ -30,14 +30,26 @@ from .commands import (
     parse_command,
 )
 
-# 兜底人设：仅当 character.system_prompt 服务未注册时使用（正常路径不会走到）
+# 兜底人设：仅当 character 模块未注册（服务缺失）时使用，正常路径不会走到
 _FALLBACK_SYSTEM_PROMPT = "你是 Aris，一个拟人 AI，说话简洁自然。"
 
 
-def _default_system_prompt() -> str:
-    """默认系统提示词：经跨模块通讯总线（CMCB）取 character 人设，服务缺失时用兜底文本。"""
-    prompt = call("character.system_prompt")
-    return prompt if prompt else _FALLBACK_SYSTEM_PROMPT
+def _resolve_cid(cid: str | None) -> str | None:
+    """选定角色 cid：显式给的优先，否则问 character 模块要默认角色（未注册则 None）。"""
+    if cid or not has_service("character.resolve"):
+        return cid
+    return call("character.resolve")
+
+
+def _default_system_prompt(cid: str | None) -> str:
+    """默认系统提示词：经 CMCB 取该角色的人设（`cid` 省略时取默认角色）。
+
+    `character.system_prompt` 的 `cid` 必填（防静默串号），故先解析出 cid 再取。
+    """
+    if not has_service("character.system_prompt"):
+        return _FALLBACK_SYSTEM_PROMPT
+    resolved = cid or call("character.resolve")
+    return call("character.system_prompt", resolved) or _FALLBACK_SYSTEM_PROMPT
 
 
 @dataclass
@@ -49,6 +61,8 @@ class ChatConfig:
     top_p: float | None = None  # 核采样概率质量，0.9=从前 90% token 采样
     log_rotation_bytes: int = 10 * 1024 * 1024
     tool_result_preview_len: int = 60
+    # 默认角色 cid（None = 自动：空目录播种默认角色，否则用最早创建的那个）
+    character: str | None = None
 
 
 _chat_config = load_config(ChatConfig(), "chat.toml")
@@ -104,6 +118,7 @@ class ChatSession:
         *,
         runtime: BehaviorRuntime | None = None,
         model_id: str | None = None,
+        cid: str | None = None,
         system_prompt: str | None = None,
         data_dir: Path | None = None,
         thinking: bool = False,
@@ -115,6 +130,9 @@ class ChatSession:
         （M1 上收，见 `behavior/runtime.py` 与 `serve/assembly.py`）。测试或需要
         独立运行时时显式传：给 ``engine`` 会用该引擎自建一份运行时（工具面按
         ``tools_enabled`` 决定），给 ``runtime`` 则直接复用。
+
+        ``cid`` 是角色 id（M2）：缺省时按 `config/chat.toml` 的 ``character``、
+        再退到 character 模块的默认角色；`system_prompt` 显式给了则不取人设。
         """
         if runtime is None:
             if engine is None:
@@ -131,9 +149,12 @@ class ChatSession:
 
             data_dir = get_settings().data_dir
         if system_prompt is None:
-            system_prompt = _default_system_prompt()
+            # 只在需要默认人设时才解析 / 播种角色（显式 --system 不碰角色目录）
+            cid = _resolve_cid(cid or _chat_config.character)
+            system_prompt = _default_system_prompt(cid)
 
         self.runtime = runtime
+        self.cid = cid  # 角色 id（M2 起人设按 cid 取；M3 会话按 cid 分区）
         self.engine = runtime.engine
         self.registry = runtime.registry
         self.available_models = self.engine.providers.all_model_ids()
