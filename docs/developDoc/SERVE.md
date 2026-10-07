@@ -40,7 +40,7 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 | 0 | `services` | 核验各模块声明的依赖服务都已注册（缺一即 ERROR 且非零退出） | **required** |
 | 1 | `data` | 幂等创建 `data/` 下必须带的目录（`characters/` / `skills/` / `autorun/`）；可迁移性 D14 | optional |
 | 2 | `core.llm` | import 触发注册；校验 `providers.toml` + 体检（缺 key / 无可用模型等） | optional |
-| 3 | `character` / `behavior` | import 触发注册（工具、skills 菜单） | optional |
+| 3 | `character` / `behavior` | character：解析 / 播种默认角色（`character.resolve`）并报角色数与默认 `cid`；behavior：装配进程级运行时（工具 + skills 菜单） | optional |
 | 4 | `store.db` | 探活；没跑则**自启**便携 PG（端口被占则换端口、二进制跑不起来则重获取、角色名在线对齐）；跑迁移到最新 | **required** |
 | 5 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
 | 6 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 4） |
@@ -56,8 +56,8 @@ aris serve v1.0.0  data=…/data  pid=12345
 ✓ services     各模块声明的 24 个依赖服务全部就绪
 ✓ data         …/data：必须带的目录齐备
 ✓ core.llm     3 提供方，默认 deepseek-v4-flash-free
-✓ character    character.system_prompt
-✓ behavior     3 工具 / 4 skills
+✓ character    1 个角色（Aris）；默认 cid 9f3a2c…
+✓ behavior     3 工具 / 4 skills（运行时已装配）
 ✓ store.db     PG @127.0.0.1:55432（本次自启，角色 aris）；应用迁移 0 条
 ✓ store.embed  384 维；后台预热中（Bekko a25m）
 ✓ knowledge    1 文档 / 129 块，索引已就绪
@@ -231,4 +231,9 @@ serve 只管「启不启」。
 `serve/assembly.py` 只装配一份**进程级运行时**（`behavior/runtime.py` 的 `BehaviorRuntime`：
 engine + registry + skills + loop），`ChatSession` 接受注入、缺省懒取 `get_runtime()`；
 `behavior` 步骤由此有了真实启动动作与「运行时已装配」探针。按 `cid` / `session_id` 分的资源
-map 留给 M2/M3（D15 单一会话下暂不需要，运行时 docstring 已留接缝）。
+map 留给 M3（D15 单一会话下暂不需要，运行时 docstring 已留接缝）。
+
+已完成（v1.0 M2，2026-10-07）：**角色载体落地**——角色 = `data/characters/<cid>/`
+（`character.toml` + 三段占位 md，加载器 `character/carrier.py`），服务改为
+`character.system_prompt(cid)`（**必填**）/ `character.list` / `character.resolve`；
+character 步骤由此有了启动动作（解析 / 播种默认角色）与「N 个角色」探针。
