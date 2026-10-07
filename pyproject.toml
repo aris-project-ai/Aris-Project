@@ -38,7 +38,7 @@ explicit = true
 # 开发依赖（uv sync 默认安装 dev group；测试运行：uv run pytest）
 [dependency-groups]
 dev = ["pytest>=8"]
-# 本地 embedding（重依赖，见 developDoc/EMBEDDING.md）：默认安装，
+# 本地 embedding（重依赖，见 docs/developDoc/EMBEDDING.md）：默认安装，
 # 想要轻量环境可用 `uv sync --no-default-groups`
 embedding = [
     "sentence-transformers>=5",

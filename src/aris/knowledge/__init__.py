@@ -1,6 +1,6 @@
 """knowledge 模块 —— 知识库（面向外部资料的独立 RAG 检索）。
 
-定位与全部定案见 developDoc/KNOWLEDGE-BASE.md。本模块只做业务：
+定位与全部定案见 docs/developDoc/KNOWLEDGE-BASE.md。本模块只做业务：
 **摄入（md / txt / html）→ 分块 → 入库 → 纯向量检索**；embedding 与数据库
 设施一律经总线使用 `store/*`（依赖方向恒为 `knowledge → 总线 → store`）。
 
@@ -40,7 +40,7 @@ def _start() -> dict[str, Any]:
     """总线服务：确保知识库 schema 与索引就绪（serve 启动步骤）。
 
     库不可用时**快速失败**（抛 KnowledgeError）：serve 按 optional 步骤记 warning
-    并继续启动其余模块，不静默降级（见 developDoc/SERVE.md 第 5 节）。
+    并继续启动其余模块，不静默降级（见 docs/developDoc/SERVE.md 第 5 节）。
     """
     if not get_knowledge_config().enabled:
         return {"enabled": False, "docs": 0, "chunks": 0}

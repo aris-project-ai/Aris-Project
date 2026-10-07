@@ -147,10 +147,10 @@ summary = query_summary()            # 聚合统计
 > `services` 步骤统一核验，缺一则记 ERROR 并让 serve 以非零码退出。
 
 > 注：`activate_skill` 是注册在 `ToolRegistry` 里的普通工具（经 `tools.execute`
-> 总线执行），**不是**独立服务。skill 系统详见 `developDoc/SKILLS.md`。
+> 总线执行），**不是**独立服务。skill 系统详见 `docs/developDoc/SKILLS.md`。
 
 > 注：曾规划 `browser.close` / `browser.cleanup` 服务，因浏览器链路
-> （Playwright）已整体删除（2026-08-12，见 `developDoc/WEB-SEARCH.md`），
+> （Playwright）已整体删除（2026-08-12，见 `docs/developDoc/WEB-SEARCH.md`），
 > 不再需要。
 
 ## 迁移状态
@@ -195,7 +195,7 @@ summary = query_summary()            # 聚合统计
 - **webui 全部 9 个路由文件改走 `core.call`**，不再直接 import 任何
   `core.llm` / `core.audit` / `behavior.skills` 业务函数。
 - `webui/__init__.py` 的 `create_app()` **只搭 HTTP 层**：注册触发与自检已上收到
-  组装根 `serve.assemble()`（2026-09-19，见 `developDoc/SERVE.md` 第 7 节），
+  组装根 `serve.assemble()`（2026-09-19，见 `docs/developDoc/SERVE.md` 第 7 节），
   避免同一份「需要哪些服务」的清单散在多处漂移。
 - **基础设施例外（可直连，不算模块间通讯）**：
   - `aris.config.get_settings()`（`.env` / `data_dir` 等启动级配置）。
@@ -228,7 +228,7 @@ summary = query_summary()            # 聚合统计
    （见「第四批」），审计查询 `audit.recent` / `audit.summary` 服务化并被使用。
 
 > 枚举/魔法字符串收口与配置集中化**已完成**（2026-08-12）：
-> 7 组隐式枚举收为 StrEnum，可调参数进 `config/*.toml`，见 `developDoc/CONFIG.md`。
+> 7 组隐式枚举收为 StrEnum，可调参数进 `config/*.toml`，见 `docs/developDoc/CONFIG.md`。
 
 ## 验证方法
 

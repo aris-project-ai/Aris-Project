@@ -1,5 +1,5 @@
 # knowledge 模块可调参数（优先级：代码内默认值 < 本文件）
-# 详见 developDoc/KNOWLEDGE-BASE.md 第 5 节
+# 详见 docs/developDoc/KNOWLEDGE-BASE.md 第 5 节
 
 # 总开关：false 时检索返回空、摄入直接拒绝
 enabled = true

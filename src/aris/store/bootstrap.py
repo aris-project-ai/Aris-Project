@@ -1,6 +1,6 @@
 """便携 PostgreSQL + pgvector 的获取与初始化（幂等）。
 
-不要求用户预装系统 PostgreSQL（定案见 developDoc/KNOWLEDGE-BASE.md 第 3 节）：
+不要求用户预装系统 PostgreSQL（定案见 docs/developDoc/KNOWLEDGE-BASE.md 第 3 节）：
 缺什么补什么——下载 micromamba（含 sha256 校验）→ 在 ``data/pg`` 建 conda 环境
 （``postgresql`` 与 ``pgvector`` 同源，版本匹配由 solver 保证）→ ``initdb`` →
 启动 → 建库 → 建 ``vector`` 扩展。全部产物落在 ``data/`` 下（gitignore 已覆盖），

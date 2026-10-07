@@ -1,7 +1,7 @@
 """embedding 提供方协议（文本 → 向量）。
 
 只做一件事：把文本编码成**固定维度**的向量。**检索由 PostgreSQL + pgvector 执行**，
-与提供方无关（见 developDoc/EMBEDDING.md 第 0 节）。因此：
+与提供方无关（见 docs/developDoc/EMBEDDING.md 第 0 节）。因此：
 
 - 维度是提供方的固有属性，业务侧据此选表；
 - 不同 provider 维度不同（384 / 1024）→ 一个表只能有一种维度，各建各表。

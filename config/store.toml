@@ -1,5 +1,5 @@
 # store 模块可调参数（优先级：代码内默认值 < 本文件）
-# 详见 developDoc/CONFIG.md（配置收口原则）与 developDoc/KNOWLEDGE-BASE.md
+# 详见 docs/developDoc/CONFIG.md（配置收口原则）与 docs/developDoc/KNOWLEDGE-BASE.md
 
 # embedding 提供方："local" = 本地 Bekko a25m（384 维，需 uv sync --extra embedding）
 embedding_provider = "local"

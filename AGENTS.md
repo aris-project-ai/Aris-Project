@@ -29,7 +29,7 @@
 - **交互形态**：最终以**语音为主**（STT → LLM → TTS），文字为辅且不通过 TUI，
   而是接入外部平台（Matrix / Discord 等）。TUI 定位为**开发调试手段**，
   WebUI 定位为**运维管理后台**（非对话界面）
-- 详细蓝图见 `developDoc/Project-Aris.md`
+- 详细蓝图见 `docs/developDoc/Project-Aris.md`
 
 ## 开发环境
 
@@ -51,22 +51,22 @@
   需联网数分钟），WebUI 落在 `http://127.0.0.1:9690`。发行形态见「版本号更新」的
   **三类版本**（2026-10-01 定：`beta-vX.Y.Z` 开发时版 / `vX.Y.ZbN` 候选 / `vX.Y.Z` 正式版）。
 - 骨架、LLM 接入、文字对话、行为扩展（函数调用）、联网搜索、人格系统均已完成。
-- **v1.0 施工中（2026-10-01 起）**：阶段划分与验收见 `developDoc/V1.0-PLAN.md`，
+- **v1.0 施工中（2026-10-01 起）**：阶段划分与验收见 `docs/developDoc/V1.0-PLAN.md`，
   进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）已完成**；
   模块名 `persona/` 已改为 **`character/`**。
 - **启动编排 `serve/` 已完成（v0.4.1）**：`aris serve [--only/--skip/--dry-run]` 一条命令
   拉起 PG（缺则自建、没跑则自启、退出只停自己拉起的）、后台预热 embedding、建知识表、
   并入 WebUI（端口冲突则拒启 web 并提示）；`aris doctor` 与它共用同一份探针。
-  详见 `developDoc/SERVE.md`。
+  详见 `docs/developDoc/SERVE.md`。
 - WebUI 管理后台已完成（2026-08-23）：登录鉴权、仪表盘、审计、提供商管理、
   技能管理、配置管理、日志查看；**知识库管理页 `/knowledge` 已补（2026-09-18）**。
 - **WebUI 安全审查与总线化改造已完成（2026-08-30）**：路径穿越/TOML 注入/XSS/
   鉴权绕过等安全漏洞全部修复；webui 全部路由改走 `core.call`（16 个总线服务 +
   启动自检）；新增 11 个关键路径测试（总计 48 通过）；pre-commit 分支保护 +
-  `scripts/release-check.sh` 发布检查落地。详 `developDoc/SECURITY-AND-REFACTOR-PLAN.md`。
+  `scripts/release-check.sh` 发布检查落地。详 `docs/developDoc/SECURITY-AND-REFACTOR-PLAN.md`。
 - **知识库（Knowledge Base）已落地（2026-09-14 起商讨，2026-09-18 实现）**：定位为
   **面向外部资料的独立 RAG 知识检索能力**，与 Aris 个人记忆**分开**。全部议题与部署
-  方式定案见 `developDoc/KNOWLEDGE-BASE.md`；`store/` 底层 + `knowledge/` 首期
+  方式定案见 `docs/developDoc/KNOWLEDGE-BASE.md`；`store/` 底层 + `knowledge/` 首期
   + agent 工具 + WebUI 知识库页均已跑通（v0.4.0 发布内容）。
 - **数据库地基已跑通（2026-09-18）**：`store/` 的便携 PostgreSQL 17.11 + pgvector 0.8.1
   就位，`aris db init|start|stop|status|psql` 可用；本地 embedding（Bekko a25m，384 维）
@@ -253,7 +253,10 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   缺文件/缺键静默用默认；加载器 `aris/cfgtoml.py`（零新依赖）。
 - 收口原则：**枚举=代码 StrEnum**（逻辑类型不进配置）、**实现细节=模块顶部常量**、
   **真正可调参数才进 toml**。密钥永远只在 `.env`。
-- 详情见 `developDoc/CONFIG.md`。
+- 详情见 `docs/developDoc/CONFIG.md`。
+- **待做（2026-10-07 用户记）**：`config/` 拟整体迁到 **`data/config/`**，让 `data/` 成为
+  换机时**唯一**要带的东西（.env 仍单独带）。**未定**：`providers.example.toml` 这类
+  **模板 / 示例**放哪（仓库里总得留一份可复制的东西）——动之前先定这一条。
 
 ## 数据与密钥
 
@@ -282,7 +285,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   - 待实现：无既定项（将来按需扩展，如云端 provider）
 - `memory/` —— 记忆系统：Embedding + 数据库（复用 `store/`，不自建第二套）。
   **2026-09-28 起商讨、2026-09-29 全部定案**：内容模型（分层 / 事件 / 两周记 / 权重与
-  惰性衰减 / 注入与 compact 关系 / 表结构）见 `developDoc/MEMORY.md`；**D16 已定进 v1.0，
+  惰性衰减 / 注入与 compact 关系 / 表结构）见 `docs/developDoc/MEMORY.md`；**D16 已定进 v1.0，
   8 条待商讨已补完 → 颗粒度 A 级**，v1.0 主线不再有挂起项
 - `knowledge/` —— **知识库（2026-09-18 定案，首期已实现）**：面向外部资料的独立 RAG
   检索，含摄入、分块、来源管理、检索语义。**不做 skill**（属内部底层设施，经大总线
@@ -300,7 +303,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   - 已实现（续二）：WebUI 知识库页 `/knowledge`（上传落盘 `data/knowledge/` +
     后台摄入 + 轮询进度、文档列表与移除、检索试验、重建索引）
   - 待实现：PDF 与混合检索（第二阶段）
-  详见 `developDoc/KNOWLEDGE-BASE.md`
+  详见 `docs/developDoc/KNOWLEDGE-BASE.md`
 - `voice/` —— STT（语音识别）、TTS（语音合成）
 - `character/` —— 人格系统（提示词工程起步，2026-08-12）：注册
   `character.system_prompt` 服务，其他模块经 `core.call` 取人设，不再硬编码；
@@ -308,10 +311,10 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - `behavior/` —— 行为（函数调用已实现）：`registry.py` 工具注册表、`loop.py` agent loop
   （LLM↔工具循环）、`tools/` 内置工具集、`skills/` 技能系统（2026-08-12 落地：
   目录化 skill，`SKILL.md` + 可选 `tools.py`；`SkillManager` 发现/菜单/激活，
-  三层渐进式披露，详见 `developDoc/SKILLS.md`）；MCP 后续作为工具来源注册进 registry
+  三层渐进式披露，详见 `docs/developDoc/SKILLS.md`）；MCP 后续作为工具来源注册进 registry
 - `chat/` —— 文字对话（已实现）：`session.py`（会话逻辑）、`tui.py`（全屏界面）、
   `commands.py`（指令）；CLI 走 `aris chat`，连接仍走 `core/`。非终端自动回退 input 循环。
-  **TUI 定位为开发调试手段**，项目成型后的主要对话界面是 WebUI（见 developDoc/WEBUI.md），
+  **TUI 定位为开发调试手段**，项目成型后的主要对话界面是 WebUI（见 docs/developDoc/WEBUI.md），
   TUI 保留作为无 GUI 环境下的调试与快速验证入口
 - `serve/` —— **启动编排（2026-09-19 定案，首期已实现）**：`aris serve`
   [--only] [--skip] [--dry-run] 把各模块按序拉起（PG 自启 + 迁移、embedding 后台预热、
@@ -322,7 +325,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `serve.assemble()` 是唯一触发点、`services` 步骤核验各模块声明的
   `REQUIRED_SERVICES`、`aris doctor` 与 `aris serve --dry-run` 共用
   `serve.probe_all()` 探针。**待做**：工具注册表 / agent loop / LLM engine 仍是
-  会话级对象（#4/#7 时由 serve 上收）。详见 `developDoc/SERVE.md`
+  会话级对象（#4/#7 时由 serve 上收）。详见 `docs/developDoc/SERVE.md`
 - `autorun/` —— **定时与主动任务调度（2026-09-28 定案方向；同日追加决定：
   暂不实现，v1.0 也不做）**：**只留设计文档，不写代码**。定位 = 独立模块（平行于
   `behavior/`、`serve/`）、**纯调度器 + 触发源抽象**（定时 / 事件 / 手动），
@@ -332,7 +335,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `config/autorun.toml`；任务实例 → `data/autorun/tasks.toml`（与 `data/skills/` 同类，
   不进 git）。模块级 `enabled` + 宽容降级。**暂不做的原因**：v1.0 优先保
   memory + character（同日已毙掉多项原计划在 1.0 完善的功能）。
-  设计留存见 `developDoc/discuss-2026-09-28.md` D11
+  设计留存见 `docs/developDoc/discuss-2026-09-28.md` D11
 - 插件系统：**后续可能增加**——MCP 服务器可做同样的事，
   届时再评估是否独立成模块
 
@@ -342,7 +345,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - 核心类实例自注册（`__init__` 里 `provide` 自己的方法），命名 `module.service`
 - 明确不走总线的边界：对象构造/装配（依赖注入）、同模块内部调用、纯类型引用
   （如 Message）；CLI 组装根可保持直接引用
-- 服务表与架构详见 `developDoc/CMCB.md`
+- 服务表与架构详见 `docs/developDoc/CMCB.md`
 
 ## 独立文档站（**2026-09-28 决定短期不做**）
 
@@ -351,18 +354,18 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   **部署平台（GitHub Pages / Cloudflare Pages）也不定**。下文定案原样保留，待真开工启用。
 - **不在本仓库内**：面向使用者 + 插件作者的独立站点，另起仓库、**VitePress**，
   本仓库不为其提供构建产物，也不与仓库内文档做同步机制。
-- 与本文档的分工：`README.md` 给使用者最短路径，`developDoc/` 留「为什么这么设计」
+- 与本文档的分工：`README.md` 给使用者最短路径，`docs/developDoc/` 留「为什么这么设计」
   与踩坑（给改本仓库的人），**文档站讲「契约是什么、怎么写插件」**；内容全部新写。
 - 关键结构约束（**起站时照做，事后改代价最大**）：根路径 = 当前开发版，
   历史版本在 `/vX.Y/`；链接一律相对、sidebar 需按版本前缀生成。
 - 服务表**不在站点上一开始全暴露**，只呈现插件可用的契约面。
-- 完整决策（URL 布局 / 版本节奏 / 坑 / 待办）见 `developDoc/DOCS-SITE.md`。
+- 完整决策（URL 布局 / 版本节奏 / 坑 / 待办）见 `docs/developDoc/DOCS-SITE.md`。
 - 与插件系统的关系：站点上「插件作者契约」可先写，**当作工具去推平
   `PLUGIN.md` 的 `[待讨论]` 项**——契约落地后再改就要动代码。
 
 ## v1.0 两条硬目标（2026-09-28 定案，**必须满足**）
 
-> 完整设计见 `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`。**凡与它们冲突的既有设计，
+> 完整设计见 `docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md`。**凡与它们冲突的既有设计，
 > 实现时以那份文档为准。**
 
 ### 可迁移性（D14）
@@ -410,10 +413,10 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 > **当前聚焦：v1.0（国庆前后发布）= memory + character 基础功能**——人格载体 /
 > 会话落库 / 大会话分组 / 上下文 compact / **记忆内容模型（D16）** / WebUI
 > （**autorun 同日决定暂不做，也挤出 1.0**）。定案见「BACKLOG 全量商讨定案」与
-> `developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨已于 2026-09-29 补完**，
-> 现在没有前置项（只剩实现时调的参）；**施工顺序与验收口径见 `developDoc/V1.0-PLAN.md`**
+> `docs/developDoc/discuss-2026-09-28.md`；**D16 的 8 条待商讨已于 2026-09-29 补完**，
+> 现在没有前置项（只剩实现时调的参）；**施工顺序与验收口径见 `docs/developDoc/V1.0-PLAN.md`**
 > （M0–M9），进度记在 `PROGRESS.md`「当前聚焦」。
-> WebUI 管理后台见 `developDoc/WEBUI.md`，启动编排见 `developDoc/SERVE.md`。
+> WebUI 管理后台见 `docs/developDoc/WEBUI.md`，启动编排见 `docs/developDoc/SERVE.md`。
 
 1. **搭标准项目骨架**（轻量）：目录结构 + 配置系统 + 日志 + CLI 入口，各模块留占位
    - 骨架已完成（2026-08），配置系统已定案并跑通 `uv sync`（2026-08-09）
@@ -430,14 +433,14 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
    `store/` 三块地基（PG 环境 / embedding / 迁移 + 向量检索 helper）+ `knowledge/`
    （两表、分块、摄入、检索）+ agent 工具 `knowledge_search` + WebUI 知识库页
    `/knowledge`。**待续**：PDF 与混合检索（第二阶段）。
-   详见 `developDoc/KNOWLEDGE-BASE.md`
+   详见 `docs/developDoc/KNOWLEDGE-BASE.md`
 
 ## 已定案（直接照做，无需再确认）
 
 - **Embedding（2026-08-09）**：按记忆层级分 provider——热记忆本地
   Bekko a25m（OpenVINO CPU），冷记忆云端 Cloudflare BGE-M3；
   两库维度不同（384/1024）各建独立 pgvector 表，互不混用。
-  实现 memory 模块时直接按此方案，详见 `developDoc/EMBEDDING.md`
+  实现 memory 模块时直接按此方案，详见 `docs/developDoc/EMBEDDING.md`
 - **LLM 连接（2026-08-09）**：选型定案——多提供方抽象 + fallback，本次实现
   OpenAI Chat Completions 格式（v1/chat）。统一请求模板（Message/ChatRequest）
   + formatters 按 format 翻译；双传输（openai SDK 默认 / httpx 手写）；流式；
@@ -461,7 +464,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   （`postgresql` + `pgvector` 同源，免 root、免编译、装到 `data/pg/`，gitignore 覆盖）。
   代码只认 DSN，不感知实例来源。**pgvector 取预编译包、不源码编译**：本机
   Xeon E5-2673 v3 无 AVX-512，pgvector 的 `USE_TARGET_CLONES` 已在运行期给出
-  FMA 快路径，`-march=native` 无额外收益。详见 `developDoc/KNOWLEDGE-BASE.md` 第 3 节
+  FMA 快路径，`-march=native` 无额外收益。详见 `docs/developDoc/KNOWLEDGE-BASE.md` 第 3 节
 - **可迁移性与启动幂等（2026-10-01 定案并落地，D14 / v1.0 M0）**：**换机 = 新机
   `git clone` → 把原机 `data/` 整体拷走 → `uv run aris serve`**。配套四条：
   ① **不得把"已验证状态"存进库**，一切启动时重新探测（二进制可运行性、角色名、端口）；
@@ -476,7 +479,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   `memory/` 后续复用 `store/`；**知识库不做 skill**（属内部底层设施），能力经大总线
   暴露。检索走 agent 工具**自主调用**（不做每轮自动 RAG 注入）；第一阶段**纯向量**
   （混合检索 / rerank 列第二阶段）；结果格式沿用 `web_search` 约定且**必带来源标识**；
-  与记忆检索**两条独立通路**，不合并统一入口。详见 `developDoc/KNOWLEDGE-BASE.md` 第 4 节
+  与记忆检索**两条独立通路**，不合并统一入口。详见 `docs/developDoc/KNOWLEDGE-BASE.md` 第 4 节
 - **知识库摄入与存储（2026-09-18）**：来源 = 本地文件/目录 + HTML（**不做 PDF /
   目录监听 / 对话沉淀**）；**CLI 先行**（`aris knowledge add|list|remove|search`），
   **agent 不给摄入权限**（只给检索）；增量 = **content hash 幂等 + 软删重建**，
@@ -485,13 +488,13 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   dependency-group `embedding` **默认安装**、代码侧**懒加载**（未装则该组命令给出可读提示）。
   分块 = 标题层级切 + 定长兜底重叠（保留 `heading_path`）；索引 HNSW + cosine
   （`m=16` / `ef_construction=64`，先导数据后建索引）。**实现次序：`store/` 底层先行**。
-  详见 `developDoc/KNOWLEDGE-BASE.md` 第 5 节
+  详见 `docs/developDoc/KNOWLEDGE-BASE.md` 第 5 节
 - **联网搜索（2026-08-09 定案；2026-08-12 精简；2026-08-14 改 Bing 主链路）**：
   **Bing 直连为主（www.bing.com，零成本无 key）+ Tavily API 兜底**
   （`TAVILY_API_KEY` 走 `.env`）。曾尝试 Playwright 驱动浏览器降级方案
   （原定驱动系统 Firefox，实测官方不支持品牌版，改用自带 Firefox 二进制；
   headless 下 Bing/Google 均触发验证码反爬）——该链路已**代码删除**，
-  历史与恢复要点留档在 `developDoc/WEB-SEARCH.md`，勿再实现。
+  历史与恢复要点留档在 `docs/developDoc/WEB-SEARCH.md`，勿再实现。
   引擎顺序：`config/search.toml` 的 `prefer_engine`（默认 `"bing"`；可切
   `"tavily"` 或 `"auto"` 按查询语言分流——中文走 Tavily）。Bing 关键实现
   细节（2026-08-14 实测，缺一不可）：Firefox UA（Chrome UA 需 sec-ch-ua
@@ -521,16 +524,16 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   （阶段二）**：`aris llm fetch` 一体式（拉取→对比→models.dev enrichment→白名单
   勾选 UI→写回备份）；「本地有云无」模型进退休机制
   `config/retired_models.toml`（机器维护，宽限期 30 天自动删，`aris llm retired`
-  手动删，回归自动恢复）。详 `developDoc/LLM-PROVIDER-MGMT.md`
+  手动删，回归自动恢复）。详 `docs/developDoc/LLM-PROVIDER-MGMT.md`
 - **总线命名（2026-09-19 收口）**：定名**「跨模块通讯总线」**（Cross-Module
   Communication Bus, **CMCB**）——`core/bus.py` 同时承载服务注册表 + 事件广播 +
   审计查询，按职责命名。文档与代码注释统一用 CMCB 称谓（架构文档
-  `developDoc/CMCB.md`）；**代码标识符（模块文件 `core/bus.py`、函数名、服务名）
+  `docs/developDoc/CMCB.md`）；**代码标识符（模块文件 `core/bus.py`、函数名、服务名）
   保持不变**——服务名前缀是模块名、函数名不含 `aris`，当初即为降低改名成本而设计
 
-### BACKLOG 全量商讨定案（2026-09-28，来源 `developDoc/discuss-2026-09-28.md`）
+### BACKLOG 全量商讨定案（2026-09-28，来源 `docs/developDoc/discuss-2026-09-28.md`）
 
-> 8 条 BACKLOG 一次性过完，条目级结论已回写 `developDoc/BACKLOG.md`；
+> 8 条 BACKLOG 一次性过完，条目级结论已回写 `docs/developDoc/BACKLOG.md`；
 > 完整 **D1–D16** 与代码级勘察卡片（含 `文件:行号`）见该文件；**颗粒度分级表**
 > （A 可直接实现 / B 粗定 / C 只留方向）也在该文件末尾。
 >
@@ -554,7 +557,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   **先搁置，v1.0 只文档化不写代码**
 - **Skills（D7）**：**整体迁 `data/skills/`**（技能本质是外部内容，Aris 自己的能力
   直接做进 `behavior`）；包内不再留技能；那三个测试用 skill 临时放
-  **`developDoc/skills-backup/`**（声明为「迁移前的技能备份」），迁完测完再删
+  **`docs/developDoc/skills-backup/`**（声明为「迁移前的技能备份」），迁完测完再删
 - **提供商与 LLM（D8/D9）**：**支持 Responses API**（DeepSeek 已正式支持，见
   `API-CALL.md` 3 / 6.1）；**多模态只做底层**（模型补标模态 + 图片输入 + 图片落盘
   按引用组装，TUI 与前端不动）；**思考模式要做但默认关闭放配置文件**；
@@ -572,7 +575,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   **同日追加决定：暂不实现（v1.0 也不做）**，只留设计文档，不写代码
 - **文档站（D12）**：**短期不做**（多一个站多一份维护，功能未稳）
 - **其他收尾（D13）**：WebUI 配置页体验要在 v1.0 一并改（现状"选项名 + 数值框"跟直接改
-  配置文件只差一个 UI）；同条还收着「3 个测试 skill 样本先放 `developDoc/skills-backup/`」
+  配置文件只差一个 UI）；同条还收着「3 个测试 skill 样本先放 `docs/developDoc/skills-backup/`」
 - **记忆内容模型（D16，2026-09-29 已定案）**：分层**按时间**（二级近 14~15 天 / 三级近 1 年）；
   三类产物 = **事件**（唯一向量化）/ 对话总结 / **两周记**（取消周记月记；总结类**不向量化**，
   避免检索到残缺片段）；写入时机 = 大会话结束（+ 每两周出两周记）；
@@ -589,7 +592,7 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   v1.0 **只建热表 384 维**。**工具 `memory_search`（2026-10-01 定）**：默认 `scope=refined`
   查**事件（向量+权重）+ 总结/两周记（关键词匹配）**，可切 `scope=raw` 查**原文**；
   `mode=random` 走**按权重加权随机**的"主动随机回忆"（不计 hit）；工具描述里提示
-  「不必只查与当前对话相关的记忆」。全部细节见 `developDoc/MEMORY.md`；颗粒度表 D16 = **A**
+  「不必只查与当前对话相关的记忆」。全部细节见 `docs/developDoc/MEMORY.md`；颗粒度表 D16 = **A**
 
 ## 待定（勿替用户做决定）
 
@@ -604,13 +607,13 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - ~~人格与对话历史的持久化载体~~（**2026-09-28 已定案，2026-10-01 补 `cid`**：
   角色载体 = `data/characters/<cid>/` 文件（PG 只存 id 绑定，`cid` 创建时生成）；
   对话历史 = **落 PG**；运行形态 = **单进程多会话**；**记忆按 `cid` 分区**。
-  详见 `developDoc/discuss-2026-09-28.md` D1/D2）
+  详见 `docs/developDoc/discuss-2026-09-28.md` D1/D2）
 - ~~总线改名 CMCB~~（已完成：2026-09-19 文档与注释统一改名，见「已定案」）
 - ~~测试框架是否启用 pytest~~（已定：2026-08-18 启用 pytest，见技术栈）
 
 ## 已知陷阱（踩坑档案，勿重犯）
 
-> 只收**会重复咬人**的坑，一行一条；来龙去脉见 `developDoc/PROGRESS-ARCHIVE.md`
+> 只收**会重复咬人**的坑，一行一条；来龙去脉见 `docs/developDoc/PROGRESS-ARCHIVE.md`
 > 对应条目与各专门文档。**新踩到的坑，修完顺手补到这里**（重要的一行进本文，
 > 长篇叙述进 PROGRESS 当轮条目，过时再随归档下沉）。
 
@@ -670,32 +673,32 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
 - **DeepSeek 带 tools 必须回传 `reasoning_content`**，否则 400
 - **Bing 直连三件套缺一不可**：Firefox UA + 先访问首页取 cookie（MUID）+
   搜索 URL 带 `form=QBRE`；真实链接要解 `/ck/a` 的 `u=` base64
-  （详见 `developDoc/WEB-SEARCH.md`；Playwright 方案已删除，勿再实现）
+  （详见 `docs/developDoc/WEB-SEARCH.md`；Playwright 方案已删除，勿再实现）
 
 ## 文档索引（按需阅读）
 
 | 开发内容 | 必读文档 |
 |---|---|
-| LLM 接入 / `core` 模块 | `developDoc/API-CALL.md` |
-| 配置文件体系（三源分工 / 收口原则） | `developDoc/CONFIG.md` |
-| 跨模块通讯总线 CMCB（`core.bus` 服务/事件/审计） | `developDoc/CMCB.md` |
-| 技能系统（`behavior.skills`） | `developDoc/SKILLS.md` |
-| 联网搜索方案（演进历史 / 留档） | `developDoc/WEB-SEARCH.md` |
-| `memory` 模块（Embedding / 检索） | `developDoc/EMBEDDING.md` |
-| **记忆系统设计（分层 / 事件 / 两周记 / 衰减 / 注入 / 表结构；2026-09-29 定案）** | `developDoc/MEMORY.md` |
-| 知识库（独立 RAG 知识检索；议题全部定案） | `developDoc/KNOWLEDGE-BASE.md` |
-| LLM 提供商/模型管理（list/check/fetch/退休） | `developDoc/LLM-PROVIDER-MGMT.md` |
-| `voice` 模块（STT / TTS） | `developDoc/stt&&tts选型.md` |
-| 插件系统（草案，含后续讨论） | `developDoc/PLUGIN.md` |
-| WebUI 管理后台（审计/技能/提供商/插件） | `developDoc/WEBUI.md` |
-| WebUI 安全审查与总线化改造（修复清单/计划/进度） | `developDoc/SECURITY-AND-REFACTOR-PLAN.md` |
-| 项目蓝图 | `developDoc/Project-Aris.md` |
-| 启动编排（`aris serve`：启动顺序 / 自启策略 / 失败分级） | `developDoc/SERVE.md` |
-| 记忆架构总体（候选参考） | `referenceDocumentation/记忆数据库-bydsv4fpre.html`、`MemoryTips-bygemini.md` |
-| 开发路线总体（候选参考） | `referenceDocumentation/总览-bydsv4fpre.html` |
+| LLM 接入 / `core` 模块 | `docs/developDoc/API-CALL.md` |
+| 配置文件体系（三源分工 / 收口原则） | `docs/developDoc/CONFIG.md` |
+| 跨模块通讯总线 CMCB（`core.bus` 服务/事件/审计） | `docs/developDoc/CMCB.md` |
+| 技能系统（`behavior.skills`） | `docs/developDoc/SKILLS.md` |
+| 联网搜索方案（演进历史 / 留档） | `docs/developDoc/WEB-SEARCH.md` |
+| `memory` 模块（Embedding / 检索） | `docs/developDoc/EMBEDDING.md` |
+| **记忆系统设计（分层 / 事件 / 两周记 / 衰减 / 注入 / 表结构；2026-09-29 定案）** | `docs/developDoc/MEMORY.md` |
+| 知识库（独立 RAG 知识检索；议题全部定案） | `docs/developDoc/KNOWLEDGE-BASE.md` |
+| LLM 提供商/模型管理（list/check/fetch/退休） | `docs/developDoc/LLM-PROVIDER-MGMT.md` |
+| `voice` 模块（STT / TTS） | `docs/developDoc/stt&&tts选型.md` |
+| 插件系统（草案，含后续讨论） | `docs/developDoc/PLUGIN.md` |
+| WebUI 管理后台（审计/技能/提供商/插件） | `docs/developDoc/WEBUI.md` |
+| WebUI 安全审查与总线化改造（修复清单/计划/进度） | `docs/developDoc/SECURITY-AND-REFACTOR-PLAN.md` |
+| 项目蓝图 | `docs/developDoc/Project-Aris.md` |
+| 启动编排（`aris serve`：启动顺序 / 自启策略 / 失败分级） | `docs/developDoc/SERVE.md` |
+| 记忆架构总体（候选参考） | `docs/referenceDocumentation/记忆数据库-bydsv4fpre.html`、`MemoryTips-bygemini.md` |
+| 开发路线总体（候选参考） | `docs/referenceDocumentation/总览-bydsv4fpre.html` |
 | 开发进度（每次开发前先读） | `PROGRESS.md` |
-| 后续待办（未排期的中长期方向） | `developDoc/BACKLOG.md` |
-| **BACKLOG 全量商讨记录（2026-09-28，D1–D16 定案/商讨 + 勘察卡片 + 颗粒度分级表）** | `developDoc/discuss-2026-09-28.md` |
-| **v1.0 硬目标：可迁移性 + 单一会话原则（D14/D15）** | `developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
-| **v1.0 施工方案（阶段 M0–M9 / 验收 DoD / 风险 / 待拍板）** | `developDoc/V1.0-PLAN.md` |
-| 开发进度归档（历史条目与踩坑记录，查旧事用） | `developDoc/PROGRESS-ARCHIVE.md` |
+| 后续待办（未排期的中长期方向） | `docs/developDoc/BACKLOG.md` |
+| **BACKLOG 全量商讨记录（2026-09-28，D1–D16 定案/商讨 + 勘察卡片 + 颗粒度分级表）** | `docs/developDoc/discuss-2026-09-28.md` |
+| **v1.0 硬目标：可迁移性 + 单一会话原则（D14/D15）** | `docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
+| **v1.0 施工方案（阶段 M0–M9 / 验收 DoD / 风险 / 待拍板）** | `docs/developDoc/V1.0-PLAN.md` |
+| 开发进度归档（历史条目与踩坑记录，查旧事用） | `docs/developDoc/PROGRESS-ARCHIVE.md` |
