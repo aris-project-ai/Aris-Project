@@ -82,15 +82,29 @@ def _probe_character() -> str:
 
 
 def _probe_behavior() -> str:
-    """探针：技能服务已注册。
+    """探针：技能服务已注册 + 进程级运行时是否已装配（v1.0 M1 上收）。
 
-    注意：工具注册表（``tools.execute``）、agent loop（``loop.run``）、
-    ``skills.menu`` 都是**实例级**服务，由会话对象（`ChatSession`）自建，
-    这里只校验 import 级注册（serve 目前不持有会话，将来多人格/自动任务时再上收）。
+    工具注册表（``tools.execute``）、agent loop（``loop.run``）、``skills.menu``
+    原先由会话对象自建，现已由组装根建一份进程级运行时持有（`serve/assembly.py`）。
+    探针**只读**：用 `peek_runtime()` 看状态，不触发构建。
     """
     if not has_service("skills.list"):
         raise RuntimeError("skills.list 未注册")
-    return "skills 服务已注册（工具与 loop 按需构造）"
+    from .assembly import peek_runtime
+
+    runtime = peek_runtime()
+    if runtime is None:
+        return "skills 服务已注册（运行时待 behavior 步骤装配）"
+    skills = len(call("skills.list") or [])
+    return f"运行时已装配：{runtime.tool_count()} 个工具 / {skills} 个技能"
+
+
+def _start_behavior() -> str:
+    """启动动作：装配进程级 behavior 运行时（幂等；LLM 配置不可用时抛错按档位降级）。"""
+    from .assembly import get_runtime
+
+    runtime = get_runtime()
+    return f"{runtime.tool_count()} 个工具已就绪"
 
 
 def _probe_data() -> str:
@@ -234,7 +248,7 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
         ServeStep("data", "data", _probe_data, start=_start_data),
         ServeStep("core", "core.llm", _probe_llm),
         ServeStep("character", "character", _probe_character),
-        ServeStep("behavior", "behavior", _probe_behavior),
+        ServeStep("behavior", "behavior", _probe_behavior, start=_start_behavior),
         ServeStep(
             "store.db",
             "store.db",

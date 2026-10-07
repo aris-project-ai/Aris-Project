@@ -26,6 +26,7 @@ from loguru import logger
 from .. import __version__
 from ..config import get_settings
 from ..core import call, services
+from .assembly import get_runtime, peek_runtime, reset_runtime
 from .conf import ServeConfig, get_serve_config
 from .steps import ServeStep, build_steps
 
@@ -49,10 +50,17 @@ class StepOutcome:
 
 
 def assemble() -> None:
-    """集中 import 各服务所有者模块，触发 provide 注册（唯一的组装根）。
+    """集中 import 各服务所有者模块 + 装配进程级运行时（唯一的组装根）。
 
     这里的 import 是**装配动作**（触发自注册），不是跨模块业务调用——对齐
     AGENTS.md「CLI 组装根可保持直接引用」的边界。
+
+    v1.0 M1：`tools.execute` / `loop.run` / `skills.menu` / 引擎的 `llm.deltas`
+    都是**单槽**总线服务，原来由每个 `ChatSession` 构造时自建并 provide，
+    多开一段对话就互相顶掉；现在在这里建一次进程级 `BehaviorRuntime`
+    （见 `serve/assembly.py`）并由本模块持有。
+    LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
+    真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
     import aris.behavior  # noqa: F401  —— loop.run / tools.execute / skills.*
     import aris.core.llm  # noqa: F401  —— llm.stream / llm.race / llm.deltas
@@ -63,6 +71,13 @@ def assemble() -> None:
     from aris.behavior.skills import manager as _skills  # noqa: F401
     from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.retired.*
     from aris.core.llm import manage as _manage  # noqa: F401  —— llm.providers.*
+
+    try:
+        runtime = get_runtime()
+    except Exception as exc:  # noqa: BLE001 —— 组装期降级：只有 LLM 相关入口不可用
+        logger.warning(f"behavior 运行时未装配（LLM 配置不可用？）：{exc}")
+        return
+    logger.debug(f"behavior 运行时已装配（{runtime.tool_count()} 个工具）")
 
 
 def select_steps(
@@ -241,4 +256,14 @@ def serve(
     return exit_code
 
 
-__all__ = ["StepOutcome", "assemble", "probe_all", "run_plan", "select_steps", "serve"]
+__all__ = [
+    "StepOutcome",
+    "assemble",
+    "get_runtime",
+    "peek_runtime",
+    "probe_all",
+    "reset_runtime",
+    "run_plan",
+    "select_steps",
+    "serve",
+]

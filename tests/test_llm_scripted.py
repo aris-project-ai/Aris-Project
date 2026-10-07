@@ -72,9 +72,9 @@ def test_scripted_tool_roundtrip(llm_server: MockLLMServer) -> None:
         },
         fn=lambda **kw: kw["text"],
     )
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=2)
+    loop = AgentLoop(engine, registry=registry, max_rounds=2)
 
-    events = events_of(loop, user_messages("m1"))
+    events = events_of(loop, user_messages("m1"), model_id="m1")
 
     tools = [e for e in events if e.type == LoopEventType.TOOL]
     assert len(tools) == 1, repr(tools)
