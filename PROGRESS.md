@@ -15,7 +15,7 @@
 | `chat/` | 完成：会话逻辑 + TUI（`aris chat`），定位开发调试 |
 | `character/` | 提示词工程版（单一 `character.system_prompt`）；多人格见 BACKLOG #4 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库页 |
-| `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪 |
+| `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪；**v1.0 M1（2026-10-07）**：组装根只装配一份进程级运行时（engine / registry / loop / skills），会话注入复用 |
 | `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper；**可迁移性（v1.0 M0）**：二进制可运行验证 + 重获取、属主可操作报错、角色探测对齐、端口自动避让 |
 | `knowledge/` | 首期完成：两表 / 分块 / 摄入 / 纯向量检索 / CLI / agent 工具 / WebUI 页 |
 | `memory/` | **设计已定案（2026-09-29）**：内容模型见 `docs/developDoc/MEMORY.md`（分层 / 事件 / 两周记 / 惰性衰减 / 注入 / 表结构）；会话与消息表见 D2。**D16 = A 级，8 条待商讨已补完** |
@@ -24,7 +24,7 @@
 
 - **入口**：`aris serve` 一条命令即可（首次自动获取便携 PG，需联网数分钟）；
   `aris doctor` 体检、`aris chat` 终端对话（调试用，与应用互不干涉）
-- 测试：`uv run pytest` **103 passed**（DB 未运行则集成用例自动 skip）
+- 测试：`uv run pytest` **123 passed**（DB 未运行则集成用例自动 skip）
 - 数据库：便携实例在 `data/pg`，项目本地、不注册系统服务；`aris serve` 会按需自建/自启，
   退出时只停自己拉起的那个
 - 知识库现有资料：`data/knowledge/刑法.md`（约 129 块）
@@ -32,6 +32,27 @@
 - 已知陷阱（踩坑档案，修完就补）：`AGENTS.md`「已知陷阱」节
 
 ## 最近动态
+
+### 2026-10-07：v1.0 M1 —— serve 上收组装根（代码）
+
+- **为什么**：`ChatSession` 原来自己 new engine / registry / loop / skills，不先让它
+  可注入，M3 落库时还得往会话构造里塞参数、白改一遍；且单进程多会话下**后开的会话会
+  覆盖前面的**（单槽服务）
+- **做法**：新增 `serve/assembly.py`（`build_engine` / `get_runtime` / `peek_runtime` /
+  `reset_runtime`，模块级一份 `_runtime`）与 `behavior/runtime.py`（`BehaviorRuntime` =
+  engine + registry + skills + loop，`system_prompt()` 拼工具提示 + 技能菜单）；
+  `ChatSession(engine=..., runtime=..., ...)` 可注入、缺省懒取 `get_runtime()`；
+  `assemble()` 末尾装配运行时（**失败只记警告不抛**，`aris doctor` / WebUI 仍能起）；
+  serve `behavior` 步骤补上真实启动动作与「运行时已装配：N 个工具 / M 个技能」探针
+- **顺手收掉一个隐患**：`loop` 不再持有 `model_id`（共享实例存模型 = "最后一个会话的
+  模型"），改 `iter_events(..., model_id=...)` **按调用传**，`loop.set_model` 服务删除；
+  loop 内部改**直接调**注入的 engine / registry（同一份装配对象），总线服务保留给外部用
+- **不做 per-cid map**：D15 单一会话 + skills 本就是全局外部内容（`data/skills/`），
+  真需要时在 `behavior/runtime.py` 里加（该文件 docstring 已留接缝）
+- 测试：新增 `tests/test_assembly.py` 7 例（运行时幂等、服务指向那一份、两段会话不互相
+  顶掉、模型按调用传、with_tools=False 的运行时）；`uv run pytest` **123 passed, 10 skipped**
+- 文档：`CMCB.md`（服务表去 `loop.set_model` + 迁移状态）、`SERVE.md`（已知缺口 → 已完成）、
+  `V1.0-PLAN.md`（M1 状态与落地）、`AGENTS.md`（serve 条「待做」改「已上收」）
 
 ### 2026-10-07：用户记下两件事 + 文档迁 `docs/`
 
@@ -356,7 +377,7 @@
 > 下方是主线摘要。
 >
 > **施工进度（M0–M9）**：**M0 ✅**（2026-10-01，可迁移性与启动幂等）→
-> **M1 进行中**（serve 上收 / 组装根）。
+> **M1 ✅**（2026-10-07，serve 上收 / 组装根）→ **下一步 M2**（角色载体）。
 
 **v1.0 主线（按依赖顺序）**：
 
