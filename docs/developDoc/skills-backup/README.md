@@ -1,7 +1,7 @@
 # skills-backup —— 迁移前的技能备份
 
 > **用途声明（2026-09-28）**：本目录是 `src/aris/behavior/skills/` 里那三个技能的
-> **迁移前备份**，按 `developDoc/discuss-2026-09-28.md` D7/D13 设立。
+> **迁移前备份**，按 `docs/developDoc/discuss-2026-09-28.md` D7/D13 设立。
 
 ## 为什么在这儿
 

@@ -2,7 +2,7 @@
 
 > 每次开发前先读本文件，了解**当前**状态。
 > 本文件只记当前进度（现状速览 / 最近动态 / 当前聚焦 / 路线）；已翻页的历史条目
-> 原文归档在 `developDoc/PROGRESS-ARCHIVE.md`（含各次踩坑记录，查旧事去那里）。
+> 原文归档在 `docs/developDoc/PROGRESS-ARCHIVE.md`（含各次踩坑记录，查旧事去那里）。
 
 ## 当前版本：v0.4.2（beta，2026-09-24）
 
@@ -18,8 +18,8 @@
 | `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪 |
 | `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper；**可迁移性（v1.0 M0）**：二进制可运行验证 + 重获取、属主可操作报错、角色探测对齐、端口自动避让 |
 | `knowledge/` | 首期完成：两表 / 分块 / 摄入 / 纯向量检索 / CLI / agent 工具 / WebUI 页 |
-| `memory/` | **设计已定案（2026-09-29）**：内容模型见 `developDoc/MEMORY.md`（分层 / 事件 / 两周记 / 惰性衰减 / 注入 / 表结构）；会话与消息表见 D2。**D16 = A 级，8 条待商讨已补完** |
-| `voice/` | **占位**（选型见 `developDoc/stt&&tts选型.md`） |
+| `memory/` | **设计已定案（2026-09-29）**：内容模型见 `docs/developDoc/MEMORY.md`（分层 / 事件 / 两周记 / 惰性衰减 / 注入 / 表结构）；会话与消息表见 D2。**D16 = A 级，8 条待商讨已补完** |
+| `voice/` | **占位**（选型见 `docs/developDoc/stt&&tts选型.md`） |
 | `autorun/` | **方向已定，暂不实现（2026-09-28）**：纯调度器 + 触发源抽象（D11） |
 
 - **入口**：`aris serve` 一条命令即可（首次自动获取便携 PG，需联网数分钟）；
@@ -28,10 +28,23 @@
 - 数据库：便携实例在 `data/pg`，项目本地、不注册系统服务；`aris serve` 会按需自建/自启，
   退出时只停自己拉起的那个
 - 知识库现有资料：`data/knowledge/刑法.md`（约 129 块）
-- 待办方向：`developDoc/BACKLOG.md`（8 条中长期，**2026-09-28 已全部过一轮商讨**）
+- 待办方向：`docs/developDoc/BACKLOG.md`（8 条中长期，**2026-09-28 已全部过一轮商讨**）
 - 已知陷阱（踩坑档案，修完就补）：`AGENTS.md`「已知陷阱」节
 
 ## 最近动态
+
+### 2026-10-07：用户记下两件事 + 文档迁 `docs/`
+
+- **文档目录已迁**：`developDoc/` → `docs/developDoc/`、`referenceDocumentation/` →
+  `docs/referenceDocumentation/`（用户提交 `b00b2a6`），`README.md` 重写为用户向文档
+  （旧版存为 `README.old.md`）——**本次把仓库内 33 个文件里 75 处 `developDoc/` 引用
+  一并改成 `docs/developDoc/`**（代码 docstring 与配置注释也改了，否则新会话按 AGENTS
+  文档索引找不到文件）
+- **用户记的两件事**：
+  1. **`config/` 迁到 `data/config/`** —— 目的：`data/` 成为换机时唯一要带的东西。
+     **未定**：示例/模板配置（`providers.example.toml` 等）留在哪儿
+  2. **云端支持**（**排 v1.0 之后**）：云端 embedding 容易；云端 SQL = 允许连**外部
+     psql**（DSN 指向别人的库）。已记入 `docs/developDoc/BACKLOG.md`
 
 ### 2026-10-01：v1.0 M0 —— 可迁移性与启动幂等（D14）
 
@@ -72,7 +85,7 @@
 - **文档**：`data/personas/` → `data/characters/`、`persona.toml` → `character.toml`，
   记忆分区列 `persona_id` → **`cid`**（与 D1 的 `cid` 收口）；全仓 21 个文件
 - 验证：`uv run pytest` **103 passed, 10 skipped**
-- **v1.0 施工开始**：M0（可迁移性与启动幂等）开工，方案见 `developDoc/V1.0-PLAN.md`
+- **v1.0 施工开始**：M0（可迁移性与启动幂等）开工，方案见 `docs/developDoc/V1.0-PLAN.md`
 ### 2026-10-01：版本发行改三线 + 记忆形态微调（文档，未写代码）
 
 - **版本发行改成三线、数字共用**（取代 2026-09-24 的 beta 方案）：
@@ -99,7 +112,7 @@
 
 ### 2026-09-29：D16 记忆内容模型商讨补完（全部定案，未写代码）
 
-- **补完的 8 条**（原列在 `developDoc/MEMORY.md` 第五节，现已搬进「定案」各节）：
+- **补完的 8 条**（原列在 `docs/developDoc/MEMORY.md` 第五节，现已搬进「定案」各节）：
   - **衰减**：`w_eff = (weight + hit) × 2^(−Δt/H)`，H 二级 14 天 / 三级 180 天；
     **读时惰性计算、不落库**（`autorun` 已搁置，这是唯一可行形态）→ 调参不用洗数据
   - **防刷分**：`+1` 只在真实检索命中时发生（注入不算）、一次调用内去重、封顶 8.0、
@@ -146,7 +159,7 @@
 - **目标**：为国庆前后发布 **v1.0**（memory + character 基础功能）铺路，一次性把 8 条
   BACKLOG 全部过完；按 v1.0 相关性排序商讨
 - **方法**：8 个只读子代理并行做代码级勘察（产出含 `文件:行号` 的卡片）→ 逐条拍板；
-  产物 = **`developDoc/discuss-2026-09-28.md`**（勘察卡片 + D1–D16 定案/商讨）
+  产物 = **`docs/developDoc/discuss-2026-09-28.md`**（勘察卡片 + D1–D16 定案/商讨）
 - **核心定案**（完整见该文件与 `AGENTS.md`「BACKLOG 全量商讨定案」）：
   - **D1 人格**：「多人格」= **多个人**（各自会话/记忆）；载体 = `data/characters/<id>/`
     文件；**单进程多会话**；**记忆按 `cid` 分区**
@@ -155,7 +168,7 @@
     原文全量保留 + 可归档；触发用字符估算 × `context_length` 比例
   - **D6 对外接口**：双层门面、CMCB 为载体 → **搁置，v1.0 只文档化**
   - **D7 Skills**：**整体迁 `data/skills/`**；包内不留技能；3 个测试用 skill 暂放
-    `developDoc/skills-backup/`
+    `docs/developDoc/skills-backup/`
   - **D8/D9 提供商**：**支持 Responses API**；多模态只做底层；思考模式默认关闭走配置；
     **模型级 `free` 标签 + 免费优先降级**；`race_fallback` 默认关、SDK 内建重试关掉
   - **D10 多模态**：模型补标模态；图片落盘按引用；视觉三挡 `none|auto|force`
@@ -163,12 +176,12 @@
     `data/autorun/tasks.toml`；**同日追加决定暂不实现（v1.0 也不做）**，只留设计文档
   - **D12 文档站**：**短期不做**
 - **补充两条 v1.0 硬目标（D14/D15，用户当场追加，权威文档
-  `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）**：
+  `docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）**：
   - **D14 可迁移性**：换主机 = 新机 clone + 把 `data/` 全量拷过去 + `uv run aris serve`
     直接起；不写死绝对路径、启动幂等、跨平台能重获取 PG
   - **D15 单一会话原则**：只有一个当前会话，**不做也不允许子代理**；一切输入进同一会话；
     复用最新小会话 + 冷却 3~5 天（吃 KV cache 省钱）；场合/去向模型只写文档暂不实现
-- **顺带勘误** `developDoc/API-CALL.md`：第 3 节 Responses 整节重写（原路径/模型名/
+- **顺带勘误** `docs/developDoc/API-CALL.md`：第 3 节 Responses 整节重写（原路径/模型名/
   兼容性描述均过期）、第 4 节重写思考模式 + 新增 4.3 图像理解 / 4.4 文件输入 /
   4.5 模态元数据 / 4.6 Files API / 6.1 落地要点
 - **同步改动**：`AGENTS.md`（模块划分加 `autorun/`、文档站改「短期不做」、待定划掉
@@ -274,7 +287,7 @@
 - 待做（SERVE.md 第 4–5 步）：上收 `webui` 的 import 与 `_REQUIRED_SERVICES`、与
   `aris doctor` 合流探针；工具注册表 / loop / LLM engine 仍是会话级对象（#4/#7 时上收）
 
-### 2026-09-19：serve 模块方案定案（启动编排，`developDoc/SERVE.md`）
+### 2026-09-19：serve 模块方案定案（启动编排，`docs/developDoc/SERVE.md`）
 
 - 定位：`aris serve` = **组装根 + 启动编排（相当于 init）**——把各模块按序拉起、前台
   打印启动清单与日志、`Ctrl-C` 收尾；**单向**（只调别人的启动动作，**不对外提供查询
@@ -290,7 +303,7 @@
 - 顺带收口：`cli.py` 与 `webui/__init__.py` 里重复的 import 与 `_REQUIRED_SERVICES`
   自检**上收到 serve**（现在两处各一套，已存漂移风险）；`aris doctor` 与 serve
   共用探针；WebUI 仪表盘「系统状态区域」直接读各模块服务，不经过 serve
-- 新增 `developDoc/SERVE.md`（定位/三类服务/启动顺序/自启策略/失败分级/配置/接缝/
+- 新增 `docs/developDoc/SERVE.md`（定位/三类服务/启动顺序/自启策略/失败分级/配置/接缝/
   实现次序）；`AGENTS.md` 模块划分与文档索引同步
 - 商讨补充定案：**`aris chat` 是纯前端，与 serve 互不干涉**（既不自启也不被自启，
   不触发 PG 自启与预热）；**人格与对话历史的载体先置着**（`data/characters/` 文件 vs
@@ -301,15 +314,15 @@
 ### 2026-09-19：精简 PROGRESS.md + `.workbuddy/` 进 gitignore
 
 - `PROGRESS.md` 只留当前进度（现状速览 / 最近动态 / 当前聚焦 / 路线），历史条目
-  原文移至 `developDoc/PROGRESS-ARCHIVE.md`；此后只在顶部追加、阶段性搬运
+  原文移至 `docs/developDoc/PROGRESS-ARCHIVE.md`；此后只在顶部追加、阶段性搬运
 - `.gitignore` 补 `.workbuddy/`（本地工具目录，不入库）
 - 踩坑记录分层：**会重复咬人的一行进 `AGENTS.md`「已知陷阱」**（每个会话自动读到），
   长篇叙述留在当轮条目、过时随归档下沉
 - 纯文档改动，未提交
 
-### 2026-09-19：建立后续待办清单（`developDoc/BACKLOG.md`）
+### 2026-09-19：建立后续待办清单（`docs/developDoc/BACKLOG.md`）
 
-- 7 条中长期方向落 `developDoc/BACKLOG.md`：① 提供商与 LLM 协议更新优化
+- 7 条中长期方向落 `docs/developDoc/BACKLOG.md`：① 提供商与 LLM 协议更新优化
   ② Skills 迁到 `data/skills/` ③ 开放各模块对外接口（插件系统底座）④ 多人格并行
   ⑤ 上下文压缩（属记忆系统）⑥ 多模态支持 ⑦ 自动任务与主动操作
 - 依赖速查：#3 是 #4/#7 的底座；`store/` 已就位 → #5 可开工；#2 独立可插队
@@ -334,12 +347,12 @@
 
 **目标：国庆前后发布 v1.0**（memory + character 基础功能；文档站、对外接口、autorun、
 知识库第二阶段等**已明确挤出 1.0**，见商讨 D6/D11/D12）。决策依据全部在
-`developDoc/discuss-2026-09-28.md`（结合 `AGENTS.md`「BACKLOG 全量商讨定案」）。
+`docs/developDoc/discuss-2026-09-28.md`（结合 `AGENTS.md`「BACKLOG 全量商讨定案」）。
 
-> **前置项：无**。D16 的 8 条待商讨已于 2026-09-29 全部拍完（`developDoc/MEMORY.md`
+> **前置项：无**。D16 的 8 条待商讨已于 2026-09-29 全部拍完（`docs/developDoc/MEMORY.md`
 > 已改「定案」、颗粒度表 D16 = A），v1.0 主线无挂起项，只剩实现时调的参。
 
-> **施工方案（阶段划分 / 每阶段改动面 / 验收 / 风险）见 `developDoc/V1.0-PLAN.md`**，
+> **施工方案（阶段划分 / 每阶段改动面 / 验收 / 风险）见 `docs/developDoc/V1.0-PLAN.md`**，
 > 下方是主线摘要。
 >
 > **施工进度（M0–M9）**：**M0 ✅**（2026-10-01，可迁移性与启动幂等）→
@@ -348,7 +361,7 @@
 **v1.0 主线（按依赖顺序）**：
 
 1. **可迁移性 + 单一会话**（D14/D15，硬目标，权威文档
-   `developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）：`data/` 分层可迁移自检、
+   `docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md`）：`data/` 分层可迁移自检、
    跨平台 PG 重获取、`pgdata` 属主与端口缺口；会话复用最新小会话 + 冷却 3~5 天 +
    串行排队 + 消息带场合/说话者
 2. **人格载体 + 会话落库**（D1/D2，`character/` + `memory/`）：`data/characters/<id>/` 文件、
@@ -392,5 +405,5 @@ htmx / Lucide（可选）
 7. ✅ 行为扩展：函数调用（2026-08-09）、联网搜索（2026-08-09）、skills（2026-08-12）；
    MCP 待后续
 8. ⬜ GraphRAG
-9. ✅ 知识库首期（v0.4.0）；第二阶段 PDF + 混合检索待做，详见 `developDoc/KNOWLEDGE-BASE.md`
+9. ✅ 知识库首期（v0.4.0）；第二阶段 PDF + 混合检索待做，详见 `docs/developDoc/KNOWLEDGE-BASE.md`
 10. ⬜ autorun（定时与主动任务）—— **方向已定，暂不实现**（D11，只留设计文档）

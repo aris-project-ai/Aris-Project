@@ -1,7 +1,7 @@
 """可迁移性与启动幂等（D14）测试：角色对齐 / 端口探测 / 二进制可运行 / data 分层。
 
 **无外部依赖**：不连数据库、不启动实例；需要真实 PG 二进制的那条用 skipif 跳过。
-设计依据见 developDoc/PORTABILITY-AND-SINGLE-SESSION.md 与 V1.0-PLAN.md 的 M0。
+设计依据见 docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md 与 V1.0-PLAN.md 的 M0。
 """
 
 from __future__ import annotations

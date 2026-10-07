@@ -158,7 +158,7 @@
   （实测：迁移报成功但表不存在）；② `pg_ctl` 遇「残留进程占用共享内存」时，
   错误信息现直接给出 `pkill -f <pgdata>` 的处理提示
 - 实测：`uv run pytest` **78 passed**（含端到端「摄入 → 幂等跳过 → 变更重建 →
-  检索带来源 → 移除后查不到」）；CLI 冒烟摄入 `developDoc/KNOWLEDGE-BASE.md` 得 23 块，
+  检索带来源 → 移除后查不到」）；CLI 冒烟摄入 `docs/developDoc/KNOWLEDGE-BASE.md` 得 23 块，
   检索「知识库的向量维度为什么选 384」命中 C1 段落，测试数据已清理
 - **下一步**：agent 工具 `knowledge_search`（D1 定案：与 `web_search` 并列、
   由 Aris 自主调用）；之后是 WebUI 上传（B3 二阶段）
@@ -256,7 +256,7 @@
   （`subscribe`/`emit`）+ 审计查询，故定名**「跨模块通讯总线」（CMCB）**；**暂不改名**
   （涉及既有 16 个服务命名与多处文档），留作待办。
 - 知识库四个议题（A/B/C/D）**全部定案**；已同步 `AGENTS.md` 与
-  `developDoc/KNOWLEDGE-BASE.md`（第 4、5 节）。本轮仅文档，未写代码。
+  `docs/developDoc/KNOWLEDGE-BASE.md`（第 4、5 节）。本轮仅文档，未写代码。
 - **下一步**：进入实现——先做 `store/`（PG 环境 bootstrap → 连接池 → 迁移 →
   embedding provider → 建表 helper）。
 
@@ -277,7 +277,7 @@
   `knowledge.search` / `knowledge.ingest` / `knowledge.sources`。
 - **新增待定**：用户计划给总线重新取名，届时统一调整既有 16 个服务命名。
 - 已同步 `AGENTS.md`（模块划分 / 已定案 / 待定 / 开发路线）；详
-  `developDoc/KNOWLEDGE-BASE.md` 第 4 节。本轮仅文档。
+  `docs/developDoc/KNOWLEDGE-BASE.md` 第 4 节。本轮仅文档。
 - **下一步**：议题 B（摄入侧）/ C（存储切分）。
 
 ### 2026-09-18：数据库部署方案定案（前置阻塞解除）
@@ -292,7 +292,7 @@
 - **pgvector 取预编译包、不源码编译**：读源码确认 pgvector 在 glibc Linux 上自动启用
   `USE_TARGET_CLONES`（运行期选 FMA 快路径）；本机 Xeon E5-2673 v3 无 AVX-512，
   `-march=native` 无额外收益。
-- 已同步 `AGENTS.md`「已定案」；详 `developDoc/KNOWLEDGE-BASE.md` 第 3 节。
+- 已同步 `AGENTS.md`「已定案」；详 `docs/developDoc/KNOWLEDGE-BASE.md` 第 3 节。
 - 未写代码，仅文档；下一步进议题 A（边界与归属）/ D（检索侧接口）。
 
 ### 2026-09-14：知识库进入准备阶段（商讨中，未定案）
@@ -300,7 +300,7 @@
 - 用户决定启动**知识库**能力建设，定位为**面向外部资料的独立 RAG 知识检索
   能力**，与 Aris 个人记忆分开。
 - 已开分支 `feat/knowledge-base`（从 `develop` @ `7f0b4dd` 拉取）。
-- 新建 `developDoc/KNOWLEDGE-BASE.md`（**商讨稿**）：登记定位、可沿用的既有
+- 新建 `docs/developDoc/KNOWLEDGE-BASE.md`（**商讨稿**）：登记定位、可沿用的既有
   地基、前置阻塞、待商讨决策点（A 边界归属 / B 摄入侧 / C 存储切分 / D 检索侧）。
 - **尚未定案**：知识库与 `memory/`（记忆系统主线）的边界与先后次序均待商讨；
   本轮只做准备，未写代码。

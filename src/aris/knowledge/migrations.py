@@ -1,6 +1,6 @@
 """知识库建表迁移（import 本模块即登记，由 `store.migrate` 统一执行）。
 
-表结构定案见 developDoc/KNOWLEDGE-BASE.md 5.2：
+表结构定案见 docs/developDoc/KNOWLEDGE-BASE.md 5.2：
 
 - 两张表：`knowledge_docs`（文档级，记 hash / mtime / 状态）+
   `knowledge_chunks`（块级，含 384 维向量）；

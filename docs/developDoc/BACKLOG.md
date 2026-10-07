@@ -4,7 +4,7 @@
 > 「已定案」，正在做与做完的在 `PROGRESS.md`，这里记录「将来要做、但还没轮到」的事。
 > 每条只写清**目标 / 现状 / 待定问题**，不写实现方案（轮到做时再按歧义处理规则商讨定案）。
 >
-> **2026-09-28：8 条全部过了一轮商讨**，结论见 `developDoc/discuss-2026-09-28.md`
+> **2026-09-28：8 条全部过了一轮商讨**，结论见 `docs/developDoc/discuss-2026-09-28.md`
 > （含代码级勘察卡片与 **D1–D16** 定案/商讨 + 末尾的颗粒度分级表）。下面每条都加了
 > 「商讨结论」小节：**已定则指向定案号，未定则明确写清待谁定**。
 >
@@ -12,7 +12,7 @@
 > v1.0**（时间已进 10 月，v1.0 只保 memory + character），v1.0 之后再做。
 >
 > **2026-09-29 补充**：记忆内容模型 **D16**（不在下面 8 条里，由 #5 延伸而来）已由用户定
-> **进 v1.0**，且当日**其 8 条待商讨全部拍完**（`developDoc/MEMORY.md` 状态 = 定案，
+> **进 v1.0**，且当日**其 8 条待商讨全部拍完**（`docs/developDoc/MEMORY.md` 状态 = 定案，
 > 颗粒度 A 级）；要点见 `AGENTS.md`「BACKLOG 全量商讨定案」的 D16 条。
 
 ## 商讨结论速览（2026-09-28）
@@ -36,7 +36,7 @@
   流式 + 原生 tool_calls；`providers.toml` 管理模型元数据，`aris llm fetch` 做 /models 同步。
 - 目标：跟上上游协议变化（新 API 形态、新字段、新提供方），并优化现有链路
   （重试/超时预算、流式分片拼装、token 统计、错误信息质量）。
-- 参考：`developDoc/LLM-PROVIDER-MGMT.md`、`developDoc/API-CALL.md`。
+- 参考：`docs/developDoc/LLM-PROVIDER-MGMT.md`、`docs/developDoc/API-CALL.md`。
 - **商讨结论（2026-09-28，D8/D9）**：
   - **支持 Responses API**（DeepSeek 已正式支持，`POST /responses`、无 `/v1`、无状态、
     无 `[DONE]`；落地要点见 `API-CALL.md` 6.1）
@@ -54,12 +54,12 @@
 - 现状：技能目录固定在包内 `src/aris/behavior/skills/`（`SKILLS_DIR`），
   改一个 skill 就要动仓库；WebUI 技能管理页也指向包内目录（**会写进源码树**）。
 - 目标：技能落到运行时目录 `data/skills/`（不进 git、可随时热改）。
-- 参考：`developDoc/SKILLS.md`。
+- 参考：`docs/developDoc/SKILLS.md`。
 - **商讨结论（2026-09-28，D7/D13）**：
   - **整体迁 `data/skills/`**，不做双目录叠加；理由：**技能本质是外部的东西**，
     Aris 自己的能力应直接做进 `behavior` 模块
   - **包内不再留技能**；现有 3 个（`note` / `frontend-design` / `doc-coauthoring`）
-    只是**机制测试样本**，**先不删**，临时放 **`developDoc/skills-backup/`**
+    只是**机制测试样本**，**先不删**，临时放 **`docs/developDoc/skills-backup/`**
     （目录名即声明为「迁移前的技能备份」），迁完测完再删
   - WebUI 写侧只读写 `data/skills/`，不再写源码树
   - `pyproject.toml` 补 package-data（改动时要明确告知用户）
@@ -71,7 +71,7 @@
   无版本 / 能力声明 / 权限 / 生命周期钩子；插件系统仍为草案，无代码。
 - 目标：为插件 / MCP / 第三方定义稳定的对外接口——能力声明、服务发现、
   版本标记、生命周期钩子。
-- 参考：`developDoc/PLUGIN.md`（草案，多处 `[待讨论]`）。
+- 参考：`docs/developDoc/PLUGIN.md`（草案，多处 `[待讨论]`）。
 - 相关：`aris serve` 是**组装根**，只管把模块按序拉起来；**对外契约归 CMCB**，两者不重叠。
 - **商讨结论（2026-09-28，D6）**：
   - **必然用 CMCB 作载体**；路线 = **双层门面**（总线对内自由 + 对外一份可见服务白名单
@@ -116,14 +116,14 @@
 - **仍未定**：历史消息检索工具（recall）——"一会再说"；
   ~~大会话结束是否写长期记忆~~ → **已由 D16 定案（写入单元 = 大会话结束）**；
   ~~周记 / 月记~~ → **只做「两周记」**（二级窗口正好两周）。细节见
-  `developDoc/MEMORY.md` 第三 / 四 / 六节
+  `docs/developDoc/MEMORY.md` 第三 / 四 / 六节
 
 ## 6. 多模态模型支持
 
 - 现状：`LLMModel.capabilities` 已有 `vision` 标志位，但消息结构、工具返回、
   存储、WebUI 都只处理文本；`vision` 字段**无人消费**。
 - 目标：打通图像等模态的输入、能力探测与降级。
-- 参考：`developDoc/API-CALL.md` 4.3–4.5（图像理解 / 文件输入 / 模态元数据来源）。
+- 参考：`docs/developDoc/API-CALL.md` 4.3–4.5（图像理解 / 文件输入 / 模态元数据来源）。
 - **商讨结论（2026-09-28，D10）**：
   - **只做底层支持**：`Message` 支持内容块、图片输入打通、模型列表补标模态；
     **TUI 与前端交互不动**
@@ -157,9 +157,9 @@
 
 ## 8. 独立文档站（VitePress）
 
-- 现状：无站点、无骨架、无 CI。使用说明只在 `README.md`，开发文档散在 `developDoc/`。
+- 现状：无站点、无骨架、无 CI。使用说明只在 `README.md`，开发文档散在 `docs/developDoc/`。
 - 目标：另起仓库的独立站点（VitePress），面向**使用者 + 插件作者**，内容全部新写。
-- 参考：`developDoc/DOCS-SITE.md`（全部定案）、`developDoc/PLUGIN.md`。
+- 参考：`docs/developDoc/DOCS-SITE.md`（全部定案）、`docs/developDoc/PLUGIN.md`。
 - **商讨结论（2026-09-28，D12）**：
   - **先不做**：v1.0 之后乃至**短期都不做**——多一个站多一份维护，而功能还没稳
     （为让正式版尽快发布，已毙掉多个原计划在 1.0 完善的功能）
@@ -176,3 +176,23 @@
 - #2 独立、改动小，可随时插队。
 - #8 与代码主线独立，**已决定短期不做**；其「插件作者契约」部分应与 #3 一起定。
 - #1、#6、#7 与主线相对独立，按外部需要驱动；#6 的底层与 #1 的 Responses 支持**同批做**。
+
+## 2026-10-07 追加两条
+
+### #9 `config/` 迁到 `data/config/`
+
+- **动机**：让 `data/` 成为换机时**唯一**要带的东西（`README.md` 现在还得单独叮嘱
+  "把 .env 与 config/ 也一并迁移"）；与 D14 的「拷 `data/` 就能起」同向
+- **未定**：模板 / 示例配置（`providers.example.toml`、`providers.mock.toml`）放哪——
+  仓库里总得留一份可复制的，且 `release-check` / 文档都引用它们；动之前先定这一条
+- **影响面**：`cfgtoml.py` 的 `config_dir()`、`config.py` 的 `llm_providers_file`、
+  WebUI 配置页、`scripts/release-check.sh`、README / AGENTS 的三源分工表
+
+### #10 云端支持（embedding + 外部 SQL）
+
+- **时间**：**v1.0 之后**（用户 2026-10-07 定）
+- **云端 embedding**：`store/embedding/` 已有 Protocol 抽象，加一个云端 provider 即可
+  （EMBEDDING.md 早已定过冷侧走云端 BGE-M3 / 1024 维，只是没实现）
+- **外部 SQL**：允许把 DSN 指向**外部 psql 实例**（别人的库 / 云端 PG），而不是必须用
+  项目内的便携实例。注意与 D14 的冲突点：便携实例的"自建自启/属主/角色对齐"那一整套
+  在外部实例上都不适用 → 需要显式的"实例来源 = external"分支（探活但绝不 init/start）

@@ -1,4 +1,4 @@
-"""serve 模块 —— 启动编排（`aris serve`，见 developDoc/SERVE.md）。
+"""serve 模块 —— 启动编排（`aris serve`，见 docs/developDoc/SERVE.md）。
 
 定位：**组装根 + 启动编排**，相当于一次 init——按序把各模块拉起来，前台打印启动
 清单与日志，`Ctrl-C` 收尾。它只调用各模块自己的启动动作（经 CMCB），**不对外提供
@@ -181,7 +181,7 @@ def serve(
 
     退出码：``0`` 正常（含 Ctrl-C 正常收尾）、``1`` 有 required 步骤失败或阻塞步骤
     起不来、``130`` 收尾时再次 Ctrl-C 强制退出（数据库可能仍在运行）。CLI 参数写错
-    由调用方返回 ``2``。详见 developDoc/SERVE.md「退出语义」。
+    由调用方返回 ``2``。详见 docs/developDoc/SERVE.md「退出语义」。
     """
     config = get_serve_config()
     settings = get_settings()
