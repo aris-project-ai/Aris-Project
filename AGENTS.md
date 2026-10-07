@@ -52,8 +52,8 @@
   **三类版本**（2026-10-01 定：`beta-vX.Y.Z` 开发时版 / `vX.Y.ZbN` 候选 / `vX.Y.Z` 正式版）。
 - 骨架、LLM 接入、文字对话、行为扩展（函数调用）、联网搜索、人格系统均已完成。
 - **v1.0 施工中（2026-10-01 起）**：阶段划分与验收见 `docs/developDoc/V1.0-PLAN.md`，
-  进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）与 M1（serve
-  上收组装根）已完成**；模块名 `persona/` 已改为 **`character/`**。
+  进度记在 `PROGRESS.md`「当前聚焦」。**M0（可迁移性与启动幂等，D14）、M1（serve
+  上收组装根）与 M2（角色载体）已完成**；模块名 `persona/` 已改为 **`character/`**。
 - **启动编排 `serve/` 已完成（v0.4.1）**：`aris serve [--only/--skip/--dry-run]` 一条命令
   拉起 PG（缺则自建、没跑则自启、退出只停自己拉起的）、后台预热 embedding、建知识表、
   并入 WebUI（端口冲突则拒启 web 并提示）；`aris doctor` 与它共用同一份探针。
@@ -308,8 +308,11 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   - 待实现：PDF 与混合检索（第二阶段）
   详见 `docs/developDoc/KNOWLEDGE-BASE.md`
 - `voice/` —— STT（语音识别）、TTS（语音合成）
-- `character/` —— 人格系统（提示词工程起步，2026-08-12）：注册
-  `character.system_prompt` 服务，其他模块经 `core.call` 取人设，不再硬编码；
+- `character/` —— 人格系统（2026-08-12 起步；**v1.0 M2 起为角色载体**）：角色 = `data/characters/<cid>/`
+  （`character.toml` 简介/性格/语气/边界 + `worldview.md`/`relations.md`/`growth.md` 只读占位，加载器
+  `character/carrier.py`）；**`cid` 在创建角色时生成**（uuid），改名 / 改人设不影响它。服务
+  `character.system_prompt(cid)`（**`cid` 必填**，防静默串号）/ `character.list` / `character.resolve`
+  （缺省取最早一个，空目录播种默认角色），其他模块经 `core.call` 取人设，不再硬编码；
   世界观/人际关系/成长轨迹后续在此演进
 - `behavior/` —— 行为（函数调用已实现）：`registry.py` 工具注册表、`loop.py` agent loop
   （LLM↔工具循环）、`tools/` 内置工具集、`skills/` 技能系统（2026-08-12 落地：
@@ -517,7 +520,8 @@ Termux 无法安装 pydantic-settings 的问题暂缓，若后续 Termux 成为�
   接 Google 搜索
 - **TTS**：Edge TTS 起步（免费），Azure TTS 备选
 - **人格系统（2026-08-12）**：**提示词工程起步**（character 模块），注册
-  `character.system_prompt` 服务，chat 默认经 `core.call` 取人设，`--system` 可覆盖；
+  `character.system_prompt(cid)` 服务（**v1.0 M2 起按 `cid` 取角色**，角色落
+  `data/characters/<cid>/`），chat 默认经 `core.call` 取人设，`--system` 可覆盖；
   人设文本轻量结构化（简介/性格/语气/边界），世界观/人际关系/成长轨迹后续演进。
   提示词工程 vs MCP 之争暂以提示词工程落地，未来可按需再议
 - **提供商/模型管理（2026-08-14）**：`providers.toml` 顶层 `default_model`

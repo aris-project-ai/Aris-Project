@@ -127,7 +127,9 @@ summary = query_summary()            # 聚合统计
 | `llm.deltas` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py`（内部直调注入的 engine） |
 | `tools.execute` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 执行工具，返回文本结果 | `behavior/loop.py`（内部直调注入的 registry；服务供外部经总线用） |
 | `loop.run` | `AgentLoop.__init__`（组装期 `serve.assemble()`） | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
-| `character.system_prompt` | `character/__init__.py` | 返回 Aris 系统提示词 | `chat/session.py`（默认人设，`--system` 可覆盖） |
+| `character.system_prompt(cid)` | `character/__init__.py` 模块级 | 按 `cid` 返回该角色系统提示词（**`cid` 必填**，防静默串号） | `chat/session.py`（默认人设，`--system` 可覆盖） |
+| `character.list` | `character/__init__.py` 模块级 | 角色清单（`cid` / `name` / `path`） | `serve` character 探针 |
+| `character.resolve(cid=None)` | `character/__init__.py` 模块级 | 解析角色：显式 `cid` 校验存在，缺省取最早一个（空目录则播种默认角色） | `chat/session.py`、`serve` 启动动作 |
 | `skills.menu` | `SkillManager.__init__` | 返回技能清单（注入 system prompt 供模型判断何时激活） | `chat/session.py`（工具启用时） |
 | `audit.recent` | `core/bus.py` 模块级 | 最近审计流水（分页，按 wall_ts 倒序） | `webui` 审计页 |
 | `audit.summary` | `core/bus.py` 模块级 | 审计聚合统计 | `webui` 仪表盘 |
@@ -162,11 +164,14 @@ summary = query_summary()            # 聚合统计
 - `chat/session.py`：经注入的运行时用 loop（`loop.run` 服务保留）。
 - `cli.py` `llm test`：调 `llm.stream` 走总线。
 
-### 已迁移（第二批：character，2026-08-12）
+### 已迁移（第二批：character，2026-08-12；v1.0 M2 起为按 cid 的角色载体）
 
-- `character/__init__.py`：模块级 `provide("character.system_prompt")`。
+- `character/__init__.py`：模块级注册 `character.system_prompt(cid)` / `character.list` /
+  `character.resolve`；人设来自 `data/characters/<cid>/character.toml`（加载器 `character/carrier.py`）。
 - `chat/session.py`：默认系统提示词从本地硬编码改为
-  `call("character.system_prompt")`（服务缺失时用兜底文本），`--system` 可覆盖。
+  `call("character.system_prompt", cid)`（`cid` 缺省时先经 `character.resolve`；服务缺失才用兜底文本），
+  `--system` 可覆盖；显式 `--system` 不触碰角色目录。
+- `chat/__init__.py`：删掉包级直引 `ARIS_SYSTEM_PROMPT`（原属总线违例）。
 
 > 注：character 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
 > 全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。

@@ -13,7 +13,7 @@
 | `core/` | 完成：CMCB 总线（core 16 个服务，全项目 52 个注册点；含事件广播 + 审计）+ LLM 多提供方 / fallback / 流式 / 工具调用 |
 | `behavior/` | 完成：agent loop、工具注册表、内置工具（`web_search` / `web_open` / `knowledge_search`）、skills 系统 |
 | `chat/` | 完成：会话逻辑 + TUI（`aris chat`），定位开发调试 |
-| `character/` | 提示词工程版（单一 `character.system_prompt`）；多人格见 BACKLOG #4 |
+| `character/` | **完成（v1.0 M2，2026-10-07）**：角色载体 `data/characters/<cid>/`（`character.toml` + 三段占位 md），服务 `character.system_prompt(cid)`（**cid 必填**）/ `character.list` / `character.resolve`（空目录播种默认角色） |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库页 |
 | `serve/` | **完成（v0.4.1）**：`aris serve` 一条命令起全套（缺则自建 PG、自启、预热 embedding、并入 WebUI），`--only/--skip/--dry-run` 可裁剪；**v1.0 M1（2026-10-07）**：组装根只装配一份进程级运行时（engine / registry / loop / skills），会话注入复用 |
 | `store/` | 完成：便携 PG 17.11 + pgvector 0.8.1、embedding（本地 Bekko 384 维）、迁移 + 向量 helper；**可迁移性（v1.0 M0）**：二进制可运行验证 + 重获取、属主可操作报错、角色探测对齐、端口自动避让 |
@@ -24,7 +24,7 @@
 
 - **入口**：`aris serve` 一条命令即可（首次自动获取便携 PG，需联网数分钟）；
   `aris doctor` 体检、`aris chat` 终端对话（调试用，与应用互不干涉）
-- 测试：`uv run pytest` **123 passed**（DB 未运行则集成用例自动 skip）
+- 测试：`uv run pytest` **131 passed**（DB 未运行则集成用例自动 skip）
 - 数据库：便携实例在 `data/pg`，项目本地、不注册系统服务；`aris serve` 会按需自建/自启，
   退出时只停自己拉起的那个
 - 知识库现有资料：`data/knowledge/刑法.md`（约 129 块）
@@ -32,6 +32,19 @@
 - 已知陷阱（踩坑档案，修完就补）：`AGENTS.md`「已知陷阱」节
 
 ## 最近动态
+
+### 2026-10-07：v1.0 M2 —— 角色载体（代码）
+
+- **为什么**：人设原是模块常量 + 无参单槽服务，多人格没法各自挂；`chat/__init__.py`
+  还包级直引常量，绕过总线。
+- **做法**：新增 `character/carrier.py` 落地 `data/characters/<cid>/`（`character.toml` +
+  三段只读占位 md；`cid` 创建时生成 uuid，改名 / 改人设不影响）；服务改为
+  `character.system_prompt(cid)`（**必填**）/ `character.list` / `character.resolve`
+  （缺省取最早一个，空目录播种默认角色，幂等）；serve 的 character 步骤补启动动作；
+  `ChatSession` 增 `cid`，显式 `--system` 仍最高优先级且不碰角色目录。
+- **测试**：`tests/test_character.py` 8 例（两角色不串 / 播种幂等 / `cid` 必填 /
+  会话取人设）；`uv run pytest` **131 passed, 10 skipped**。
+- **文档**：`docs/developDoc/{CMCB,SERVE,V1.0-PLAN}.md`、`AGENTS.md`。
 
 ### 2026-10-07：v1.0 M1 —— serve 上收组装根（代码）
 
@@ -377,7 +390,8 @@
 > 下方是主线摘要。
 >
 > **施工进度（M0–M9）**：**M0 ✅**（2026-10-01，可迁移性与启动幂等）→
-> **M1 ✅**（2026-10-07，serve 上收 / 组装根）→ **下一步 M2**（角色载体）。
+> **M1 ✅**（2026-10-07，serve 上收 / 组装根）→ **M2 ✅**（2026-10-07，角色载体）→
+> **下一步 M3**（会话与消息落库）。
 
 **v1.0 主线（按依赖顺序）**：
 
