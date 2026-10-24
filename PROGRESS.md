@@ -27,7 +27,7 @@
 ## 当前聚焦
 
 - **工程化 P0（已完成，随 `chore/tooling` 合并进入 develop）**：ruff + mypy + `scripts/check.sh`；
-  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-only 元数据；全量测试 163 passed。
+  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-or-later 元数据；全量测试 163 passed。
 - **文档整治**：目录已统一为 `docs/forAiDoc/`；其余文档按 AGENTS.md 标准分批清理
   （删历史与日期、过程迁 `docs/archive/`、重复内容只留一处）。
 - **v1.0**：`character` 已完成；`memory` 暂停，原 M3（会话落库）之后的阶段一并挂起。
