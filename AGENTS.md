@@ -223,20 +223,24 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 
 - **唯一源**：`src/aris/__init__.py` 的 `__version__`。`pyproject.toml` 走 `dynamic = ["version"]`，
   `uv.lock` 不记录本项目版本；`[tool.uv] cache-keys` 必须含该文件（否则改了版本 uv 不重建元数据）。
-- 改版本只用 `bash scripts/bump-version.sh <dev|rel> <版本>`：校验干净 develop、版本合法、
-  tag 未占用，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
-- 两类版本，**都发布在 main**：
+- **版本串只写数字**：`X.Y.Z` 或 `X.Y.Z.W`，不带 `.dev0` / `-beta` 等后缀；渠道只由 tag 表达。
+- 当前两类渠道，**都发布在 main**：
 
-| 种类 | tag | `__version__` |
+| 渠道 | tag | `__version__` |
 |---|---|---|
-| 开发时版 | `beta-vX.Y.Z` | `X.Y.Z.dev0` |
+| beta（小版本更新） | `beta-vX.Y.Z` | `X.Y.Z` |
 | 正式版 | `vX.Y.Z` | `X.Y.Z` |
 
+- **号码全线唯一**：beta 与正式共用一条数字线，同一个 `X.Y.Z` 只能出现一次；
+  有 `beta-v1.0.1` 就没有 `v1.0.1`，反之亦然；要发另一个渠道就用更高的号。
+- beta 不是预发布，只是小版本更新标记；不靠版本串排序区分渠道。
 - **密集发布、单个 patch 装不下的小功能**可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- **数字共用一条线**：dev 消耗掉的号不再有对应正式版（`beta-v1.0.1`…`beta-v1.0.7` 都不会有
-  `v1.0.1`），攒够后正式版直接给目标号（如 `v1.1.0`）；`.dev0` 数值上小于同号正式版，排序天然正确。
-- 版本号必须是 PEP 440 可解析形式（`X.Y.Z` / `X.Y.Z.W` / `X.Y.Z.dev0`）。
-- 发版前必跑 `bash scripts/release-check.sh`。
+- **alpha 渠道（预留，未实现）**：只在 `develop` 发布，用于 v1.0.0 预发布；
+  tag 形态与是否占用号码届时再定。
+- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
+  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
+- 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
+- 历史 tag（如 `v0.4.2-beta`）保留不动；新规则从下一次 bump 起生效。
 
 ## 10. 文档路由
 
