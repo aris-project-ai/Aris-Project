@@ -1,0 +1,5 @@
+# git blame 忽略的纯格式化提交
+# 启用：git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# ruff format 全仓（2026-10-24）
+9c18b2ab4eea0571bc7bd33c9d72025daa30ac1d

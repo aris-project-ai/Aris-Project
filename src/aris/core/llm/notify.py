@@ -9,8 +9,8 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from loguru import logger
 
@@ -22,10 +22,7 @@ PushHandler = Callable[[str, str], None]
 _handlers: list[PushHandler] = []
 
 # Linux 常规默认运行时目录；非 Linux 或无法探测时退化为空
-if hasattr(os, "getuid"):
-    _DEFAULT_XDG_RUNTIME_DIR = f"/run/user/{os.getuid()}"
-else:
-    _DEFAULT_XDG_RUNTIME_DIR = ""
+_DEFAULT_XDG_RUNTIME_DIR = f"/run/user/{os.getuid()}" if hasattr(os, "getuid") else ""
 
 
 @dataclass
@@ -49,7 +46,7 @@ def broadcast(title: str, message: str) -> None:
     for handler in _handlers:
         try:
             handler(title, message)
-        except Exception as e:  # 广播失败不拖累主流程
+        except Exception as e:  # 广播失败不拖累主流程  # noqa: BLE001
             logger.warning(f"推送渠道 {handler.__name__} 发送失败: {e}")
 
 
@@ -65,10 +62,8 @@ def _desktop_notify(title: str, message: str) -> None:
             timeout=_notify_config.timeout_seconds,
             env={
                 **os.environ,
-                "XDG_RUNTIME_DIR": os.environ.get(
-                    "XDG_RUNTIME_DIR", _DEFAULT_XDG_RUNTIME_DIR
-                ),
+                "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", _DEFAULT_XDG_RUNTIME_DIR),
             },
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"桌面弹窗失败: {e}")

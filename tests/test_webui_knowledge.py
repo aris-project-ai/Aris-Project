@@ -102,7 +102,7 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -121,7 +121,10 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(rate_limit.login_limiter, "_attempts", {})
 
     from aris.config import get_settings
+    from aris.store import detect
 
+    # data_dir 只隔离知识库文件；数据库仍连当前真实实例（否则会退回默认角色 aris）
+    monkeypatch.setenv("ARIS_PG_DSN", detect().dsn)
     monkeypatch.setattr(get_settings(), "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)
 
@@ -157,8 +160,8 @@ def test_job_panel_stops_polling_when_finished(client) -> None:
 
     html = client.get("/knowledge", params={"job": job.id}).text
 
-    assert 'data-poll="false"' in html   # 服务端判定：不再轮询
-    assert "a.md" in html                # 结果静态渲染出来
+    assert 'data-poll="false"' in html  # 服务端判定：不再轮询
+    assert "a.md" in html  # 结果静态渲染出来
     assert "sessionStorage" not in html  # 旧守门写法已移除（正是死循环的根源）
 
 
@@ -187,7 +190,7 @@ def test_webui_upload_ingest_search_remove(client, monkeypatch) -> None:
     content = (
         "# 家庭网络\n\n## NAS\n\nNAS 的 IP 是 192.168.1.20，管理端口 5000。\n\n"
         "## 路由\n\n主路由在客厅。\n"
-    ).encode("utf-8")
+    ).encode()
     r = client.post(
         "/knowledge/upload",
         files=[("files", ("kb-webui.md", content, "text/markdown"))],
@@ -227,10 +230,8 @@ def test_webui_upload_ingest_search_remove(client, monkeypatch) -> None:
 @requires_pg
 def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -> None:
     """全链路：WebUI 上传 → 知识库 → Aris 自主调用 knowledge_search 作答。"""
-    content = "# 值班表\n\n周三的值班人是 Morin，联系方式 13800000000。\n".encode("utf-8")
-    r = client.post(
-        "/knowledge/upload", files=[("files", ("duty.md", content, "text/markdown"))]
-    )
+    content = "# 值班表\n\n周三的值班人是 Morin，联系方式 13800000000。\n".encode()
+    r = client.post("/knowledge/upload", files=[("files", ("duty.md", content, "text/markdown"))])
     job_id = r.headers["location"].split("job=", 1)[1]
     assert client.get(f"/knowledge/jobs/{job_id}").json()["status"] == "done"
 
@@ -253,18 +254,19 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
             ),
             Scenario(chunks=["周三值班的是 Morin。"]),
         ],
-        pid="kbw", model="m1",
+        pid="kbw",
+        model="m1",
     )
     engine = build_engine(llm_server, [{"id": "kbw", "models": [{"id": "m1"}]}])
     registry = ToolRegistry()
     knowledge_search.register(registry)
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=3)
+    loop = AgentLoop(engine, registry=registry, max_rounds=3)
 
     events = events_of(loop, user_messages("m1", "周三谁值班？"))
 
     tool_events = [e for e in events if e.type == LoopEventType.TOOL]
     assert tool_events and "13800000000" in tool_events[0].result
-    done = [e for e in events if e.type == LoopEventType.DONE][0]
+    done = next(e for e in events if e.type == LoopEventType.DONE)
     assert "Morin" in done.content
 
     saved = Path(get_settings().data_dir) / "knowledge" / "duty.md"

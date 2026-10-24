@@ -1,4 +1,4 @@
-"""serve 模块 —— 启动编排（`aris serve`，见 developDoc/SERVE.md）。
+"""serve 模块 —— 启动编排（`aris serve`，见 docs/forAiDoc/SERVE.md）。
 
 定位：**组装根 + 启动编排**，相当于一次 init——按序把各模块拉起来，前台打印启动
 清单与日志，`Ctrl-C` 收尾。它只调用各模块自己的启动动作（经 CMCB），**不对外提供
@@ -7,12 +7,12 @@
 
 用法::
 
-    aris serve                    # 全启：PG 自启 + 迁移、embedding 后台预热、knowledge 建表、WebUI 并入
-    aris serve --only knowledge   # 只启知识库（自动补齐依赖的 store.db）
+    aris serve                    # 全启：PG + 迁移 + embedding + 知识库 + WebUI
+    aris serve --only knowledge   # 只启知识库（自动补齐 store.db）
     aris serve --skip webui       # 不启 WebUI
     aris serve --dry-run          # 只跑探针、打印清单，不启动任何东西
 
-失败分级（对齐 AGENTS.md 错误处理）：只有 ``store.db`` 是 required，其余 optional；
+失败分级（对齐 AGENTS.md §6「依赖与错误处理」）：只有 ``store.db`` 是 required，其余 optional；
 降级/跳过/失败**一律记日志并给出可执行提示**，绝不静默降级。
 """
 
@@ -26,6 +26,7 @@ from loguru import logger
 from .. import __version__
 from ..config import get_settings
 from ..core import call, services
+from .assembly import get_runtime, peek_runtime, reset_runtime
 from .conf import ServeConfig, get_serve_config
 from .steps import ServeStep, build_steps
 
@@ -49,20 +50,34 @@ class StepOutcome:
 
 
 def assemble() -> None:
-    """集中 import 各服务所有者模块，触发 provide 注册（唯一的组装根）。
+    """集中 import 各服务所有者模块 + 装配进程级运行时（唯一的组装根）。
 
     这里的 import 是**装配动作**（触发自注册），不是跨模块业务调用——对齐
-    AGENTS.md「CLI 组装根可保持直接引用」的边界。
+    AGENTS.md §6 CMCB 的边界（CLI 组装根可直接引用）。
+
+    v1.0 M1：`tools.execute` / `loop.run` / `skills.menu` / 引擎的 `llm.deltas`
+    都是**单槽**总线服务，原来由每个 `ChatSession` 构造时自建并 provide，
+    多开一段对话就互相顶掉；现在在这里建一次进程级 `BehaviorRuntime`
+    （见 `serve/assembly.py`）并由本模块持有。
+    LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
+    真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
-    import aris.behavior  # noqa: F401  —— loop.run / tools.execute / skills.*
-    import aris.core.llm  # noqa: F401  —— llm.stream / llm.race / llm.deltas
-    import aris.knowledge  # noqa: F401  —— knowledge.*
-    import aris.persona  # noqa: F401  —— persona.system_prompt
-    import aris.store  # noqa: F401  —— store.*
+    import aris.behavior  # loop.run / tools.execute / skills.*
+    import aris.character  # character.system_prompt
+    import aris.core.llm  # llm.stream / llm.race / llm.deltas
+    import aris.knowledge  # knowledge.*
+    import aris.store  # store.*
     import aris.webui  # noqa: F401  —— webui.start / webui.probe
     from aris.behavior.skills import manager as _skills  # noqa: F401
     from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.retired.*
     from aris.core.llm import manage as _manage  # noqa: F401  —— llm.providers.*
+
+    try:
+        runtime = get_runtime()
+    except Exception as exc:  # noqa: BLE001 —— 组装期降级：只有 LLM 相关入口不可用
+        logger.warning(f"behavior 运行时未装配（LLM 配置不可用？）：{exc}")
+        return
+    logger.debug(f"behavior 运行时已装配（{runtime.tool_count()} 个工具）")
 
 
 def select_steps(
@@ -107,9 +122,7 @@ def run_plan(
     failed_required: set[str] = set()
     planned = {step.name for step in steps}
     for step in steps:
-        blocked_by = [
-            dep for dep in step.needs if dep not in planned or dep in failed_required
-        ]
+        blocked_by = [dep for dep in step.needs if dep not in planned or dep in failed_required]
         if blocked_by:
             reason = f"依赖的步骤未启用或失败（{', '.join(blocked_by)}），已跳过"
             logger.warning(f"跳过 {step.label}：{reason}")
@@ -122,7 +135,7 @@ def run_plan(
         action = step.probe if dry_run else (step.start or step.probe)
         try:
             detail = action() or ""
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.error(f"{step.label} 启动失败：{exc}")
             outcomes.append(StepOutcome(step, "failed", str(exc)))
             if step.level == "required":
@@ -139,7 +152,7 @@ def _teardown(config: ServeConfig) -> None:
         return
     try:
         stopped = call("store.stop", only_self_started=True)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"停止数据库失败：{exc}")
         return
     if stopped:
@@ -154,9 +167,7 @@ def _log_outcome(outcome: StepOutcome) -> None:
         logger.warning(outcome.line)
 
 
-def probe_all(
-    only: list[str] | None = None, skip: list[str] | None = None
-) -> list[StepOutcome]:
+def probe_all(only: list[str] | None = None, skip: list[str] | None = None) -> list[StepOutcome]:
     """只跑探针并返回清单（供 `aris doctor` 复用；不启动任何东西）。
 
     与 `aris serve --dry-run` 走同一条路径，保证「体检结论」与「启动结论」一致。
@@ -181,7 +192,7 @@ def serve(
 
     退出码：``0`` 正常（含 Ctrl-C 正常收尾）、``1`` 有 required 步骤失败或阻塞步骤
     起不来、``130`` 收尾时再次 Ctrl-C 强制退出（数据库可能仍在运行）。CLI 参数写错
-    由调用方返回 ``2``。详见 developDoc/SERVE.md「退出语义」。
+    由调用方返回 ``2``。详见 docs/forAiDoc/SERVE.md「退出语义」。
     """
     config = get_serve_config()
     settings = get_settings()
@@ -229,7 +240,7 @@ def serve(
                 step.start()
     except KeyboardInterrupt:
         logger.info("收到中断，正在收尾（再按一次 Ctrl-C 可强制退出）...")
-    except Exception as exc:  # 阻塞步骤启动失败（如端口被占）不拖垮收尾
+    except Exception as exc:  # 阻塞步骤启动失败（如端口被占）不拖垮收尾  # noqa: BLE001
         logger.error(f"{deferred[0].label if deferred else 'serve'} 启动失败：{exc}")
         exit_code = 1
     finally:
@@ -241,4 +252,14 @@ def serve(
     return exit_code
 
 
-__all__ = ["StepOutcome", "assemble", "probe_all", "run_plan", "select_steps", "serve"]
+__all__ = [
+    "StepOutcome",
+    "assemble",
+    "get_runtime",
+    "peek_runtime",
+    "probe_all",
+    "reset_runtime",
+    "run_plan",
+    "select_steps",
+    "serve",
+]

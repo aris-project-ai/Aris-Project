@@ -11,7 +11,7 @@ notify.broadcast——收口到此处一次完成。公共 fixture 管理 mock �
 from __future__ import annotations
 
 import sys
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 from loguru import logger
@@ -21,11 +21,11 @@ logger.add(sys.stderr, level="WARNING")
 
 # 触发 aris.core 包导入（其 http 子模块导入即 provide http.request 服务），
 # 保证 test_http_request.py 里走真实 call("http.request") 的用例可用。
-import aris.core  # noqa: E402
+import aris.core  # noqa: E402,F401
 import aris.core.llm.notify as notify  # noqa: E402
 
 # 错误处理会广播桌面通知，测试里全局静音
-notify.broadcast = lambda *a, **k: None  # noqa: E731
+notify.broadcast = lambda *a, **k: None
 
 from aris.behavior.registry import ToolRegistry  # noqa: E402
 from aris.behavior.tools.http_request import register as reg_http  # noqa: E402

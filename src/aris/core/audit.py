@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import threading
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from time import monotonic, time
 from typing import Any
@@ -46,13 +46,13 @@ _audit_config = load_config(AuditConfig(), "audit.toml")
 class AuditRecord:
     """一条通讯审计记录。"""
 
-    kind: str          # AuditKind（call 服务调用 / event 事件发布）
-    target: str        # 服务名（如 llm.stream）或事件名（如 memory.saved）
-    ts: float          # 记录时间戳（monotonic 秒，单调可用于排序/算差值）
-    wall_ts: float     # 墙钟时间戳（time.time() 秒，供展示为可读时间）
-    duration: float    # 本次调用耗时（秒）
-    ok: bool = True    # 是否成功（服务调用抛异常时为 False）
-    detail: str = ""   # 附加信息（如调用方模块名）
+    kind: str  # AuditKind（call 服务调用 / event 事件发布）
+    target: str  # 服务名（如 llm.stream）或事件名（如 memory.saved）
+    ts: float  # 记录时间戳（monotonic 秒，单调可用于排序/算差值）
+    wall_ts: float  # 墙钟时间戳（time.time() 秒，供展示为可读时间）
+    duration: float  # 本次调用耗时（秒）
+    ok: bool = True  # 是否成功（服务调用抛异常时为 False）
+    detail: str = ""  # 附加信息（如调用方模块名）
 
 
 class AuditLog:
@@ -85,7 +85,7 @@ class AuditLog:
                         detail=detail,
                     )
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass  # 审计失败不影响业务
 
     def recent(self, limit: int | None = None) -> list[AuditRecord]:
@@ -125,12 +125,16 @@ default_audit = AuditLog()
 
 def audit_call(target: str, duration: float, ok: bool = True, detail: str = "") -> None:
     """记录一次服务调用。"""
-    default_audit.record(kind=AuditKind.CALL, target=target, duration=duration, ok=ok, detail=detail)
+    default_audit.record(
+        kind=AuditKind.CALL, target=target, duration=duration, ok=ok, detail=detail
+    )
 
 
 def audit_event(target: str, duration: float, ok: bool = True, detail: str = "") -> None:
     """记录一次事件发布。"""
-    default_audit.record(kind=AuditKind.EVENT, target=target, duration=duration, ok=ok, detail=detail)
+    default_audit.record(
+        kind=AuditKind.EVENT, target=target, duration=duration, ok=ok, detail=detail
+    )
 
 
 def query_recent(limit: int | None = None) -> list[AuditRecord]:

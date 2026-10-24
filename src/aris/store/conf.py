@@ -1,6 +1,6 @@
 """store 模块的可调参数（优先级：代码内默认值 < `config/store.toml`）。
 
-遵循配置体系收口原则（见 developDoc/CONFIG.md）：只放**真正可调**的参数，
+遵循配置体系收口原则（见 docs/forAiDoc/CONFIG.md）：只放**真正可调**的参数，
 provider 之类的逻辑类型留在代码里；密钥一律走 `.env`。
 """
 

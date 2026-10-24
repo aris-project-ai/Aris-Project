@@ -8,8 +8,9 @@ behavior 的 agent loop 通过 execute 执行调用。
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from aris.core.bus import provide
 from aris.core.llm.message import ToolDefinition

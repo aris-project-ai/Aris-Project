@@ -15,14 +15,13 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 
 import pytest
 
+from aris.behavior.tools import web_search
 from aris.core import bus
 from aris.core.bus import provide
 from aris.core.http import HttpResponse
-from aris.behavior.tools import web_search
 
 _calls: list[dict] = []
 
@@ -63,7 +62,11 @@ def _fake_http(
         return HttpResponse(200, html, url, "text/html")
     if url == _TAVILY_URL:
         data = json.dumps(
-            {"results": [{"title": "T1", "url": "https://example.com/1", "content": "Tavily 摘要内容"}]},
+            {
+                "results": [
+                    {"title": "T1", "url": "https://example.com/1", "content": "Tavily 摘要内容"}
+                ]
+            },
             ensure_ascii=False,
         )
         return HttpResponse(200, data, url, "application/json")

@@ -107,7 +107,9 @@ class ChatTUI:
     def __init__(self, session: ChatSession) -> None:
         self.session = session
         self._cancel_event = threading.Event()
-        self._delta_queue: queue.Queue[str | ToolNotice | StallNotice | DegradedNotice | None] = queue.Queue()
+        self._delta_queue: queue.Queue[str | ToolNotice | StallNotice | DegradedNotice | None] = (
+            queue.Queue()
+        )
         self._last_esc = 0.0
         self._generating = False
 
@@ -128,22 +130,23 @@ class ChatTUI:
         self._output_text = ""
         # 状态行：Aris: + 盲文 spinner + 工具名（等待首字期间动态更新）
         self._state_active = False
-        self._state_start = 0   # 状态行起点（Aris: 提示符之后的位置）
+        self._state_start = 0  # 状态行起点（Aris: 提示符之后的位置）
         self._spinner_char = _SPINNER_FRAMES[0]
         self._tool_name = ""
-        self._append_output("开始与 Aris 对话（输入 /help 查看指令，ESC 两次中断回复，Ctrl-C 退出）\n")
+        self._append_output(
+            "开始与 Aris 对话（输入 /help 查看指令，ESC 两次中断回复，Ctrl-C 退出）\n"
+        )
 
         self.app = Application(
             layout=Layout(HSplit([self.output_area, self.input_area])),
-            key_bindings=merge_key_bindings(
-                [load_key_bindings(), self._build_key_bindings()]
-            ),
+            key_bindings=merge_key_bindings([load_key_bindings(), self._build_key_bindings()]),
             full_screen=True,
             mouse_support=True,
         )
         # ESC 作为 meta 前缀时 prompt_toolkit 会等待 timeoutlen 确认是否独立按键，
         # 调小该值让双击 ESC 能被及时识别
         self.app.timeoutlen = _ESC_TIMEOUTLEN
+
     # --- 界面渲染 ---
     def _set_output_document(self) -> None:
         """把当前 _output_text 渲染到输出区（bypass_readonly 允许写只读 buffer）。"""
@@ -283,6 +286,7 @@ class ChatTUI:
             Document(text="", cursor_position=0),
             bypass_readonly=True,
         )
+
     def _start_generation(self, text: str) -> None:
         self._generating = True
         self.input_area.read_only = True

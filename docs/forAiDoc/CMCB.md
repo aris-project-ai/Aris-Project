@@ -16,7 +16,7 @@
 项目早期模块间直接 `import` 互相拉通（`chat.session → behavior → core.llm`），
 存在三个问题：
 
-1. **耦合**：后期加模块（auto 定时任务、memory、voice、persona）时，
+1. **耦合**：后期加模块（auto 定时任务、memory、voice、character）时，
    模块间会形成蜘蛛网式依赖。
 2. **不可观测**：模块间互相调用了什么、耗时多少、成功与否，完全不可查，
    后期做 WebUI 监控无从下手。
@@ -123,12 +123,13 @@ summary = query_summary()            # 聚合统计
 
 | 服务名 | 注册来源 | 用途 | 调用方 |
 |---|---|---|---|
-| `llm.stream` | `LLMEngine.__init__` | 纯文本流式（简单场景） | `cli.py llm test` |
-| `llm.deltas` | `LLMEngine.__init__` | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py` |
-| `tools.execute` | `ToolRegistry.__init__` | 执行工具，返回文本结果 | `behavior/loop.py` |
-| `loop.run` | `AgentLoop.__init__` | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
-| `loop.set_model` | `AgentLoop.__init__` | 切换模型：更新 loop 内部 model id | `chat/session.py` |
-| `persona.system_prompt` | `persona/__init__.py` | 返回 Aris 系统提示词 | `chat/session.py`（默认人设，`--system` 可覆盖） |
+| `llm.stream` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 纯文本流式（简单场景） | `cli.py llm test` |
+| `llm.deltas` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py`（内部直调注入的 engine） |
+| `tools.execute` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 执行工具，返回文本结果 | `behavior/loop.py`（内部直调注入的 registry；服务供外部经总线用） |
+| `loop.run` | `AgentLoop.__init__`（组装期 `serve.assemble()`） | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
+| `character.system_prompt(cid)` | `character/__init__.py` 模块级 | 按 `cid` 返回该角色系统提示词（**`cid` 必填**，防静默串号） | `chat/session.py`（默认人设，`--system` 可覆盖） |
+| `character.list` | `character/__init__.py` 模块级 | 角色清单（`cid` / `name` / `path`） | `serve` character 探针 |
+| `character.resolve(cid=None)` | `character/__init__.py` 模块级 | 解析角色：显式 `cid` 校验存在，缺省取最早一个（空目录则播种默认角色） | `chat/session.py`、`serve` 启动动作 |
 | `skills.menu` | `SkillManager.__init__` | 返回技能清单（注入 system prompt 供模型判断何时激活） | `chat/session.py`（工具启用时） |
 | `audit.recent` | `core/bus.py` 模块级 | 最近审计流水（分页，按 wall_ts 倒序） | `webui` 审计页 |
 | `audit.summary` | `core/bus.py` 模块级 | 审计聚合统计 | `webui` 仪表盘 |
@@ -147,28 +148,32 @@ summary = query_summary()            # 聚合统计
 > `services` 步骤统一核验，缺一则记 ERROR 并让 serve 以非零码退出。
 
 > 注：`activate_skill` 是注册在 `ToolRegistry` 里的普通工具（经 `tools.execute`
-> 总线执行），**不是**独立服务。skill 系统详见 `developDoc/SKILLS.md`。
+> 总线执行），**不是**独立服务。skill 系统详见 `docs/forAiDoc/SKILLS.md`。
 
 > 注：曾规划 `browser.close` / `browser.cleanup` 服务，因浏览器链路
-> （Playwright）已整体删除（2026-08-12，见 `developDoc/WEB-SEARCH.md`），
+> （Playwright）已整体删除（2026-08-12，见 `docs/forAiDoc/WEB-SEARCH.md`），
 > 不再需要。
 
 ## 迁移状态
 
 ### 已迁移（第一批：核心链路，贯穿 chat/behavior/core.llm）
 
-- `behavior/loop.py`：内部调 `llm.deltas` / `tools.execute` 走总线；
-  自身注册 `loop.run`。
-- `chat/session.py`：调 `loop.run` 走总线。
+- `behavior/loop.py`：内部改**直接调**注入的 `self.engine` / `self.registry`（同一份装配对象，
+  v1.0 M1 上收后是进程级共享实例——避免共享单槽服务被别的会话顶掉），仍注册 `loop.run`
+  供外部经总线用。
+- `chat/session.py`：经注入的运行时用 loop（`loop.run` 服务保留）。
 - `cli.py` `llm test`：调 `llm.stream` 走总线。
 
-### 已迁移（第二批：persona，2026-08-12）
+### 已迁移（第二批：character，2026-08-12；v1.0 M2 起为按 cid 的角色载体）
 
-- `persona/__init__.py`：模块级 `provide("persona.system_prompt")`。
+- `character/__init__.py`：模块级注册 `character.system_prompt(cid)` / `character.list` /
+  `character.resolve`；人设来自 `data/characters/<cid>/character.toml`（加载器 `character/carrier.py`）。
 - `chat/session.py`：默认系统提示词从本地硬编码改为
-  `call("persona.system_prompt")`（服务缺失时用兜底文本），`--system` 可覆盖。
+  `call("character.system_prompt", cid)`（`cid` 缺省时先经 `character.resolve`；服务缺失才用兜底文本），
+  `--system` 可覆盖；显式 `--system` 不触碰角色目录。
+- `chat/__init__.py`：删掉包级直引 `ARIS_SYSTEM_PROMPT`（原属总线违例）。
 
-> 注：persona 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
+> 注：character 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
 > 全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
 
 ### 已迁移（第三批：Skills，2026-08-12）
@@ -195,7 +200,7 @@ summary = query_summary()            # 聚合统计
 - **webui 全部 9 个路由文件改走 `core.call`**，不再直接 import 任何
   `core.llm` / `core.audit` / `behavior.skills` 业务函数。
 - `webui/__init__.py` 的 `create_app()` **只搭 HTTP 层**：注册触发与自检已上收到
-  组装根 `serve.assemble()`（2026-09-19，见 `developDoc/SERVE.md` 第 7 节），
+  组装根 `serve.assemble()`（2026-09-19，见 `docs/forAiDoc/SERVE.md` 第 7 节），
   避免同一份「需要哪些服务」的清单散在多处漂移。
 - **基础设施例外（可直连，不算模块间通讯）**：
   - `aris.config.get_settings()`（`.env` / `data_dir` 等启动级配置）。
@@ -217,8 +222,8 @@ summary = query_summary()            # 聚合统计
 
 - ~~`session.py` 中 `self.browser.close()`、`cleanup_stale_browser_processes()`~~
   → **已随浏览器链路删除**（2026-08-12），无需处理。
-- `loop.set_model` 已注册为 `loop.set_model` 服务（见服务表），
-  `session.set_model` 经 `call("loop.set_model", model_id)` 调用，已完成迁移。
+- ~~`loop.set_model`~~ → **已删除（v1.0 M1，2026-10-07）**：模型 id 不再存 loop 实例
+  （共享实例存模型 = "最后一个会话的模型"），改由 `iter_events(..., model_id=...)` 按调用传。
 
 ## 后续待办
 
@@ -228,7 +233,7 @@ summary = query_summary()            # 聚合统计
    （见「第四批」），审计查询 `audit.recent` / `audit.summary` 服务化并被使用。
 
 > 枚举/魔法字符串收口与配置集中化**已完成**（2026-08-12）：
-> 7 组隐式枚举收为 StrEnum，可调参数进 `config/*.toml`，见 `developDoc/CONFIG.md`。
+> 7 组隐式枚举收为 StrEnum，可调参数进 `config/*.toml`，见 `docs/forAiDoc/CONFIG.md`。
 
 ## 验证方法
 

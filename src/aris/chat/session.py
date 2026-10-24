@@ -2,6 +2,10 @@
 
 维护多轮对话历史（内存），流式调用 LLM，并把每轮问答作为日志落盘到
 `<data_dir>/logs/YYYY-MM-DD/chat.log`，便于日后回溯与记忆系统接入。
+
+M1 上收后会话**不自建**引擎 / 工具注册表 / 技能管理器 / agent loop，
+而是注入 `BehaviorRuntime`（默认取组装根 `serve` 持有的进程级那一份）——
+原来每开一段对话都自建并 provide 一次，单槽总线服务会被互相顶掉。
 """
 
 from __future__ import annotations
@@ -15,15 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aris.cfgtoml import load_config
-from ..behavior import (
-    AgentLoop,
-    LoopEventType,
-    ToolRegistry,
-    register_builtin_tools,
-)
-from ..behavior.skills import SkillManager
-from ..core import call
-from ..core.llm import ChatRequest, LLMEngine, Message, MessageRole
+
+from ..behavior import BehaviorRuntime, LoopEventType
+from ..core import call, has_service
+from ..core.llm import LLMEngine, Message, MessageRole
 from .commands import (
     COMMAND_HELP,
     PROMPT_ARIS,
@@ -32,19 +31,26 @@ from .commands import (
     parse_command,
 )
 
-# 兜底人设：仅当 persona.system_prompt 服务未注册时使用（正常路径不会走到）
+# 兜底人设：仅当 character 模块未注册（服务缺失）时使用，正常路径不会走到
 _FALLBACK_SYSTEM_PROMPT = "你是 Aris，一个拟人 AI，说话简洁自然。"
 
-# 工具可用时追加到系统提示词
-TOOLS_SYSTEM_HINT = (
-    "当需要实时信息（如当前时间、资料搜索）时使用提供的工具，使用前简单说明一句。"
-)
+
+def _resolve_cid(cid: str | None) -> str | None:
+    """选定角色 cid：显式给的优先，否则问 character 模块要默认角色（未注册则 None）。"""
+    if cid or not has_service("character.resolve"):
+        return cid
+    return call("character.resolve")
 
 
-def _default_system_prompt() -> str:
-    """默认系统提示词：经跨模块通讯总线（CMCB）取 persona 人设，服务缺失时用兜底文本。"""
-    prompt = call("persona.system_prompt")
-    return prompt if prompt else _FALLBACK_SYSTEM_PROMPT
+def _default_system_prompt(cid: str | None) -> str:
+    """默认系统提示词：经 CMCB 取该角色的人设（`cid` 省略时取默认角色）。
+
+    `character.system_prompt` 的 `cid` 必填（防静默串号），故先解析出 cid 再取。
+    """
+    if not has_service("character.system_prompt"):
+        return _FALLBACK_SYSTEM_PROMPT
+    resolved = cid or call("character.resolve")
+    return call("character.system_prompt", resolved) or _FALLBACK_SYSTEM_PROMPT
 
 
 @dataclass
@@ -56,6 +62,8 @@ class ChatConfig:
     top_p: float | None = None  # 核采样概率质量，0.9=从前 90% token 采样
     log_rotation_bytes: int = 10 * 1024 * 1024
     tool_result_preview_len: int = 60
+    # 默认角色 cid（None = 自动：空目录播种默认角色，否则用最早创建的那个）
+    character: str | None = None
 
 
 _chat_config = load_config(ChatConfig(), "chat.toml")
@@ -107,44 +115,61 @@ class ChatSession:
 
     def __init__(
         self,
-        engine: LLMEngine,
+        engine: LLMEngine | None = None,
         *,
-        model_id: str,
+        runtime: BehaviorRuntime | None = None,
+        model_id: str | None = None,
+        cid: str | None = None,
         system_prompt: str | None = None,
         data_dir: Path | None = None,
         thinking: bool = False,
         tools_enabled: bool = True,
-        registry: ToolRegistry | None = None,
     ) -> None:
+        """建一段会话。
+
+        ``runtime``/``engine`` 可省：默认取组装根 `serve` 持有的**进程级运行时**
+        （M1 上收，见 `behavior/runtime.py` 与 `serve/assembly.py`）。测试或需要
+        独立运行时时显式传：给 ``engine`` 会用该引擎自建一份运行时（工具面按
+        ``tools_enabled`` 决定），给 ``runtime`` 则直接复用。
+
+        ``cid`` 是角色 id（M2）：缺省时按 `config/chat.toml` 的 ``character``、
+        再退到 character 模块的默认角色；`system_prompt` 显式给了则不取人设。
+        """
+        if runtime is None:
+            if engine is None:
+                from ..serve import get_runtime  # 组装根；懒导入避免循环引用
+
+                runtime = get_runtime()
+            else:
+                runtime = BehaviorRuntime(engine, with_tools=tools_enabled)
+        elif engine is not None and engine is not runtime.engine:
+            raise ValueError("engine 与 runtime 指向不同的 LLM 引擎，二者只能给一个")
+
         if data_dir is None:
             from ..config import get_settings
 
             data_dir = get_settings().data_dir
         if system_prompt is None:
-            system_prompt = _default_system_prompt()
-        self.engine = engine
-        self.model_id = model_id
-        self._default_model = engine.providers.resolve_default_model()
-        self._system_prompt = system_prompt
-        self.available_models = engine.providers.all_model_ids()
+            # 只在需要默认人设时才解析 / 播种角色（显式 --system 不碰角色目录）
+            cid = _resolve_cid(cid or _chat_config.character)
+            system_prompt = _default_system_prompt(cid)
+
+        self.runtime = runtime
+        self.cid = cid  # 角色 id（M2 起人设按 cid 取；M3 会话按 cid 分区）
+        self.engine = runtime.engine
+        self.registry = runtime.registry
+        self.available_models = self.engine.providers.all_model_ids()
+        self._default_model = self.engine.providers.resolve_default_model()
+        self.model_id = model_id or self._default_model
         self.thinking = thinking  # 默认关闭思考模式（首字更快），--thinking 开启
         self.tools_enabled = tools_enabled
-        self.registry = registry if registry is not None else ToolRegistry()
-        if tools_enabled:
-            register_builtin_tools(self.registry)
-            self._skills = SkillManager(self.registry)
-            prompt_parts = [system_prompt, TOOLS_SYSTEM_HINT]
-            menu = self._skills.menu()
-            if menu:
-                prompt_parts.append(menu)
-            system_prompt = "\n\n".join(prompt_parts)
-        self._system_prompt = system_prompt
-        self.history: list[Message] = [Message(role=MessageRole.SYSTEM, content=system_prompt)]
-        self._loop = AgentLoop(
-            engine, registry=self.registry, model_id=model_id,
-            temperature=_chat_config.temperature,
-            top_p=_chat_config.top_p,
+        # 系统提示词：人设（工具启用时再拼工具提示与技能菜单）
+        self._system_prompt = (
+            runtime.system_prompt(system_prompt) if tools_enabled else system_prompt
         )
+        self.history: list[Message] = [
+            Message(role=MessageRole.SYSTEM, content=self._system_prompt)
+        ]
         # 降级恢复状态：降级后记住实际生效的模型，下一轮竞速回主模型
         self._degraded_model: str | None = None
         log_dir = data_dir / "logs" / datetime.date.today().isoformat()
@@ -159,9 +184,9 @@ class ChatSession:
     def set_model(self, model_id: str) -> str:
         """切换模型；id 不在可用列表时返回错误文本，不切换。"""
         if model_id in self.available_models:
+            # 模型是会话状态（不是 loop 的），改这里即可——ask() 每轮按调用传给 loop
             self.model_id = model_id
             self._degraded_model = None  # 手动切模型：退出降级模式
-            call("loop.set_model", model_id)
             return f"已切换模型：{model_id}"
         hint = "\n".join(f"  {mid}" for mid in self.available_models)
         return f"未知模型 {model_id}，可用模型：\n{hint}"
@@ -214,6 +239,8 @@ class ChatSession:
         for event in call(
             "loop.run",
             list(self.history),
+            model_id=self.model_id,
+            tools_enabled=self.tools_enabled,
             thinking=self.thinking,
             should_stop=should_stop,
             race_model=self._degraded_model,
@@ -289,14 +316,12 @@ class ChatSession:
             for delta in self.ask(
                 user_text,
                 on_tool=lambda name, result: print(
-                    f"\n  [调用工具 {name} → {result[:_chat_config.tool_result_preview_len]}]\n",
+                    f"\n  [调用工具 {name} → {result[: _chat_config.tool_result_preview_len]}]\n",
                     end="",
                     flush=True,
                 ),
                 on_stall=lambda t: print(f"\n[{t}]\n", end="", flush=True),
-                on_degraded=lambda m: print(
-                    f"\n[已降级到模型: {m}]\n", end="", flush=True
-                ),
+                on_degraded=lambda m: print(f"\n[已降级到模型: {m}]\n", end="", flush=True),
             ):
                 print(delta, end="", flush=True)
             print()

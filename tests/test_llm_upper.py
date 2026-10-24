@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from aris.behavior import LoopEventType
 from aris.chat.session import ChatSession
-
 from support.helpers import (
     ERROR_MSG,
     build_engine,
@@ -34,7 +33,7 @@ def test_loop_stall(llm_server: MockLLMServer) -> None:
     stalls = [e for e in evs if e.type == LoopEventType.STALL]
     assert len(stalls) == 1, str(len(stalls))
     assert stalls and stalls[0].content == ERROR_MSG, repr(stalls[0].content if stalls else None)
-    done = [e for e in evs if e.type == LoopEventType.DONE][0]
+    done = next(e for e in evs if e.type == LoopEventType.DONE)
     assert ERROR_MSG not in done.content, repr(done.content)
     assert done.content == "你好,Aris", repr(done.content)
     assert done.model_id == "m1", repr(done.model_id)
@@ -54,7 +53,7 @@ def test_loop_race_fb_wins(llm_server: MockLLMServer) -> None:
     )
     loop = make_loop(engine)
     evs = events_of(loop, user_messages("m1"), race_model="m2")
-    done = [e for e in evs if e.type == LoopEventType.DONE][0]
+    done = next(e for e in evs if e.type == LoopEventType.DONE)
     assert done.content == "备选先到", repr(done.content)
     assert done.model_id == "m2", repr(done.model_id)
     assert done.degraded
@@ -74,7 +73,7 @@ def test_loop_race_home_wins(llm_server: MockLLMServer) -> None:
     )
     loop = make_loop(engine)
     evs = events_of(loop, user_messages("m1"), race_model="m2")
-    done = [e for e in evs if e.type == LoopEventType.DONE][0]
+    done = next(e for e in evs if e.type == LoopEventType.DONE)
     assert done.content == "本家回答", repr(done.content)
     assert done.model_id == "m1", repr(done.model_id)
     assert not done.degraded

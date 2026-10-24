@@ -13,8 +13,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aris.config import get_settings
 from aris.behavior.registry import ToolRegistry
+from aris.config import get_settings
 
 # 标题路径安全化：去掉路径分隔符等危险字符
 _SAFE_TITLE = re.compile(r"[^\w\-. ]", flags=re.UNICODE)
@@ -69,10 +69,7 @@ def register(registry: ToolRegistry) -> None:
 
     registry.register(
         "note_save",
-        description=(
-            "保存/更新一条笔记（标题唯一，重复保存覆盖原文）。"
-            "标题要简短，内容写完整。"
-        ),
+        description=("保存/更新一条笔记（标题唯一，重复保存覆盖原文）。标题要简短，内容写完整。"),
         parameters={
             "type": "object",
             "properties": {

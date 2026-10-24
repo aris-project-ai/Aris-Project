@@ -4,15 +4,15 @@
 - 本地实现：`local.LocalBekkoProvider`（Bekko a25m，懒加载 + 重依赖可选安装）
 - 对外总线服务：``store.embed``（入参文本列表，返回向量列表）
 
-按 C1 定案（developDoc/KNOWLEDGE-BASE.md 5.2），知识库只用**本地 384 维**；
+按 C1 定案（docs/forAiDoc/KNOWLEDGE-BASE.md 5.2），知识库只用**本地 384 维**；
 云端 BGE-M3 属 `memory/` 冷侧，将来需要时在本模块加 provider 即可，
 调用方（业务模块）不用改。
 """
 
 from __future__ import annotations
 
-from .base import EmbeddingError, EmbeddingProvider
 from ..conf import get_store_config
+from .base import EmbeddingError, EmbeddingProvider
 
 # provider 单例：本地模型常驻内存，避免重复加载（加载一次约 20s / 1.5 GiB）
 _providers: dict[str, EmbeddingProvider] = {}

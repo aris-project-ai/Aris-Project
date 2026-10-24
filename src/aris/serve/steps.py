@@ -1,10 +1,11 @@
 """serve 的启动步骤表：每一步的探针（只读）与启动动作。
 
-三类步骤（见 developDoc/SERVE.md 第 2 节）：
+三类步骤（见 docs/forAiDoc/SERVE.md 第 2 节）：
 
-- ① **import 即就绪**（core / persona / behavior）：``start=None``，探针只做自检
-- ② **需要外部资源**（store.db / store.embed / knowledge）：启动动作由模块自己经
-  总线提供（``store.start`` / ``store.embed_preload`` / ``knowledge.start``）
+- ① **import 即就绪**（core / character / behavior）：``start=None``，探针只做自检
+- ② **需要外部资源**（data / store.db / store.embed / knowledge）：启动动作由模块自己
+  经总线提供（``store.start`` / ``store.embed_preload`` / ``knowledge.start``）；
+  ``data`` 只做 ``data/`` 目录分层（可迁移性 D14），没有对应模块
 - ③ **入口**（webui）：``blocks=True``，由编排方在打完启动清单后调用（它会阻塞
   到 Ctrl-C）
 
@@ -46,9 +47,7 @@ def _probe_services() -> str:
 
     missing = [name for name in REQUIRED_SERVICES if not has_service(name)]
     if missing:
-        raise RuntimeError(
-            f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块"
-        )
+        raise RuntimeError(f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块")
     return f"各模块声明的 {len(REQUIRED_SERVICES)} 个依赖服务全部就绪"
 
 
@@ -73,45 +72,98 @@ def _probe_llm() -> str:
     return f"{len(config.providers)} 个提供方 / {models} 个模型，默认 {default}{tail}"
 
 
-def _probe_persona() -> str:
-    """探针：人设服务已注册。"""
-    if not has_service("persona.system_prompt"):
-        raise RuntimeError("persona.system_prompt 未注册")
-    return "system_prompt 已注册"
+def _probe_character() -> str:
+    """探针：角色服务已注册，并报现有角色数（只读，不播种）。"""
+    if not has_service("character.system_prompt") or not has_service("character.list"):
+        raise RuntimeError("character 服务未注册")
+    roles = call("character.list") or []
+    names = "、".join(str(role.get("name")) for role in roles) or "无"
+    return f"{len(roles)} 个角色（{names}）"
+
+
+def _start_character() -> str:
+    """启动动作：确保至少有一个角色（空目录首次播种默认角色，幂等）。"""
+    cid = call("character.resolve")
+    roles = call("character.list") or []
+    return f"{len(roles)} 个角色，默认 {cid}"
 
 
 def _probe_behavior() -> str:
-    """探针：技能服务已注册。
+    """探针：技能服务已注册 + 进程级运行时是否已装配（v1.0 M1 上收）。
 
-    注意：工具注册表（``tools.execute``）、agent loop（``loop.run``）、
-    ``skills.menu`` 都是**实例级**服务，由会话对象（`ChatSession`）自建，
-    这里只校验 import 级注册（serve 目前不持有会话，将来多人格/自动任务时再上收）。
+    工具注册表（``tools.execute``）、agent loop（``loop.run``）、``skills.menu``
+    原先由会话对象自建，现已由组装根建一份进程级运行时持有（`serve/assembly.py`）。
+    探针**只读**：用 `peek_runtime()` 看状态，不触发构建。
     """
     if not has_service("skills.list"):
         raise RuntimeError("skills.list 未注册")
-    return "skills 服务已注册（工具与 loop 按需构造）"
+    from .assembly import peek_runtime
+
+    runtime = peek_runtime()
+    if runtime is None:
+        return "skills 服务已注册（运行时待 behavior 步骤装配）"
+    skills = len(call("skills.list") or [])
+    return f"运行时已装配：{runtime.tool_count()} 个工具 / {skills} 个技能"
+
+
+def _start_behavior() -> str:
+    """启动动作：装配进程级 behavior 运行时（幂等；LLM 配置不可用时抛错按档位降级）。"""
+    from .assembly import get_runtime
+
+    runtime = get_runtime()
+    return f"{runtime.tool_count()} 个工具已就绪"
+
+
+def _probe_data() -> str:
+    """探针：``data/`` 分层完整性（可迁移性 D14；只读，缺失只提示）。"""
+    from ..datadir import missing_carried
+
+    data_dir = get_settings().data_dir
+    missing = missing_carried(data_dir)
+    if missing:
+        return f"{data_dir}：缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）"
+    return f"{data_dir}：必须带的目录齐备"
+
+
+def _start_data() -> str:
+    """启动动作：幂等创建 ``data/`` 下必须带的目录（换机后拷过来就能起）。"""
+    from ..datadir import ensure_dirs
+
+    created = ensure_dirs(get_settings().data_dir)
+    return f"新建 {', '.join(created)}" if created else "目录已齐备，无新建"
 
 
 def _probe_db(init_if_missing: bool) -> str:
-    """探针：数据库实例是否存在、是否在跑、有多少待执行迁移（不启动）。"""
+    """探针：数据库实例是否存在、是否在跑、有多少待执行迁移（不启动）。
+
+    同时报可迁移性三缺口（D14）：二进制能否在本机运行、数据目录属主是否当前用户、
+    端口是否被占——这些是"换机后起不来"的三个真实原因，必须在启动前说清楚。
+    """
     info: dict[str, Any] = call("store.db_status") or {}
     if not info:
         raise RuntimeError("store.db_status 未注册")
+    if not info.get("runnable", True):
+        raise RuntimeError(
+            f"便携 PostgreSQL 在本机跑不起来：{info.get('runnable_detail')}"
+            "——启动时会自动重新获取（需联网）"
+        )
+    if info.get("ownership_error"):
+        raise RuntimeError(str(info["ownership_error"]))
     if not info.get("installed"):
         if init_if_missing:
             return f"未初始化（启动时将自动获取，需联网）@127.0.0.1:{info['port']}"
         raise RuntimeError("便携数据库尚未初始化：执行 `aris db init`")
     if not info.get("running"):
-        return f"未运行（启动时将自启）@127.0.0.1:{info['port']}"
+        return f"未运行（启动时将自启）@127.0.0.1:{info['port']}；角色 {info.get('user')}"
     pending = len(info.get("pending_migrations") or [])
-    return f"PG 运行中 @127.0.0.1:{info['port']}；待执行迁移 {pending} 条"
+    return f"PG 运行中 @127.0.0.1:{info['port']}；角色 {info.get('user')}；待执行迁移 {pending} 条"
 
 
 def _start_db(autostart: bool, init_if_missing: bool) -> str:
     """启动动作：确保数据库可用（缺则自建）并应用迁移。"""
-    info: dict[str, Any] = call(
-        "store.start", autostart=autostart, init_if_missing=init_if_missing
-    ) or {}
+    info: dict[str, Any] = (
+        call("store.start", autostart=autostart, init_if_missing=init_if_missing) or {}
+    )
     if not info:
         raise RuntimeError("store.start 未注册")
     if info.get("created"):
@@ -123,7 +175,10 @@ def _start_db(autostart: bool, init_if_missing: bool) -> str:
     else:
         origin = "已就绪"
     migrations = len(info.get("migrations") or [])
-    return f"PG @127.0.0.1:{info['port']}（{origin}）；应用迁移 {migrations} 条"
+    return (
+        f"PG @127.0.0.1:{info['port']}（{origin}，角色 {info.get('user')}）；"
+        f"应用迁移 {migrations} 条"
+    )
 
 
 def _probe_embed() -> str:
@@ -194,9 +249,10 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
     embed_start = _start_embed if config.preload_embedding else None
     return [
         ServeStep("services", "services", _probe_services, level="required"),
+        ServeStep("data", "data", _probe_data, start=_start_data),
         ServeStep("core", "core.llm", _probe_llm),
-        ServeStep("persona", "persona", _probe_persona),
-        ServeStep("behavior", "behavior", _probe_behavior),
+        ServeStep("character", "character", _probe_character, start=_start_character),
+        ServeStep("behavior", "behavior", _probe_behavior, start=_start_behavior),
         ServeStep(
             "store.db",
             "store.db",

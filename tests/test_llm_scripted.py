@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from aris.behavior import AgentLoop, LoopEventType, ToolRegistry
 from aris.chat.session import ChatSession
-
 from support.helpers import build_engine, events_of, user_messages
 from support.mock_llm_server import MockLLMServer, Scenario, tool_call_chunk
 
@@ -49,9 +48,7 @@ def test_scripted_tool_roundtrip(llm_server: MockLLMServer) -> None:
     llm_server.register_script(
         [
             Scenario(
-                tool_calls=[
-                    tool_call_chunk(0, "call_1", "echo", '{"text":"你好"}')
-                ],
+                tool_calls=[tool_call_chunk(0, "call_1", "echo", '{"text":"你好"}')],
                 finish_reason="tool_calls",
             ),
             Scenario(chunks=["收到，已完成"]),
@@ -72,16 +69,16 @@ def test_scripted_tool_roundtrip(llm_server: MockLLMServer) -> None:
         },
         fn=lambda **kw: kw["text"],
     )
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=2)
+    loop = AgentLoop(engine, registry=registry, max_rounds=2)
 
-    events = events_of(loop, user_messages("m1"))
+    events = events_of(loop, user_messages("m1"), model_id="m1")
 
     tools = [e for e in events if e.type == LoopEventType.TOOL]
     assert len(tools) == 1, repr(tools)
     assert tools[0].name == "echo", repr(tools[0].name)
     assert tools[0].result == "你好", repr(tools[0].result)
 
-    done = [e for e in events if e.type == LoopEventType.DONE][0]
+    done = next(e for e in events if e.type == LoopEventType.DONE)
     assert done.content == "收到，已完成", repr(done.content)
 
     # 工具往返恰好两次请求（tool_calls 轮 + 最终回答轮）
@@ -98,9 +95,7 @@ def test_scripted_exhaustion_falls_back(llm_server: MockLLMServer) -> None:
         pid="s3a",
         model="m1",
     )
-    llm_server.register(
-        Scenario(chunks=["常规兜底"]), pid="s3a", model="m1"
-    )
+    llm_server.register(Scenario(chunks=["常规兜底"]), pid="s3a", model="m1")
     engine = build_engine(llm_server, [{"id": "s3a", "models": [{"id": "m1"}]}])
     session = ChatSession(engine, model_id="m1", tools_enabled=False)
 

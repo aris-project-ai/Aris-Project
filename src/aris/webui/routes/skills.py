@@ -12,6 +12,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from aris.core import call
+
 from ..templates import render
 
 router = APIRouter()
@@ -21,10 +22,14 @@ router = APIRouter()
 async def skills_page(request: Request) -> HTMLResponse:
     """技能列表页面。"""
     skills = call("skills.list") or []
-    return render(request, "skills.html", {
-        "active_page": "skills",
-        "skills": skills,
-    })
+    return render(
+        request,
+        "skills.html",
+        {
+            "active_page": "skills",
+            "skills": skills,
+        },
+    )
 
 
 @router.get("/skills/{name}", response_class=HTMLResponse)
@@ -32,15 +37,23 @@ async def skill_detail(request: Request, name: str) -> HTMLResponse:
     """技能详情页面（SKILL.md 内容）。"""
     skill = call("skills.detail", name)
     if skill is None:
-        return render(request, "skills.html", {
+        return render(
+            request,
+            "skills.html",
+            {
+                "active_page": "skills",
+                "skills": call("skills.list") or [],
+                "error": f"技能 {name} 不存在",
+            },
+        )
+    return render(
+        request,
+        "skill_detail.html",
+        {
             "active_page": "skills",
-            "skills": call("skills.list") or [],
-            "error": f"技能 {name} 不存在",
-        })
-    return render(request, "skill_detail.html", {
-        "active_page": "skills",
-        "skill": skill,
-    })
+            "skill": skill,
+        },
+    )
 
 
 @router.post("/skills/create", response_model=None)
@@ -62,10 +75,14 @@ async def skill_edit_page(request: Request, name: str) -> HTMLResponse:
     skill = call("skills.detail", name)
     if skill is None:
         return RedirectResponse(url="/skills", status_code=303)
-    return render(request, "skill_edit.html", {
-        "active_page": "skills",
-        "skill": skill,
-    })
+    return render(
+        request,
+        "skill_edit.html",
+        {
+            "active_page": "skills",
+            "skill": skill,
+        },
+    )
 
 
 @router.post("/skills/{name}/edit", response_model=None)

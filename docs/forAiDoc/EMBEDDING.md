@@ -231,4 +231,4 @@ class EmbeddingProvider(Protocol):
     上云省本机算力（保护硬件寿命）；免费额度内近零成本。
   - 两库维度不同（384/1024），各建独立 pgvector 表，互不混用。
 - 用户已确认该方案，不再变更。
-- 对应更新：AGENTS.md「已定案」、PROGRESS「已完成/待定决策」。
+- 对应更新：`AGENTS.md` §3 与 `PROGRESS.md` 的模块状态。

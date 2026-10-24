@@ -1,11 +1,11 @@
 """轻量迁移机制：按「模块 + 版本」记录并顺序应用 DDL。
 
-自研不引框架（见 AGENTS.md「记忆实现方式」）。设计取舍：
+自研不引框架。设计取舍：
 
 - 迁移以 **Python 函数** 形式登记（而非 .sql 文件）：需要按参数建表
   （如向量维度来自 provider），Python 里直接可算，且不必配 package-data；
 - 每个迁移**单独一个事务**：PostgreSQL 的 DDL 可回滚，失败即整条回退，
-  不留半截 schema（核心逻辑快速失败，见 AGENTS.md「错误处理」）；
+  不留半截 schema（核心逻辑快速失败，见 AGENTS.md §6「依赖与错误处理」）；
 - 归属用 `owner` 区分（`store` / `knowledge` / `memory` 各自登记自己的迁移），
   记录表按 `(owner, version)` 唯一，互不干扰；
 - 已应用的迁移**不允许改名**：同一 `(owner, version)` 名字对不上即报错，
@@ -166,8 +166,7 @@ def run(
             with target.transaction():
                 m.up(target)
                 target.execute(
-                    f"INSERT INTO {TRACKING_TABLE} (owner, version, name) "
-                    "VALUES (%s, %s, %s)",
+                    f"INSERT INTO {TRACKING_TABLE} (owner, version, name) VALUES (%s, %s, %s)",
                     (m.owner, m.version, m.name),
                 )
         except Exception as exc:
@@ -184,8 +183,5 @@ def run(
 def applied_at(conn: Connection) -> dict[str, datetime]:
     """已应用迁移 → 时间（运维排查用）。"""
     with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT owner, version, applied_at FROM {TRACKING_TABLE} "
-            "ORDER BY applied_at"
-        )
+        cur.execute(f"SELECT owner, version, applied_at FROM {TRACKING_TABLE} ORDER BY applied_at")
         return {f"{owner}:{version:03d}": ts for owner, version, ts in cur.fetchall()}

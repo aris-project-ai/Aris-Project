@@ -45,10 +45,7 @@ def read_skill_meta(text: str) -> SkillMeta:
         key = key.strip()
         value = value.strip()
         # 简单处理单行引用/块引（description: | 多行暂不支持，留空）
-        if not value or value.startswith(("|", ">")):
-            value = ""
-        else:
-            value = value.strip('"').strip("'")
+        value = "" if not value or value.startswith(("|", ">")) else value.strip('"').strip("'")
         if key == "name":
             meta.name = value
         elif key == "description":

@@ -66,7 +66,7 @@ def register_adapters(conn: Any) -> bool:
         return False
     try:
         register_vector(conn)
-    except Exception as exc:  # 扩展未建或数据库不支持时不该阻塞连接
+    except Exception as exc:  # 扩展未建或数据库不支持时不该阻塞连接  # noqa: BLE001
         logger.debug(f"注册 vector 适配器失败（可能未建扩展）: {exc}")
         return False
     return True
@@ -75,7 +75,7 @@ def register_adapters(conn: Any) -> bool:
 def table_dimension(conn: Any, table: str, column: str = "embedding") -> int | None:
     """读某表向量列的维度；列不存在或不是 ``vector(n)`` 时返回 None。
 
-    维度定案见 developDoc/KNOWLEDGE-BASE.md 5.2（C1）：换维度 = 重建该表 + 重摄入，
+    维度定案见 docs/forAiDoc/KNOWLEDGE-BASE.md 5.2（C1）：换维度 = 重建该表 + 重摄入，
     故调用方应先读维度再决定是否建表。
     """
     with conn.cursor() as cur:
