@@ -196,3 +196,13 @@
 - **外部 SQL**：允许把 DSN 指向**外部 psql 实例**（别人的库 / 云端 PG），而不是必须用
   项目内的便携实例。注意与 D14 的冲突点：便携实例的"自建自启/属主/角色对齐"那一整套
   在外部实例上都不适用 → 需要显式的"实例来源 = external"分支（探活但绝不 init/start）
+
+### #11 Python 3.15 升级（等待 OpenVINO cp315）
+
+- **现状**：开发环境用 3.14。3.15 已发布，`uv python install 3.15` 可用；
+  torch / torchvision 的 CPU 轮子已有 cp315，但 `openvino`（2026.4.1）只提供到 cp314，
+  `embedding` 组默认安装，`uv sync` 会直接失败
+- **解除条件**：OpenVINO 发布 cp315 wheel；当前代码的 embedding 后端写死
+  `backend="openvino"`（`store/embedding/local.py`），不能跳过这一条
+- **届时改动**：`pyproject.toml` 的 `requires-python`、`AGENTS.md`、`README.md`、
+  `docs/developDoc/EMBEDDING.md`，然后 `uv lock && uv sync && uv run pytest`

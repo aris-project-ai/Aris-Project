@@ -3,6 +3,7 @@ name = "aris"
 dynamic = ["version"]
 description = "拟人 AI Aris —— 目标是社会学意义上的人"
 readme = "README.md"
+# TODO(3.15): 等 OpenVINO 提供 cp315 wheel 后再升，见 docs/developDoc/BACKLOG.md #11
 requires-python = ">=3.12"
 dependencies = [
     "pydantic-settings>=2.0",
