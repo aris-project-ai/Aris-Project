@@ -121,7 +121,10 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(rate_limit.login_limiter, "_attempts", {})
 
     from aris.config import get_settings
+    from aris.store import detect
 
+    # data_dir 只隔离知识库文件；数据库仍连当前真实实例（否则会退回默认角色 aris）
+    monkeypatch.setenv("ARIS_PG_DSN", detect().dsn)
     monkeypatch.setattr(get_settings(), "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)
 
@@ -257,7 +260,7 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
     engine = build_engine(llm_server, [{"id": "kbw", "models": [{"id": "m1"}]}])
     registry = ToolRegistry()
     knowledge_search.register(registry)
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=3)
+    loop = AgentLoop(engine, registry=registry, max_rounds=3)
 
     events = events_of(loop, user_messages("m1", "周三谁值班？"))
 

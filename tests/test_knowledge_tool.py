@@ -170,7 +170,7 @@ def test_agent_loop_calls_knowledge_search(
         model="m1",
     )
     engine = build_engine(llm_server, [{"id": "kb1", "models": [{"id": "m1"}]}])
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=3)
+    loop = AgentLoop(engine, registry=registry, max_rounds=3)
 
     events = events_of(loop, user_messages("m1", "知识库数据库端口是多少？"))
 
