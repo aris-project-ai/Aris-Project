@@ -26,8 +26,10 @@
 
 ## 当前聚焦
 
-- **文档整治（第一批已提交）**：`docs/AGENTS` 分支完成 `AGENTS.md` 宪法化、`PROGRESS.md` 只留现状、
-  历史迁入 `docs/archive/`、版本号规则收为两类；待合并回 `develop`，其余文档分批重置。
+- **工程化 P0（已完成，随 `chore/tooling` 合并进入 develop）**：ruff + mypy + `scripts/check.sh`；
+  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-only 元数据；全量测试 163 passed。
+- **文档整治**：目录已统一为 `docs/forAiDoc/`；其余文档按 AGENTS.md 标准分批清理
+  （删历史与日期、过程迁 `docs/archive/`、重复内容只留一处）。
 - **v1.0**：`character` 已完成；`memory` 暂停，原 M3（会话落库）之后的阶段一并挂起。
   character 之后的推进方向等 memory 重审结论，或由开发者另行指定。
 
@@ -36,10 +38,12 @@
 - **memory 设计重审**：暂不恢复开发；重启时间按开发者（尤其是莫琳）意愿决定。
 - `config/` 是否整体迁到 `data/config/`：模板 / 示例配置放哪未定。
 - STT 选型：候选 Groq Whisper / 通义听悟。
+- mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 
 ## 下一步
 
-1. **合并 `docs/AGENTS`**：审核后 `git merge --no-ff` 回 `develop`，再删分支。
+1. **合并 `chore/tooling`**：验证 `bash scripts/check.sh` 与 wheel 后 `git merge --no-ff` 回
+   `develop`，删除 feature 分支。
 2. **重置其余文档**：`docs/forAiDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
    把过程迁入 `docs/archive/`、重复内容只留一处；逐份来，改完顺手更新本文件。
 3. 等 memory 设计重审结论，再决定后续主线。
