@@ -6,7 +6,7 @@
 
 ## 当前版本
 
-`0.4.2`（`__version__ = "0.4.2"`，旧口径 tag `v0.4.2-beta`；新版本口径从下一次 bump 起）。下一个目标是 **v1.0.0**。
+`0.4.2.1`（`__version__ = "0.4.2.1"`，tag `beta-v0.4.2.1`）。下一个目标是 **v1.0.0**。
 
 ## 模块状态
 
@@ -42,9 +42,7 @@
 
 ## 下一步
 
-1. **合并 `chore/tooling`**：验证 `bash scripts/check.sh` 与 wheel 后 `git merge --no-ff` 回
-   `develop`，删除 feature 分支。
-2. **重置其余文档**：`docs/forAiDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
+1. **重置其余文档**：`docs/forAiDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
    把过程迁入 `docs/archive/`、重复内容只留一处；逐份来，改完顺手更新本文件。
-3. 等 memory 设计重审结论，再决定后续主线。
-4. 其他可插入项见 `docs/forAiDoc/BACKLOG.md`。
+2. 等 memory 设计重审结论，再决定后续主线。
+3. 其他可插入项见 `docs/forAiDoc/BACKLOG.md`。
