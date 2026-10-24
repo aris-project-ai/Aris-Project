@@ -119,11 +119,11 @@ class LLMEngine:
         error_message: str,
     ):
         self.providers = providers
-        self.timeout = timeout            # 总体超时预算（秒）
+        self.timeout = timeout  # 总体超时预算（秒）
         self.first_token_stall = first_token_stall  # 首字占位阈值（秒）
         self.error_message = error_message
         # 注册为统一服务（实例自注册，重名覆盖会记警告）
-        provide("llm.stream", self.stream)        # 纯文本流式（简单场景）
+        provide("llm.stream", self.stream)  # 纯文本流式（简单场景）
         provide("llm.deltas", self.stream_deltas)  # 完整增量流式（agent loop 用）
         provide("llm.race", self.stream_deltas_race)  # 本家 vs 备选竞速（降级恢复）
 
@@ -183,9 +183,7 @@ class LLMEngine:
                         break
                     logger.info(f"提供方 {provider.id} 退避 {forward:.2f}s 后重试")
                     time.sleep(forward)
-                attempt_timeout = min(
-                    provider.timeout, self.timeout - (time.monotonic() - start)
-                )
+                attempt_timeout = min(provider.timeout, self.timeout - (time.monotonic() - start))
                 if attempt_timeout <= 0:
                     break
 
@@ -193,7 +191,11 @@ class LLMEngine:
                 runner = _StreamRunner(provider, effective, attempt_timeout)
                 try:
                     for delta in self._consume_attempt(runner, stall_deadline, stall_state):
-                        if (delta.content and not delta.stall) or delta.reasoning or delta.finish_reason:
+                        if (
+                            (delta.content and not delta.stall)
+                            or delta.reasoning
+                            or delta.finish_reason
+                        ):
                             emitted = True
                         if delta.finish_reason:
                             # 完成事件标记实际生效模型（未降级）
@@ -226,19 +228,19 @@ class LLMEngine:
             for provider in self.providers.candidates_for(target):
                 if self.timeout - (time.monotonic() - start) <= 0:
                     break
-                effective = self._effective_request(
-                    replace(request, model_id=target), provider
-                )
-                attempt_timeout = min(
-                    provider.timeout, self.timeout - (time.monotonic() - start)
-                )
+                effective = self._effective_request(replace(request, model_id=target), provider)
+                attempt_timeout = min(provider.timeout, self.timeout - (time.monotonic() - start))
                 if attempt_timeout <= 0:
                     break
                 emitted = False
                 runner = _StreamRunner(provider, effective, attempt_timeout)
                 try:
                     for delta in self._consume_attempt(runner, stall_deadline, stall_state):
-                        if (delta.content and not delta.stall) or delta.reasoning or delta.finish_reason:
+                        if (
+                            (delta.content and not delta.stall)
+                            or delta.reasoning
+                            or delta.finish_reason
+                        ):
                             emitted = True
                         if delta.finish_reason:
                             delta = replace(
@@ -393,9 +395,7 @@ class LLMEngine:
                         stall_emitted=stall_state["emitted"],
                     )
                 else:
-                    yield from self._handle_failure(
-                        first_err, stall_emitted=stall_state["emitted"]
-                    )
+                    yield from self._handle_failure(first_err, stall_emitted=stall_state["emitted"])
                 return
 
             # ---- 输出胜者：先吐决策期缓存的增量（含完成事件），未结束再实时读尾段 ----

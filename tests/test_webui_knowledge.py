@@ -157,8 +157,8 @@ def test_job_panel_stops_polling_when_finished(client) -> None:
 
     html = client.get("/knowledge", params={"job": job.id}).text
 
-    assert 'data-poll="false"' in html   # 服务端判定：不再轮询
-    assert "a.md" in html                # 结果静态渲染出来
+    assert 'data-poll="false"' in html  # 服务端判定：不再轮询
+    assert "a.md" in html  # 结果静态渲染出来
     assert "sessionStorage" not in html  # 旧守门写法已移除（正是死循环的根源）
 
 
@@ -228,9 +228,7 @@ def test_webui_upload_ingest_search_remove(client, monkeypatch) -> None:
 def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -> None:
     """全链路：WebUI 上传 → 知识库 → Aris 自主调用 knowledge_search 作答。"""
     content = "# 值班表\n\n周三的值班人是 Morin，联系方式 13800000000。\n".encode("utf-8")
-    r = client.post(
-        "/knowledge/upload", files=[("files", ("duty.md", content, "text/markdown"))]
-    )
+    r = client.post("/knowledge/upload", files=[("files", ("duty.md", content, "text/markdown"))])
     job_id = r.headers["location"].split("job=", 1)[1]
     assert client.get(f"/knowledge/jobs/{job_id}").json()["status"] == "done"
 
@@ -253,7 +251,8 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
             ),
             Scenario(chunks=["周三值班的是 Morin。"]),
         ],
-        pid="kbw", model="m1",
+        pid="kbw",
+        model="m1",
     )
     engine = build_engine(llm_server, [{"id": "kbw", "models": [{"id": "m1"}]}])
     registry = ToolRegistry()

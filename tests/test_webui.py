@@ -30,16 +30,19 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(rate_limit.login_limiter, "_attempts", {})
 
     from aris.config import get_settings
+
     settings = get_settings()
     monkeypatch.setattr(settings, "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)
 
     import aris.cfgtoml as cfgtoml
+
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cfgtoml, "config_dir", lambda: cfg_dir)
 
     import aris.core.llm.manage as manage
+
     providers_file = tmp_path / "providers.toml"
     shutil.copy(
         Path(__file__).resolve().parent.parent / "config" / "providers.toml",
@@ -48,6 +51,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(manage, "_providers_path", lambda: str(providers_file))
 
     import aris.behavior.skills.manager as skills_mgr
+
     monkeypatch.setattr(skills_mgr, "SKILLS_DIR", tmp_path / "skills")
 
     from fastapi.testclient import TestClient
@@ -63,6 +67,7 @@ def _login(client, password: str):
 
 
 # ---------- auth 鉴权 ----------
+
 
 def test_unauth_redirects_to_login(client) -> None:
     """未登录访问受保护页面应 302 重定向到 /login。"""
@@ -100,6 +105,7 @@ def test_forged_prefix_path_requires_auth(client) -> None:
 
 # ---------- rate_limit 限流 ----------
 
+
 def test_limit_locks_after_five_failures(client) -> None:
     """连续 5 次失败后锁定，提示登录尝试过多。"""
     for _ in range(5):
@@ -119,6 +125,7 @@ def test_success_resets_failure_count(client) -> None:
 
 
 # ---------- config 写回 ----------
+
 
 def test_config_save_writes_whitelisted_keys(client, tmp_path: Path) -> None:
     """保存配置把可调字段写回 toml；白名单外键（如 evil_key）被丢弃。"""
@@ -160,6 +167,7 @@ def test_config_escapes_special_strings(client, tmp_path: Path) -> None:
 
 
 # ---------- skills CRUD ----------
+
 
 def test_skills_crud_full_path(client, tmp_path: Path) -> None:
     """技能创建/列表/详情/编辑/删除全链路走总线服务，全部命中临时目录。"""

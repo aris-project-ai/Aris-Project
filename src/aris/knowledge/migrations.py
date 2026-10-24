@@ -76,12 +76,9 @@ def _create_chunks(conn: Any) -> None:
         )
         """
     )
+    conn.execute(f"CREATE INDEX IF NOT EXISTS {CHUNKS_TABLE}_doc_id_idx ON {CHUNKS_TABLE} (doc_id)")
     conn.execute(
-        f"CREATE INDEX IF NOT EXISTS {CHUNKS_TABLE}_doc_id_idx ON {CHUNKS_TABLE} (doc_id)"
-    )
-    conn.execute(
-        f"CREATE INDEX IF NOT EXISTS {CHUNKS_TABLE}_active_idx "
-        f"ON {CHUNKS_TABLE} (deleted_at)"
+        f"CREATE INDEX IF NOT EXISTS {CHUNKS_TABLE}_active_idx ON {CHUNKS_TABLE} (deleted_at)"
     )
 
 

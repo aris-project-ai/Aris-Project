@@ -47,9 +47,7 @@ def _probe_services() -> str:
 
     missing = [name for name in REQUIRED_SERVICES if not has_service(name)]
     if missing:
-        raise RuntimeError(
-            f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块"
-        )
+        raise RuntimeError(f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块")
     return f"各模块声明的 {len(REQUIRED_SERVICES)} 个依赖服务全部就绪"
 
 
@@ -158,17 +156,14 @@ def _probe_db(init_if_missing: bool) -> str:
     if not info.get("running"):
         return f"未运行（启动时将自启）@127.0.0.1:{info['port']}；角色 {info.get('user')}"
     pending = len(info.get("pending_migrations") or [])
-    return (
-        f"PG 运行中 @127.0.0.1:{info['port']}；角色 {info.get('user')}；"
-        f"待执行迁移 {pending} 条"
-    )
+    return f"PG 运行中 @127.0.0.1:{info['port']}；角色 {info.get('user')}；待执行迁移 {pending} 条"
 
 
 def _start_db(autostart: bool, init_if_missing: bool) -> str:
     """启动动作：确保数据库可用（缺则自建）并应用迁移。"""
-    info: dict[str, Any] = call(
-        "store.start", autostart=autostart, init_if_missing=init_if_missing
-    ) or {}
+    info: dict[str, Any] = (
+        call("store.start", autostart=autostart, init_if_missing=init_if_missing) or {}
+    )
     if not info:
         raise RuntimeError("store.start 未注册")
     if info.get("created"):

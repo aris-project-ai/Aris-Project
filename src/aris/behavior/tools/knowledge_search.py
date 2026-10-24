@@ -54,9 +54,7 @@ def _format_markdown(results: list[dict]) -> str:
 
 def _error(message: str, query: str = "") -> str:
     """统一的失败返回（宽容降级：交给模型消化，不抛到 UI）。"""
-    return json.dumps(
-        {"type": ERROR_TYPE, "query": query, "error": message}, ensure_ascii=False
-    )
+    return json.dumps({"type": ERROR_TYPE, "query": query, "error": message}, ensure_ascii=False)
 
 
 def _do_search(query: str, top_k: int | None = None) -> str:

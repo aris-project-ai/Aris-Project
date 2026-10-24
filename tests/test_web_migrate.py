@@ -63,7 +63,11 @@ def _fake_http(
         return HttpResponse(200, html, url, "text/html")
     if url == _TAVILY_URL:
         data = json.dumps(
-            {"results": [{"title": "T1", "url": "https://example.com/1", "content": "Tavily 摘要内容"}]},
+            {
+                "results": [
+                    {"title": "T1", "url": "https://example.com/1", "content": "Tavily 摘要内容"}
+                ]
+            },
             ensure_ascii=False,
         )
         return HttpResponse(200, data, url, "application/json")

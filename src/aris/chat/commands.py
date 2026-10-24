@@ -23,10 +23,10 @@ COMMANDS: dict[str, str] = {
 PROMPT_USER = "你> "
 PROMPT_ARIS = "Aris: "
 
-COMMAND_HELP = "可用指令：\n" + "\n".join(
-    f"  {name:<10} {desc}" for name, desc in COMMANDS.items()
-) + (
-    "\n交互：Enter 发送，Shift+Enter 换行；回复期间双击 ESC 可中断；Ctrl-C 退出。"
+COMMAND_HELP = (
+    "可用指令：\n"
+    + "\n".join(f"  {name:<10} {desc}" for name, desc in COMMANDS.items())
+    + ("\n交互：Enter 发送，Shift+Enter 换行；回复期间双击 ESC 可中断；Ctrl-C 退出。")
 )
 
 

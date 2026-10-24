@@ -43,7 +43,9 @@ def test_continuation(http_server: MockHTTP, http_registry: ToolRegistry) -> Non
     e1 = first["end_index"]
     total = first["total_length"]
     assert bool(first["content"])
-    second = call_tool(http_registry, {"url": url, "max_length": 2000, "start_index": e1}, context=ctx)
+    second = call_tool(
+        http_registry, {"url": url, "max_length": 2000, "start_index": e1}, context=ctx
+    )
     assert second["end_index"] > e1, f"{second['end_index']} vs {e1}"
     assert second["content"] != first["content"]
     assert second["total_length"] == total

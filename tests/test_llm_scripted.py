@@ -49,9 +49,7 @@ def test_scripted_tool_roundtrip(llm_server: MockLLMServer) -> None:
     llm_server.register_script(
         [
             Scenario(
-                tool_calls=[
-                    tool_call_chunk(0, "call_1", "echo", '{"text":"你好"}')
-                ],
+                tool_calls=[tool_call_chunk(0, "call_1", "echo", '{"text":"你好"}')],
                 finish_reason="tool_calls",
             ),
             Scenario(chunks=["收到，已完成"]),
@@ -98,9 +96,7 @@ def test_scripted_exhaustion_falls_back(llm_server: MockLLMServer) -> None:
         pid="s3a",
         model="m1",
     )
-    llm_server.register(
-        Scenario(chunks=["常规兜底"]), pid="s3a", model="m1"
-    )
+    llm_server.register(Scenario(chunks=["常规兜底"]), pid="s3a", model="m1")
     engine = build_engine(llm_server, [{"id": "s3a", "models": [{"id": "m1"}]}])
     session = ChatSession(engine, model_id="m1", tools_enabled=False)
 

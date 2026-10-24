@@ -27,11 +27,11 @@ class TransportKind(StrEnum):
 
 
 # ---- fallback / 超时默认值（真机实测可调的才写进 providers.toml）----
-DEFAULT_TIMEOUT = 30.0          # 单次请求总超时（秒）
+DEFAULT_TIMEOUT = 30.0  # 单次请求总超时（秒）
 DEFAULT_CONNECT_TIMEOUT = 10.0  # 建连超时（秒），单独设避免慢连接拖垮总预算
-DEFAULT_RETRY_COUNT = 1         # 可重试错误在同一提供方的重试次数（超出切下家）
-DEFAULT_BACKOFF_BASE = 0.5      # 退避基数（秒），指数增长封顶 BACKOFF_MAX
-DEFAULT_RACE_FALLBACK = True    # 降级后是否启用「本家 vs 备选」并发竞速恢复
+DEFAULT_RETRY_COUNT = 1  # 可重试错误在同一提供方的重试次数（超出切下家）
+DEFAULT_BACKOFF_BASE = 0.5  # 退避基数（秒），指数增长封顶 BACKOFF_MAX
+DEFAULT_RACE_FALLBACK = True  # 降级后是否启用「本家 vs 备选」并发竞速恢复
 
 
 @dataclass
@@ -138,17 +138,14 @@ class ProviderConfig:
             if self.default_model in self.all_model_ids():
                 return self.default_model
             logger.warning(
-                f"default_model {self.default_model} 在任一提供方中不存在，"
-                "兜底取第一个可用模型"
+                f"default_model {self.default_model} 在任一提供方中不存在，兜底取第一个可用模型"
             )
         else:
             logger.warning("default_model 未配置，兜底取第一个可用模型")
         first = self.ordered_providers()
         if first and first[0].models:
             return first[0].models[0].id
-        raise ProviderConfigError(
-            "没有任何可用模型，请在 config/providers.toml 至少配置一个模型"
-        )
+        raise ProviderConfigError("没有任何可用模型，请在 config/providers.toml 至少配置一个模型")
 
 
 def load_providers(path: str | Path) -> ProviderConfig:
@@ -186,9 +183,7 @@ def load_providers(path: str | Path) -> ProviderConfig:
         try:
             pid = entry["id"]
             if pid in seen_provider_ids:
-                raise ProviderConfigError(
-                    f"config/providers.toml 提供方 id 重复: {pid}"
-                )
+                raise ProviderConfigError(f"config/providers.toml 提供方 id 重复: {pid}")
             seen_provider_ids.add(pid)
 
             models: list[LLMModel] = []
@@ -196,9 +191,7 @@ def load_providers(path: str | Path) -> ProviderConfig:
             for m in entry.get("models", []):
                 mid = m["id"]
                 if mid in seen_model_ids:
-                    raise ProviderConfigError(
-                        f"提供方 {pid} 内模型 id 重复: {mid}"
-                    )
+                    raise ProviderConfigError(f"提供方 {pid} 内模型 id 重复: {mid}")
                 seen_model_ids.add(mid)
                 models.append(
                     LLMModel(
@@ -229,12 +222,8 @@ def load_providers(path: str | Path) -> ProviderConfig:
                 )
             )
         except KeyError as e:
-            raise ProviderConfigError(
-                f"config/providers.toml 提供方条目缺少必需字段: {e}"
-            ) from e
+            raise ProviderConfigError(f"config/providers.toml 提供方条目缺少必需字段: {e}") from e
 
     order = list(data.get("default_provider_order", []))
     default_model = data.get("default_model")
-    return ProviderConfig(
-        providers=providers, order=order, default_model=default_model
-    )
+    return ProviderConfig(providers=providers, order=order, default_model=default_model)

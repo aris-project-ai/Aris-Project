@@ -315,14 +315,12 @@ class ChatSession:
             for delta in self.ask(
                 user_text,
                 on_tool=lambda name, result: print(
-                    f"\n  [调用工具 {name} → {result[:_chat_config.tool_result_preview_len]}]\n",
+                    f"\n  [调用工具 {name} → {result[: _chat_config.tool_result_preview_len]}]\n",
                     end="",
                     flush=True,
                 ),
                 on_stall=lambda t: print(f"\n[{t}]\n", end="", flush=True),
-                on_degraded=lambda m: print(
-                    f"\n[已降级到模型: {m}]\n", end="", flush=True
-                ),
+                on_degraded=lambda m: print(f"\n[已降级到模型: {m}]\n", end="", flush=True),
             ):
                 print(delta, end="", flush=True)
             print()

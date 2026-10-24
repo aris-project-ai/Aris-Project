@@ -59,11 +59,15 @@ def is_retryable(error: LLMError) -> bool:
 def classify_http_status(status: int, provider_id: str = "", detail: Any = None) -> LLMError:
     """按 HTTP 状态码归类错误。"""
     if status == 401:
-        return AuthError(f"鉴权失败 (HTTP {status})，请检查 API key", provider_id=provider_id, detail=detail)
+        return AuthError(
+            f"鉴权失败 (HTTP {status})，请检查 API key", provider_id=provider_id, detail=detail
+        )
     if status == 429:
         return RateLimitError(f"请求受限 (HTTP {status})", provider_id=provider_id, detail=detail)
     if status == 403:
         return QuotaError(f"额度或权限不足 (HTTP {status})", provider_id=provider_id, detail=detail)
     if status >= 500:
-        return ServerError(f"提供方服务端错误 (HTTP {status})", provider_id=provider_id, detail=detail)
+        return ServerError(
+            f"提供方服务端错误 (HTTP {status})", provider_id=provider_id, detail=detail
+        )
     return LLMError(f"请求失败 (HTTP {status})", provider_id=provider_id, detail=detail)

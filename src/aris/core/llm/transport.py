@@ -57,7 +57,9 @@ class StreamDelta:
     race_possible: bool = False
 
 
-def stream_chat(provider: LLMProvider, request: ChatRequest, timeout: float) -> Iterator[StreamDelta]:
+def stream_chat(
+    provider: LLMProvider, request: ChatRequest, timeout: float
+) -> Iterator[StreamDelta]:
     """按提供方配置的传输方式流式请求 chat 格式。"""
     if provider.transport == TransportKind.HTTPX:
         yield from _stream_httpx(provider, request, timeout)
@@ -83,7 +85,9 @@ def _api_key(provider: LLMProvider) -> str:
     return key
 
 
-def _stream_openai_sdk(provider: LLMProvider, request: ChatRequest, timeout: float) -> Iterator[StreamDelta]:
+def _stream_openai_sdk(
+    provider: LLMProvider, request: ChatRequest, timeout: float
+) -> Iterator[StreamDelta]:
     """openai SDK 实现。"""
     try:
         from openai import OpenAI
@@ -92,7 +96,9 @@ def _stream_openai_sdk(provider: LLMProvider, request: ChatRequest, timeout: flo
 
     model = provider.get_model(request.model_id)
     if model is None:
-        raise LLMError(f"提供方 {provider.id} 不支持模型 {request.model_id}", provider_id=provider.id)
+        raise LLMError(
+            f"提供方 {provider.id} 不支持模型 {request.model_id}", provider_id=provider.id
+        )
 
     # 结构化超时：connect 单独设短，总超时/读超时沿用 provider.timeout
     http_timeout = httpx.Timeout(timeout, connect=provider.connect_timeout)
@@ -132,8 +138,9 @@ def _stream_openai_sdk(provider: LLMProvider, request: ChatRequest, timeout: flo
                         slot["arguments"] += tc.function.arguments
             if choice.finish_reason:
                 # 流结束：带完整 tool_calls + finish_reason 的完成事件
-                yield StreamDelta(finish_reason=choice.finish_reason,
-                                  tool_calls=_finalize_calls(calls))
+                yield StreamDelta(
+                    finish_reason=choice.finish_reason, tool_calls=_finalize_calls(calls)
+                )
                 calls.clear()
                 break
     except Exception as e:
@@ -157,11 +164,15 @@ def _finalize_calls(calls: dict[int, dict]) -> list[ToolCall]:
     return result
 
 
-def _stream_httpx(provider: LLMProvider, request: ChatRequest, timeout: float) -> Iterator[StreamDelta]:
+def _stream_httpx(
+    provider: LLMProvider, request: ChatRequest, timeout: float
+) -> Iterator[StreamDelta]:
     """httpx 手写实现（SSE 解析）。"""
     model = provider.get_model(request.model_id)
     if model is None:
-        raise LLMError(f"提供方 {provider.id} 不支持模型 {request.model_id}", provider_id=provider.id)
+        raise LLMError(
+            f"提供方 {provider.id} 不支持模型 {request.model_id}", provider_id=provider.id
+        )
 
     url = f"{provider.base_url.rstrip('/')}/chat/completions"
     headers = {
@@ -199,8 +210,9 @@ def _stream_httpx(provider: LLMProvider, request: ChatRequest, timeout: float) -
                     yield StreamDelta(content=content, reasoning=reasoning)
                 for tc in delta.get("tool_calls") or []:
                     # 工具参数分片，需按 index 累积拼接
-                    slot = calls.setdefault(tc.get("index", 0),
-                                            {"id": "", "name": "", "arguments": ""})
+                    slot = calls.setdefault(
+                        tc.get("index", 0), {"id": "", "name": "", "arguments": ""}
+                    )
                     fn = tc.get("function") or {}
                     if tc.get("id"):
                         slot["id"] = tc["id"]

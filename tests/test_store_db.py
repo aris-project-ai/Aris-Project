@@ -157,7 +157,9 @@ def _pg_available() -> bool:
         return False
 
 
-requires_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）")
+requires_pg = pytest.mark.skipif(
+    not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）"
+)
 
 
 @requires_pg
@@ -166,9 +168,7 @@ def test_vector_roundtrip_upsert_search_filter_and_index():
     from aris.store.db import connect
 
     with closing(connect()) as conn:
-        conn.execute(
-            "CREATE TEMP TABLE tvec (id text PRIMARY KEY, embedding vector(3), note text)"
-        )
+        conn.execute("CREATE TEMP TABLE tvec (id text PRIMARY KEY, embedding vector(3), note text)")
         rows = [
             {"id": "a", "embedding": [1.0, 0.0, 0.0], "note": "x"},
             {"id": "b", "embedding": [0.0, 1.0, 0.0], "note": "y"},

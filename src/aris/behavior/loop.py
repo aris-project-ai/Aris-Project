@@ -39,10 +39,10 @@ ShouldStop = Callable[[], bool]
 class LoopEventType(StrEnum):
     """agent loop 产出事件类型。"""
 
-    DELTA = "delta"            # 流式文本增量
-    TOOL = "tool"              # 工具已执行（附 name + result）
-    DONE = "done"              # 最终回答结束
-    STALL = "stall"            # 首字占位提示（超时无产出；不并入最终回答）
+    DELTA = "delta"  # 流式文本增量
+    TOOL = "tool"  # 工具已执行（附 name + result）
+    DONE = "done"  # 最终回答结束
+    STALL = "stall"  # 首字占位提示（超时无产出；不并入最终回答）
     INTERRUPTED = "interrupted"  # 用户中断（调用方应回滚未完成 user 消息）
 
 
@@ -66,7 +66,7 @@ class LoopEvent:
     - race_possible：是否可参与下次「本家 vs 备选」竞速恢复
     """
 
-    type: str          # LoopEventType
+    type: str  # LoopEventType
     content: str = ""
     name: str = ""
     result: str = ""
@@ -191,16 +191,14 @@ class AgentLoop:
             for tc in tool_calls:
                 # 对话文本作为 context 传入（去掉 system 提示词），供需要校验
                 # 「URL 是否在对话中出现」的工具（http_request）使用
-                ctx = "\n".join(
-                    m.content or "" for m in work if m.role != MessageRole.SYSTEM
-                )[-20000:]
+                ctx = "\n".join(m.content or "" for m in work if m.role != MessageRole.SYSTEM)[
+                    -20000:
+                ]
                 # 同模块内部调用（behavior.loop → behavior.registry），不走总线：
                 # registry 是注入的实例，走单槽服务会被别的会话顶掉
                 result = self.registry.execute(tc.name, tc.arguments, context=ctx)
                 yield LoopEvent(type=LoopEventType.TOOL, name=tc.name, result=result)
-                work.append(
-                    Message(role=MessageRole.TOOL, content=result, tool_call_id=tc.id)
-                )
+                work.append(Message(role=MessageRole.TOOL, content=result, tool_call_id=tc.id))
 
         # 达到轮数上限：返回最后一次输出（不视为中断）
         yield LoopEvent(

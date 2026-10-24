@@ -69,10 +69,7 @@ def register(registry: ToolRegistry) -> None:
 
     registry.register(
         "note_save",
-        description=(
-            "保存/更新一条笔记（标题唯一，重复保存覆盖原文）。"
-            "标题要简短，内容写完整。"
-        ),
+        description=("保存/更新一条笔记（标题唯一，重复保存覆盖原文）。标题要简短，内容写完整。"),
         parameters={
             "type": "object",
             "properties": {

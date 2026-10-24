@@ -65,9 +65,7 @@ def _desktop_notify(title: str, message: str) -> None:
             timeout=_notify_config.timeout_seconds,
             env={
                 **os.environ,
-                "XDG_RUNTIME_DIR": os.environ.get(
-                    "XDG_RUNTIME_DIR", _DEFAULT_XDG_RUNTIME_DIR
-                ),
+                "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", _DEFAULT_XDG_RUNTIME_DIR),
             },
         )
     except Exception as e:

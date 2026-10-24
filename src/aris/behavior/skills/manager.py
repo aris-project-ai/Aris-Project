@@ -168,6 +168,7 @@ class SkillManager:
             ensure_ascii=False,
         )
 
+
 # ---------- 技能文件 CRUD 总线服务（供 WebUI 常驻服务经 core.call 调用）----------
 #
 # 与 SkillManager 的运行时能力（菜单/激活）互补：这里只做 SKILL.md 目录的

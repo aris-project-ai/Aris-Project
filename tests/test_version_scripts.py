@@ -63,13 +63,7 @@ def fake_uv(tmp_path: Path, version: str = "0.5.0") -> dict[str, str]:
     bindir = tmp_path / "bin"
     bindir.mkdir(exist_ok=True)
     uv = bindir / "uv"
-    uv.write_text(
-        "#!/bin/sh\n"
-        'if [ "$1" = "run" ]; then\n'
-        f'    echo "Aris {version}"\n'
-        "fi\n"
-        "exit 0\n"
-    )
+    uv.write_text(f'#!/bin/sh\nif [ "$1" = "run" ]; then\n    echo "Aris {version}"\nfi\nexit 0\n')
     uv.chmod(0o755)
     return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}"}
 

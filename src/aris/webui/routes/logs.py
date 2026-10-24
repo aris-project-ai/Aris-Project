@@ -31,9 +31,11 @@ async def logs_page(
 ) -> HTMLResponse:
     """日志查看页面。"""
     from ...config import get_settings
+
     settings = get_settings()
 
     import datetime
+
     if date is None or not _DATE_RE.fullmatch(date):
         date = datetime.date.today().isoformat()
 
@@ -47,12 +49,7 @@ async def logs_page(
     log_content = ""
     total_lines = 0
     # file 参数：拒绝任何含路径分隔符的名字，且 resolve 后不得越出日志目录
-    if (
-        file
-        and "/" not in file
-        and "\\" not in file
-        and log_dir.exists()
-    ):
+    if file and "/" not in file and "\\" not in file and log_dir.exists():
         log_path = (log_dir / file).resolve()
         if log_path.is_relative_to(log_dir) and log_path.exists():
             lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -65,16 +62,20 @@ async def logs_page(
 
     total_pages = max(1, (total_lines + 199) // 200) if total_lines else 1
 
-    return render(request, "logs.html", {
-        "active_page": "logs",
-        "log_files": log_files,
-        "current_file": file,
-        "log_content": log_content,
-        "page": page,
-        "total_pages": total_pages,
-        "total_lines": total_lines,
-        "date": date,
-    })
+    return render(
+        request,
+        "logs.html",
+        {
+            "active_page": "logs",
+            "log_files": log_files,
+            "current_file": file,
+            "log_content": log_content,
+            "page": page,
+            "total_pages": total_pages,
+            "total_lines": total_lines,
+            "date": date,
+        },
+    )
 
 
 @router.get("/logs/stream")

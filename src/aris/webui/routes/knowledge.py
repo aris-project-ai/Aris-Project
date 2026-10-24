@@ -41,9 +41,7 @@ def _friendly_db_error(message: str) -> str:
 
 
 @router.get("/knowledge", response_class=HTMLResponse)
-def knowledge_page(
-    request: Request, q: str = "", top_k: int = 0, job: str = ""
-) -> HTMLResponse:
+def knowledge_page(request: Request, q: str = "", top_k: int = 0, job: str = "") -> HTMLResponse:
     """知识库页面；q 做检索试验，job 表示正在跟踪的后台任务。
 
     刻意用同步 def：检索首次会加载本地模型（约 20s），走线程池不阻塞事件循环，

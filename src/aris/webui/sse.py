@@ -81,6 +81,7 @@ def loguru_log_sink(message: Any) -> None:
 def audit_push(target: str, duration: float, ok: bool = True, detail: str = "") -> None:
     """推送审计事件到 audit_broker。"""
     import time
+
     data = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "target": target,

@@ -85,8 +85,8 @@ class Scenario:
     """一个 (provider_id, model) 的行为描述。"""
 
     errors: list[int] = field(default_factory=list)  # 依次返回的错误状态码，耗尽恢复正常
-    first_delay: float = 0.0       # 首字前阻塞秒数（测 stall）
-    chunk_delay: float = 0.0       # chunk 间阻塞秒数（测慢流 / 中途挂起）
+    first_delay: float = 0.0  # 首字前阻塞秒数（测 stall）
+    chunk_delay: float = 0.0  # chunk 间阻塞秒数（测慢流 / 中途挂起）
     chunks: list[str] = field(default_factory=list)  # 文本分片
     thinking: list[str] = field(default_factory=list)  # 思考链分片
     tool_calls: list[dict] = field(default_factory=list)  # 工具调用增量（含 finish_reason 用它）
@@ -230,9 +230,7 @@ class MockLLMServer:
         self.counts: dict[tuple[str, str], int] = {}
         self.models: dict[str, list[str]] = {}
         self.port = self._httpd.server_address[1]
-        self._thread = threading.Thread(
-            target=self._httpd.serve_forever, daemon=True
-        )
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
 
     def start(self) -> "MockLLMServer":
         self._thread.start()
@@ -251,9 +249,7 @@ class MockLLMServer:
         with self.lock:
             self.scenarios[(pid, model)] = scenario
 
-    def register_script(
-        self, scenarios: list[Scenario], *, pid: str, model: str
-    ) -> None:
+    def register_script(self, scenarios: list[Scenario], *, pid: str, model: str) -> None:
         """注册按请求序号依次响应的脚本序列。
 
         同一 (pid, model) 的第 N 次 HTTP 请求响应 steps[N-1]；每次 HTTP
@@ -281,11 +277,7 @@ class MockLLMServer:
                 step = self.counts.get(key, 0)
                 if step < len(script):
                     return script[step]
-            return (
-                self.scenarios.get(key)
-                or self.scenarios.get((pid, "*"))
-                or Scenario()
-            )
+            return self.scenarios.get(key) or self.scenarios.get((pid, "*")) or Scenario()
 
     def count_request(self, pid: str, model: str) -> None:
         with self.lock:
@@ -326,14 +318,14 @@ def main() -> None:
     parser.add_argument("--errors", default="", help="依次返回的错误状态码，逗号分隔（如 429,500）")
     parser.add_argument("--first-delay", type=float, default=0.0, help="首字前阻塞秒数")
     parser.add_argument("--chunk-delay", type=float, default=0.0, help="chunk 间阻塞秒数")
-    parser.add_argument("--text", default="你好，我是本地 mock 模型，LLM 链路正常。", help="回复文本")
+    parser.add_argument(
+        "--text", default="你好，我是本地 mock 模型，LLM 链路正常。", help="回复文本"
+    )
     parser.add_argument("--thinking", default="", help="思考链文本（可选）")
     args = parser.parse_args()
 
     server = MockLLMServer()
-    server.register_models(
-        args.pid, [m.strip() for m in args.models.split(",") if m.strip()]
-    )
+    server.register_models(args.pid, [m.strip() for m in args.models.split(",") if m.strip()])
     scenario = Scenario(
         errors=[int(e) for e in args.errors.split(",") if e.strip()],
         first_delay=args.first_delay,
@@ -356,10 +348,14 @@ def main() -> None:
     base = server.base_url(args.pid)
     print(f"mock 提供方启动: pid={args.pid}  base_url={base}")
     print(f"  /models: {server.models_for(args.pid)}")
-    print(f"  场景: errors={scenario.errors} first_delay={args.first_delay} "
-          f"chunk_delay={args.chunk_delay} thinking={bool(scenario.thinking)}")
-    print("  测试: ARIS_LLM_PROVIDERS_FILE=config/providers.mock.toml "
-          "uv run aris llm test --model %s" % args.model)
+    print(
+        f"  场景: errors={scenario.errors} first_delay={args.first_delay} "
+        f"chunk_delay={args.chunk_delay} thinking={bool(scenario.thinking)}"
+    )
+    print(
+        "  测试: ARIS_LLM_PROVIDERS_FILE=config/providers.mock.toml "
+        "uv run aris llm test --model %s" % args.model
+    )
     print("  停止: Ctrl+C")
     try:
         while True:

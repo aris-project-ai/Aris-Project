@@ -133,9 +133,7 @@ class CharacterStore:
         texts: dict[str, str] = {}
         for filename in TEXT_FILES:
             path = self.root / cid / filename
-            texts[filename.removesuffix(".md")] = (
-                path.read_text("utf-8") if path.is_file() else ""
-            )
+            texts[filename.removesuffix(".md")] = path.read_text("utf-8") if path.is_file() else ""
         return CharacterProfile(
             cid=cid,
             name=str(data.get("name") or cid),

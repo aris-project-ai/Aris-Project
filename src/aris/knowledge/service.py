@@ -133,9 +133,7 @@ class KnowledgeService:
                 outcomes.append(self._ingest_one(path))
             except LoadError as exc:  # 单个文件的问题不拖垮整批
                 logger.warning(f"跳过 {path}：{exc}")
-                outcomes.append(
-                    IngestOutcome(str(path), STATUS_FAILED, 0, reason=str(exc))
-                )
+                outcomes.append(IngestOutcome(str(path), STATUS_FAILED, 0, reason=str(exc)))
 
         if any(o.status in (STATUS_ADDED, STATUS_UPDATED) for o in outcomes):
             self.ensure_index()

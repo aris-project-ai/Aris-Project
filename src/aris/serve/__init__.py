@@ -122,9 +122,7 @@ def run_plan(
     failed_required: set[str] = set()
     planned = {step.name for step in steps}
     for step in steps:
-        blocked_by = [
-            dep for dep in step.needs if dep not in planned or dep in failed_required
-        ]
+        blocked_by = [dep for dep in step.needs if dep not in planned or dep in failed_required]
         if blocked_by:
             reason = f"依赖的步骤未启用或失败（{', '.join(blocked_by)}），已跳过"
             logger.warning(f"跳过 {step.label}：{reason}")
@@ -169,9 +167,7 @@ def _log_outcome(outcome: StepOutcome) -> None:
         logger.warning(outcome.line)
 
 
-def probe_all(
-    only: list[str] | None = None, skip: list[str] | None = None
-) -> list[StepOutcome]:
+def probe_all(only: list[str] | None = None, skip: list[str] | None = None) -> list[StepOutcome]:
     """只跑探针并返回清单（供 `aris doctor` 复用；不启动任何东西）。
 
     与 `aris serve --dry-run` 走同一条路径，保证「体检结论」与「启动结论」一致。

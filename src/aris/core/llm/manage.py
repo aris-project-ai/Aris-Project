@@ -57,9 +57,7 @@ def provider_add(pid: str, name: str, base_url: str, api_key_env: str) -> bool:
     cfg = _load()
     if any(p.id == pid for p in cfg.providers):
         return False
-    cfg.providers.append(
-        LLMProvider(id=pid, name=name, base_url=base_url, api_key_env=api_key_env)
-    )
+    cfg.providers.append(LLMProvider(id=pid, name=name, base_url=base_url, api_key_env=api_key_env))
     _save(cfg)
     return True
 

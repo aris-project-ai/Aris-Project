@@ -15,7 +15,7 @@ from aris.core.llm.message import ChatRequest, Message, MessageRole
 
 from support.mock_llm_server import MockLLMServer, Scenario
 
-STALL = 0.5           # 首字占位阈值（测试用，config 里默认 3.0）
+STALL = 0.5  # 首字占位阈值（测试用，config 里默认 3.0）
 ENGINE_TIMEOUT = 8.0  # 总体超时预算（测试充分大于各场景耗时，防卡死）
 ERROR_MSG = "<预设错误提示语>"
 

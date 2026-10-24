@@ -41,14 +41,14 @@ class HttpRequestResultType(StrEnum):
     """http_request 工具返回结果的外层标识。"""
 
     RESULT = "http_request_result"  # 请求成功
-    ERROR = "http_request_error"    # 请求失败（宽容降级）
+    ERROR = "http_request_error"  # 请求失败（宽容降级）
 
 
 @dataclass
 class HttpRequestConfig:
     """http_request 工具可调参数（config/search.toml）。"""
 
-    http_request_max_chars: int = 4000      # 单次返回内容上限（字符）
+    http_request_max_chars: int = 4000  # 单次返回内容上限（字符）
     http_request_timeout_seconds: float = 20.0
 
 
@@ -95,9 +95,7 @@ def _do_request(
     """执行一次 HTTP 请求并返回结果 JSON；校验失败 / 请求失败抛异常。"""
     method = (method or "GET").upper()
     if method not in _ALLOWED_METHODS:
-        raise ValueError(
-            f"不支持的方法 {method}，允许：{', '.join(sorted(_ALLOWED_METHODS))}"
-        )
+        raise ValueError(f"不支持的方法 {method}，允许：{', '.join(sorted(_ALLOWED_METHODS))}")
     if urllib.parse.urlsplit(url).scheme.lower() not in ("http", "https"):
         raise ValueError(f"仅支持 http/https 协议：{url}")
     if not _in_conversation(url, context):

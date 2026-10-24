@@ -75,10 +75,13 @@ def test_500_x2_switch(llm_server: MockLLMServer) -> None:
     """重试耗尽（500 两次）切下家；下家同模型健康恢复。"""
     register(llm_server, "t4a", "m1", errors=[500, 500])
     register(llm_server, "t4b", "m1", chunks=["来自", "B"])
-    engine = build_engine(llm_server, [
-        {"id": "t4a", "models": [{"id": "m1"}]},
-        {"id": "t4b", "models": [{"id": "m1"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t4a", "models": [{"id": "m1"}]},
+            {"id": "t4b", "models": [{"id": "m1"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "来自B", repr(text)
@@ -92,10 +95,13 @@ def test_auth_no_retry(llm_server: MockLLMServer) -> None:
     """不可重试错误（401）不重试直接切下家。"""
     register(llm_server, "t5a", "m1", errors=[401])
     register(llm_server, "t5b", "m1", chunks=["来自", "B"])
-    engine = build_engine(llm_server, [
-        {"id": "t5a", "models": [{"id": "m1"}]},
-        {"id": "t5b", "models": [{"id": "m1"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t5a", "models": [{"id": "m1"}]},
+            {"id": "t5b", "models": [{"id": "m1"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "来自B", repr(text)
@@ -106,10 +112,13 @@ def test_model_degrade(llm_server: MockLLMServer) -> None:
     """主模型全灭 → 按 fallback_models 降级到备选模型（跨提供方）。"""
     register(llm_server, "t6a", "m1", errors=[500, 500])
     register(llm_server, "t6b", "m2", chunks=["这是", "降级模型"])
-    engine = build_engine(llm_server, [
-        {"id": "t6a", "models": [{"id": "m1", "fallback_models": ["m2"]}]},
-        {"id": "t6b", "models": [{"id": "m2"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t6a", "models": [{"id": "m1", "fallback_models": ["m2"]}]},
+            {"id": "t6b", "models": [{"id": "m2"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "这是降级模型", repr(text)
@@ -124,10 +133,13 @@ def test_race_home_wins(llm_server: MockLLMServer) -> None:
     """竞速：备选先出首字但本家在其后 RACE_GRACE 内跟上 → 本家胜。"""
     register(llm_server, "t7a", "home", first_delay=0.15, chunks=["本家", "回答"])
     register(llm_server, "t7b", "fb", first_delay=0.05, chunks=["备选", "更快"])
-    engine = build_engine(llm_server, [
-        {"id": "t7a", "models": [{"id": "home"}]},
-        {"id": "t7b", "models": [{"id": "fb"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t7a", "models": [{"id": "home"}]},
+            {"id": "t7b", "models": [{"id": "fb"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas_race(make_chat_request("home"), make_chat_request("fb")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "本家回答", repr(text)
@@ -141,10 +153,13 @@ def test_race_fallback_wins(llm_server: MockLLMServer) -> None:
     """竞速：本家过慢（超过 grace 窗口）→ 备选胜并标记降级 / 可竞速。"""
     register(llm_server, "t8a", "home", first_delay=1.0, chunks=["本家", "太慢"])
     register(llm_server, "t8b", "fb", first_delay=0.05, chunks=["备选", "先到"])
-    engine = build_engine(llm_server, [
-        {"id": "t8a", "models": [{"id": "home"}]},
-        {"id": "t8b", "models": [{"id": "fb"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t8a", "models": [{"id": "home"}]},
+            {"id": "t8b", "models": [{"id": "fb"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas_race(make_chat_request("home"), make_chat_request("fb")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "备选先到", repr(text)
@@ -159,10 +174,13 @@ def test_race_home_error(llm_server: MockLLMServer) -> None:
     """竞速：本家立即失败，备选健康 → 备选胜。"""
     register(llm_server, "t9a", "home", errors=[500])
     register(llm_server, "t9b", "fb", chunks=["只有", "备选"])
-    engine = build_engine(llm_server, [
-        {"id": "t9a", "models": [{"id": "home"}]},
-        {"id": "t9b", "models": [{"id": "fb"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t9a", "models": [{"id": "home"}]},
+            {"id": "t9b", "models": [{"id": "fb"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas_race(make_chat_request("home"), make_chat_request("fb")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "只有备选", repr(text)
@@ -185,10 +203,13 @@ def test_mid_stream_fail(llm_server: MockLLMServer) -> None:
     """中途已输出内容后失败：不再切换下家，直接错误处理。"""
     register(llm_server, "t11a", "m1", chunks=["说了一半"], chunk_delay=3.0)  # 首字后挂起 → 读超时
     register(llm_server, "t11b", "m1", chunks=["不该到", "这里"])
-    engine = build_engine(llm_server, [
-        {"id": "t11a", "models": [{"id": "m1"}]},
-        {"id": "t11b", "models": [{"id": "m1"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t11a", "models": [{"id": "m1"}]},
+            {"id": "t11b", "models": [{"id": "m1"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert "说了一半" in text, repr(text)
@@ -205,10 +226,17 @@ def test_network_fallback(llm_server: MockLLMServer) -> None:
     dead_port = probe.getsockname()[1]
     probe.close()
     register(llm_server, "t12b", "m1", chunks=["网络", "兜底"])
-    engine = build_engine(llm_server, [
-        {"id": "t12a", "models": [{"id": "m1"}], "base_url": f"http://127.0.0.1:{dead_port}/prov/t12a"},
-        {"id": "t12b", "models": [{"id": "m1"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {
+                "id": "t12a",
+                "models": [{"id": "m1"}],
+                "base_url": f"http://127.0.0.1:{dead_port}/prov/t12a",
+            },
+            {"id": "t12b", "models": [{"id": "m1"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "网络兜底", repr(text)
@@ -226,10 +254,13 @@ def test_no_candidate(llm_server: MockLLMServer) -> None:
 def test_race_single_side(llm_server: MockLLMServer) -> None:
     """竞速退化：备选无提供方 → 单边串行（保持正常流语义）。"""
     register(llm_server, "t14a", "home", chunks=["单边", "回答"])
-    engine = build_engine(llm_server, [
-        {"id": "t14a", "models": [{"id": "home"}]},
-        {"id": "t14b", "models": [{"id": "other"}]},
-    ])
+    engine = build_engine(
+        llm_server,
+        [
+            {"id": "t14a", "models": [{"id": "home"}]},
+            {"id": "t14b", "models": [{"id": "other"}]},
+        ],
+    )
     deltas = list(engine.stream_deltas_race(make_chat_request("home"), make_chat_request("ghost")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "单边回答", repr(text)
@@ -256,7 +287,9 @@ def test_thinking(llm_server: MockLLMServer) -> None:
 def test_sdk_transport(llm_server: MockLLMServer) -> None:
     """sdk 传输直通 mock（结构化超时 / max_retries 不破坏 SDK 路径）。"""
     register(llm_server, "t16a", "m1")
-    engine = build_engine(llm_server, [{"id": "t16a", "models": [{"id": "m1"}], "transport": "sdk"}])
+    engine = build_engine(
+        llm_server, [{"id": "t16a", "models": [{"id": "m1"}], "transport": "sdk"}]
+    )
     deltas = list(engine.stream_deltas(make_chat_request("m1")))
     text = "".join(d.content for d in deltas if d.content and not d.stall)
     assert text == "你好,Aris", repr(text)
@@ -278,7 +311,7 @@ def test_tool_calls(llm_server: MockLLMServer) -> None:
         Scenario(
             tool_calls=[
                 tool_call_chunk(0, "call_1", "get_time", '{"year":'),
-                tool_call_chunk(0, "call_1", "get_time", '2026}'),
+                tool_call_chunk(0, "call_1", "get_time", "2026}"),
             ],
             finish_reason="tool_calls",
         ),

@@ -14,10 +14,14 @@ router = APIRouter()
 async def dashboard(request: Request) -> HTMLResponse:
     """仪表盘首页。"""
     stats = _gather_stats()
-    return render(request, "dashboard.html", {
-        "active_page": "dashboard",
-        "stats": stats,
-    })
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "active_page": "dashboard",
+            "stats": stats,
+        },
+    )
 
 
 def _gather_stats() -> dict:
@@ -26,6 +30,7 @@ def _gather_stats() -> dict:
         return _gather_stats_impl()
     except Exception as e:
         from loguru import logger
+
         logger.warning(f"仪表盘统计收集失败: {e}")
         return {
             "chat_count": 0,

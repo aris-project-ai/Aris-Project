@@ -93,13 +93,9 @@ def test_tool_respects_top_k(registry: ToolRegistry, ingested_doc: Path) -> None
 
 
 @requires_pg
-def test_tool_reports_distance_for_weak_hits(
-    registry: ToolRegistry, ingested_doc: Path
-) -> None:
+def test_tool_reports_distance_for_weak_hits(registry: ToolRegistry, ingested_doc: Path) -> None:
     """不设相似度阈值（C4 定案）：无关查询也会返回最近片段，故必须给出距离供模型判断。"""
-    unrelated = json.loads(
-        registry.execute("knowledge_search", {"query": "量子纠缠退相干"})
-    )
+    unrelated = json.loads(registry.execute("knowledge_search", {"query": "量子纠缠退相干"}))
 
     assert unrelated["type"] == "knowledge_search_results"
     assert unrelated["count"] >= 1
@@ -143,9 +139,7 @@ def test_tool_rejects_bad_arguments(registry: ToolRegistry) -> None:
     bad_query = json.loads(registry.execute("knowledge_search", {"query": "   "}))
     assert bad_query["type"] == "knowledge_search_error"
 
-    bad_top_k = json.loads(
-        registry.execute("knowledge_search", {"query": "端口", "top_k": 0})
-    )
+    bad_top_k = json.loads(registry.execute("knowledge_search", {"query": "端口", "top_k": 0}))
     assert bad_top_k["type"] == "knowledge_search_error"
 
     missing = registry.execute("knowledge_search", {})
