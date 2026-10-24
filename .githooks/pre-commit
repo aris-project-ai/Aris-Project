@@ -1,10 +1,39 @@
 #!/bin/sh
-# pre-commit hook —— 分支策略保护（AGENTS.md「Git 开发流程」）：
-#   - 禁止在 main 上非合并提交：main 保持稳定只进版本发布（合并提交放行）
-#   - develop 上非合并直接提交打印警告（不阻断，提交信息仍有 commit-msg 把关）
+# pre-commit hook：
+#   1. staged 的 Python 文件先过 ruff check + ruff format --check
+#   2. 分支策略保护（AGENTS.md「Git 开发流程」）：
+#      - 禁止在 main 上非合并提交：main 保持稳定只进版本发布（合并提交放行）
+#      - develop 上非合并直接提交打印警告（不阻断，提交信息仍有 commit-msg 把关）
 #
 # 客户端的 hook 可以 --no-verify 绕开，属技术性建议；真正防线是提交规范
 # 与发布流程（scripts/release-check.sh）。
+
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+
+run_ruff() {
+    if [ -x ".venv/bin/ruff" ]; then
+        .venv/bin/ruff "$@"
+    else
+        uv run ruff "$@"
+    fi
+}
+
+if [ -n "$STAGED_PY" ]; then
+    # shellcheck disable=SC2086  # 项目路径不含空格；这里需要按行拆成多个参数
+    if ! run_ruff check $STAGED_PY; then
+        echo ""
+        echo "ruff check 未通过；修复后再提交（紧急情况可 --no-verify）。"
+        echo ""
+        exit 1
+    fi
+    # shellcheck disable=SC2086
+    if ! run_ruff format --check $STAGED_PY; then
+        echo ""
+        echo "ruff format 未通过；先跑 .venv/bin/ruff format <文件>。"
+        echo ""
+        exit 1
+    fi
+fi
 
 BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
 
