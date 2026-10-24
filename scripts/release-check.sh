@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 版本发布前检查（AGENTS.md「Git 开发流程」「版本号更新」）：
+# 版本发布前检查（AGENTS.md §8 Git 流程 / §9 版本号）：
 #   1. 版本号结构：唯一源是 src/aris/__init__.py；pyproject.toml 走 dynamic version
 #      （不得再出现静态 version），uv.lock 不记录本项目版本
 #   2. 已安装元数据与源一致（uv cache-keys 是否生效的兜底）
 #   3. uv.lock 与 pyproject.toml 同步（uv lock --check）
 #   4. 当前分支是 develop 且无未合并的本地 feature 分支
-#   5. 该版本的 tag 尚未被占用（三种 tag 形态见 scripts/lib-version.sh）
+#   5. 该版本的 tag 尚未被占用（两类 tag 形态见 scripts/lib-version.sh）
 # 通过则输出发布流程提示并 exit 0；否则列出问题 exit 1。
 # 用法：bash scripts/release-check.sh
 
@@ -27,15 +27,15 @@ echo "===== 发布检查 ====="
 
 # ---- 1. 版本号单一来源 ----
 ver="$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' "$VERSION_FILE" | head -1)"
-if ! printf '%s' "$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|b[0-9]+)?$'; then
-    echo "[FAIL] $VERSION_FILE 的版本号缺失或不合法（PEP 440：X.Y.Z / X.Y.ZbN / X.Y.Z.devN）: '${ver:-<缺失>}'"
+if ! printf '%s' "$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(\.dev[0-9]+)?$'; then
+    echo "[FAIL] $VERSION_FILE 的版本号缺失或不合法（PEP 440：X.Y.Z / X.Y.Z.W / X.Y.Z.devN）: '${ver:-<缺失>}'"
     fail=1
 else
     echo "[ ok ] 版本唯一源 $VERSION_FILE: $ver → tag $(version_to_tag "$ver")（发在 $(version_branch "$ver")）"
 fi
 
 if grep -qE '^version *= *"' "$PYPROJECT"; then
-    echo "[FAIL] $PYPROJECT 仍有静态 version —— 版本号只能有一处，见 AGENTS.md「版本号更新」"
+    echo "[FAIL] $PYPROJECT 仍有静态 version —— 版本号只能有一处，见 AGENTS.md §9"
     fail=1
 elif ! grep -qE '^dynamic *= *\["version"\]' "$PYPROJECT"; then
     echo "[FAIL] $PYPROJECT 未声明 dynamic = [\"version\"]"
@@ -89,6 +89,7 @@ unmerged=""
 for b in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
     case "$b" in
     develop | main | oldWish) continue ;;
+    feat/memory-old) continue ;; # 长期保留的存档分支，不合 develop
     esac
     if ! git merge-base --is-ancestor "$b" develop 2>/dev/null; then
         unmerged="$unmerged $b"
@@ -117,13 +118,9 @@ fi
 echo
 if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
-    echo "  1. 在 develop 上 bump：bash scripts/bump-version.sh <dev|cand|rel> <版本>"
-    if [ "$(version_kind "$ver")" = "cand" ]; then
-        echo "  2. 候选只留 develop：git tag $(version_to_tag "$ver") && git push origin develop && git push origin $(version_to_tag "$ver")"
-    else
-        echo "  2. 提交 chore(release) 后合并回 main（git merge --no-ff）"
-        echo "  3. git tag $(version_to_tag "$ver") && git push origin develop main && git push origin $(version_to_tag "$ver")"
-    fi
+    echo "  1. 在 develop 上 bump：bash scripts/bump-version.sh <dev|rel> <版本>"
+    echo "  2. 提交 chore(release) 后合并回 main（git merge --no-ff）"
+    echo "  3. git tag $(version_to_tag "$ver") && git push origin develop main && git push origin $(version_to_tag "$ver")"
     echo "  4. 打 tag 后建议复查 git show $(version_to_tag "$ver") --stat"
     exit 0
 fi

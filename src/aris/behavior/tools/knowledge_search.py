@@ -6,7 +6,7 @@
 可引用是知识库的存在意义。
 
 本文件只是薄壳：知识库能力由 `knowledge/` 提供、经总线 `knowledge.search` 暴露，
-工具不直接 import 业务实现（AGENTS.md「模块间调用规则」）。
+工具不直接 import 业务实现（AGENTS.md §6 CMCB）。
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 > **状态：商讨中，未定案。本文件是待商讨的议题清单，不是设计结论。**
 > 讨论出结论前**不要照此实现**。结论落定后请把对应小节改写为「定案」，
-> 并在 `AGENTS.md` 的「已定案」中登记一句摘要。
+> 并更新 `AGENTS.md` §4 的模块一行与 `PROGRESS.md`。
 
 - 起始日期：2026-09-14
 - 开发分支：`feat/knowledge`（`store/` 部分已并入 `develop` @ `273a0cf`）
@@ -31,7 +31,7 @@
 
 ## 2. 可沿用的既有地基（已定案，不重新讨论）
 
-以下来自 `AGENTS.md` 与 `docs/developDoc/EMBEDDING.md`，直接沿用：
+以下来自 `docs/developDoc/EMBEDDING.md`，直接沿用：
 
 - **Embedding 双 provider**：热记忆本地 Bekko-embedding-v1-a25m（384 维，
   OpenVINO CPU）/ 冷记忆云端 Cloudflare BGE-M3（1024 维），**维度不同不混表**，
@@ -174,7 +174,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 
 > **总线改名（已收口，2026-09-19）**：定名「跨模块通讯总线」（CMCB），
 > 文档与注释已统一改名（架构文档 `docs/developDoc/CMCB.md`）；服务名等代码
-> 标识符保持不变，详见 AGENTS.md「已定案」。
+> 标识符保持不变，详见 `AGENTS.md` §6 与 `CMCB.md`。
 
 ### 4.2 D. 检索侧
 
@@ -281,7 +281,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 ## 6. 商讨结论记录
 
 > 每达成一项结论，在此登记（日期 + 结论 + 影响范围），并同步到
-> `AGENTS.md`「已定案」与 `PROGRESS.md`。
+> `AGENTS.md` 对应章节与 `PROGRESS.md`。
 
 | 日期 | 议题 | 结论 | 影响 |
 |---|---|---|---|

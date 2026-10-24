@@ -1,7 +1,7 @@
 """知识库业务：摄入 / 列举 / 移除 / 检索 / 建索引。
 
 对外只经总线（CMCB）暴露 `knowledge.*` 服务；底层一律通过 `store.*` 使用
-embedding 与数据库（跨模块不允许直接 import，见 AGENTS.md「模块间调用规则」）。
+embedding 与数据库（跨模块不允许直接 import，见 AGENTS.md §6 CMCB）。
 
 增量策略（B4 定案）：**content hash 幂等 + 软删重建**——同路径文件 hash 未变
 则跳过；变了则把旧的文档与块软删（`deleted_at`）后整篇重建。

@@ -12,7 +12,7 @@
     aris serve --skip webui       # 不启 WebUI
     aris serve --dry-run          # 只跑探针、打印清单，不启动任何东西
 
-失败分级（对齐 AGENTS.md 错误处理）：只有 ``store.db`` 是 required，其余 optional；
+失败分级（对齐 AGENTS.md §6「依赖与错误处理」）：只有 ``store.db`` 是 required，其余 optional；
 降级/跳过/失败**一律记日志并给出可执行提示**，绝不静默降级。
 """
 
@@ -53,7 +53,7 @@ def assemble() -> None:
     """集中 import 各服务所有者模块 + 装配进程级运行时（唯一的组装根）。
 
     这里的 import 是**装配动作**（触发自注册），不是跨模块业务调用——对齐
-    AGENTS.md「CLI 组装根可保持直接引用」的边界。
+    AGENTS.md §6 CMCB 的边界（CLI 组装根可直接引用）。
 
     v1.0 M1：`tools.execute` / `loop.run` / `skills.menu` / 引擎的 `llm.deltas`
     都是**单槽**总线服务，原来由每个 `ChatSession` 构造时自建并 provide，
