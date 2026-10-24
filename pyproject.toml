@@ -3,7 +3,7 @@ name = "aris"
 dynamic = ["version"]
 description = "拟人 AI Aris —— 目标是社会学意义上的人"
 readme = "README.md"
-license = "GPL-3.0-only"
+license = "GPL-3.0-or-later"
 license-files = ["COPYING"]
 authors = [{ name = "kasamorin", email = "kasamorin@outlook.com" }]
 keywords = ["ai", "llm", "persona", "voice-assistant", "agent"]
