@@ -39,22 +39,23 @@ from loguru import logger
 
 from aris.cfgtoml import load_config
 from aris.core import call
-from .web_common import extract_page
+
 from ..registry import ToolRegistry
+from .web_common import extract_page
 
 
 class WebSearchResultType(StrEnum):
     """联网搜索工具返回结果的外层标识。"""
 
     RESULTS = "web_search_results"  # 搜索成功
-    ERROR = "web_search_error"      # 搜索失败（宽容降级）
+    ERROR = "web_search_error"  # 搜索失败（宽容降级）
 
 
 class WebOpenResultType(StrEnum):
     """web_open 工具返回结果的外层标识。"""
 
-    RESULT = "web_open_result"      # 正文读取成功
-    ERROR = "web_open_error"        # 读取失败（宽容降级）
+    RESULT = "web_open_result"  # 正文读取成功
+    ERROR = "web_open_error"  # 读取失败（宽容降级）
 
 
 @dataclass
@@ -298,9 +299,7 @@ def _do_web_open(result_id: int) -> str:
     """按搜索结果 id 抓取并提取正文，返回 markdown；失败抛异常。"""
     entry = _recent_results.get(result_id)
     if entry is None:
-        raise RuntimeError(
-            f"id {result_id} 不在最近的搜索结果里（需要先 web_search，且 id 有效）"
-        )
+        raise RuntimeError(f"id {result_id} 不在最近的搜索结果里（需要先 web_search，且 id 有效）")
     url = entry["url"]
     resp = call(
         "http.request",
@@ -319,7 +318,7 @@ def _do_web_open(result_id: int) -> str:
         raise RuntimeError(f"网页正文提取为空（可能是动态渲染页面）：{url}")
     body = body.strip()
     if len(body) > _search_config.webopen_max_chars:
-        body = body[:_search_config.webopen_max_chars] + "…"
+        body = body[: _search_config.webopen_max_chars] + "…"
 
     title = entry.get("title") or url
     return f"# {title}\n\n原文链接：{url}\n\n{body}"

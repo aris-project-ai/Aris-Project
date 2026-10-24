@@ -10,15 +10,14 @@
 import argparse
 import os
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
 from . import __version__
 from .config import get_settings
-from .logging import setup_logging
 from .core.llm.config import LLMModel
+from .logging import setup_logging
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -27,9 +26,6 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 
     logger.info(f"Aris {__version__}")
     logger.info(f"Python: {sys.version.split()[0]} (需要 >= 3.12)")
-    if sys.version_info < (3, 12):
-        logger.error("Python 版本过低，无法运行")
-        ok = False
 
     try:
         from aris.csrc import demo_available
@@ -64,9 +60,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     outcomes = probe_all()
     for outcome in outcomes:
         (logger.success if outcome.status == "ok" else logger.warning)(outcome.line)
-    failed_required = [
-        o for o in outcomes if o.status == "failed" and o.step.level == "required"
-    ]
+    failed_required = [o for o in outcomes if o.status == "failed" and o.step.level == "required"]
     if failed_required:
         logger.error(f"{len(failed_required)} 个必需项未就绪，按上面提示处理后重试")
         ok = False
@@ -119,9 +113,8 @@ def _cmd_llm_list(args: argparse.Namespace) -> int:
             marker = "  [默认]" if m.id == default_model else ""
             caps = ", ".join(m.capabilities) if m.capabilities else "-"
             name_col = f"{m.id}{marker}".ljust(34)
-            print(
-                f"    - {name_col}  capabilities: {caps:<20}  context: {_format_context(m.context_length)}"
-            )
+            context = _format_context(m.context_length)
+            print(f"    - {name_col}  capabilities: {caps:<20}  context: {context}")
     print(f"\n默认模型: {default_model}")
     return 0
 
@@ -153,7 +146,7 @@ def _cmd_llm_test(args: argparse.Namespace) -> int:
 
     settings = get_settings()
     providers = load_providers(settings.llm_providers_file)
-    engine = LLMEngine(
+    LLMEngine(
         providers,
         timeout=settings.llm_fallback_timeout,
         first_token_stall=settings.llm_first_token_stall,
@@ -199,9 +192,7 @@ def _pick_fetch_provider(providers, provider_id: str | None):
     return providers.ordered_providers()[0]
 
 
-def _run_candidate_picker(
-    title: str, candidates: list[LLMModel]
-) -> set[str] | None:
+def _run_candidate_picker(title: str, candidates: list[LLMModel]) -> set[str] | None:
     """按系列分组分页的勾选列表（prompt_toolkit）。
 
     按键：↑/↓ 或 j/k 移动，空格 勾选/取消，p/n 翻页，回车 确认，q/ESC 放弃。
@@ -375,9 +366,7 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
         if missing_wanted:
             logger.warning(f"--add 中不在端点/候选的模型: {sorted(missing_wanted)}")
     elif sys.stdin.isatty() and plan.candidates:
-        picked = _run_candidate_picker(
-            f"选择要添加的模型（{provider.id}）", plan.candidates
-        )
+        picked = _run_candidate_picker(f"选择要添加的模型（{provider.id}）", plan.candidates)
         if picked is None:
             print("已放弃，未写入。")
             return 0
@@ -605,7 +594,7 @@ def _cmd_db(args: argparse.Namespace) -> int:
                 from aris.store.db import health
 
                 info = health(env)
-            except Exception as e:  # 探活失败只提示，不改 status 的退出码语义
+            except Exception as e:  # 探活失败只提示，不改 status 的退出码语义  # noqa: BLE001
                 logger.warning(f"连接失败: {e}")
             else:
                 vector = info["vector_version"] or "未安装"
@@ -637,7 +626,8 @@ def _cmd_db(args: argparse.Namespace) -> int:
         from contextlib import closing
 
         from aris.store.db import connect
-        from aris.store.migrate import MigrationError, run as run_migrations
+        from aris.store.migrate import MigrationError
+        from aris.store.migrate import run as run_migrations
 
         if not is_running(env):
             logger.error("数据库未运行，先执行 aris db start")
@@ -701,8 +691,7 @@ def _cmd_knowledge(args: argparse.Namespace) -> int:
             for hit in result["results"]:
                 heading = f" › {hit['heading_path']}" if hit["heading_path"] else ""
                 print(
-                    f"[{hit['id']}] {hit['source_path']}{heading}"
-                    f"  distance={hit['distance']:.4f}"
+                    f"[{hit['id']}] {hit['source_path']}{heading}  distance={hit['distance']:.4f}"
                 )
                 print("    " + hit["content"][:200].replace("\n", " "))
             return 0
@@ -774,12 +763,8 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI 主入口。"""
-    parser = argparse.ArgumentParser(
-        prog="aris", description="拟人 AI Aris —— 社会学意义上的人"
-    )
-    parser.add_argument(
-        "--version", action="version", version=f"Aris {__version__}"
-    )
+    parser = argparse.ArgumentParser(prog="aris", description="拟人 AI Aris —— 社会学意义上的人")
+    parser.add_argument("--version", action="version", version=f"Aris {__version__}")
     parser.add_argument(
         "--verbose",
         action="store_true",
@@ -804,9 +789,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="统一模型 id（默认取 config/providers.toml 的 default_model）",
     )
-    p_test.add_argument(
-        "--message", default="用一句话介绍你自己。", help="要发送的用户消息"
-    )
+    p_test.add_argument("--message", default="用一句话介绍你自己。", help="要发送的用户消息")
     p_test.add_argument(
         "--system", default="你是 Aris，一个拟人 AI，说话简洁自然。", help="系统提示词"
     )
@@ -822,15 +805,11 @@ def main(argv: list[str] | None = None) -> int:
     p_fetch.add_argument(
         "--write", action="store_true", help="应用变更并写回（默认只打印 diff，不落盘）"
     )
-    p_fetch.add_argument(
-        "--add", default=None, help="只添加指定模型（逗号分隔，跳过勾选）"
-    )
+    p_fetch.add_argument("--add", default=None, help="只添加指定模型（逗号分隔，跳过勾选）")
     p_fetch.add_argument(
         "--keep", default=None, help="保留这些模型不移除（逗号分隔，即使云端已消失）"
     )
-    p_fetch.add_argument(
-        "--delete", default=None, help="从不添加候选的模型中排除（逗号分隔）"
-    )
+    p_fetch.add_argument("--delete", default=None, help="从不添加候选的模型中排除（逗号分隔）")
     p_fetch.set_defaults(func=_cmd_llm_fetch)
 
     p_retired = p_llm_test.add_parser(
@@ -842,9 +821,7 @@ def main(argv: list[str] | None = None) -> int:
     p_retired.set_defaults(func=_cmd_llm_retired)
 
     p_chat = sub.add_parser("chat", help="文字对话（交互循环或单次问答）")
-    p_chat.add_argument(
-        "message", nargs="?", help="要发送的消息；不提供则进入交互对话循环"
-    )
+    p_chat.add_argument("message", nargs="?", help="要发送的消息；不提供则进入交互对话循环")
     p_chat.add_argument(
         "--model",
         default=None,
@@ -939,10 +916,7 @@ def main(argv: list[str] | None = None) -> int:
     # 级别——serve 的启动清单本身就是输出，web 的监听地址也要看得见
     console_level = (
         "INFO"
-        if (
-            args.verbose
-            or args.command in ("doctor", "db", "store", "knowledge", "serve", "web")
-        )
+        if (args.verbose or args.command in ("doctor", "db", "store", "knowledge", "serve", "web"))
         else None
     )
     # chat 命令默认不向控制台输出日志——全屏 TUI 由 prompt_toolkit 接管终端，
@@ -961,7 +935,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # 注册模块级总线服务（各模块在 import 时自注册；此处只挂轻量模块）
-    import aris.knowledge  # noqa: F401  —— 注册 knowledge.* 与建表迁移
+    import aris.knowledge  # 注册 knowledge.* 与建表迁移
     import aris.store  # noqa: F401  —— 注册 store.*
 
     if args.command == "llm" and args.llm_command is None:

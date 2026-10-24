@@ -14,6 +14,7 @@ from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from aris.core import call
+
 from ..templates import render
 
 router = APIRouter()
@@ -31,13 +32,17 @@ async def providers_page(
     """提供商管理页面。"""
     providers = _load_providers()
     retired = _load_retired()
-    return render(request, "providers.html", {
-        "active_page": "providers",
-        "providers": providers,
-        "selected": selected,
-        "tab": tab,
-        "retired": retired,
-    })
+    return render(
+        request,
+        "providers.html",
+        {
+            "active_page": "providers",
+            "providers": providers,
+            "selected": selected,
+            "tab": tab,
+            "retired": retired,
+        },
+    )
 
 
 @router.post("/providers/add", response_model=None)
@@ -50,11 +55,15 @@ async def provider_add(
 ) -> RedirectResponse:
     """添加新提供方。"""
     if not _PID_RE.fullmatch(id):
-        return RedirectResponse(url="/providers?error=ID%E6%A0%BC%E5%BC%8F%E9%94%99%E8%AF%AF", status_code=303)
+        return RedirectResponse(
+            url="/providers?error=ID%E6%A0%BC%E5%BC%8F%E9%94%99%E8%AF%AF", status_code=303
+        )
     ok = call("llm.providers.add", id, name or id, base_url, api_key_env or f"{id.upper()}_API_KEY")
     if ok:
         return RedirectResponse(url=f"/providers?selected={quote(id)}", status_code=303)
-    return RedirectResponse(url="/providers?error=%E6%B7%BB%E5%8A%A0%E5%A4%B1%E8%B4%A5", status_code=303)
+    return RedirectResponse(
+        url="/providers?error=%E6%B7%BB%E5%8A%A0%E5%A4%B1%E8%B4%A5", status_code=303
+    )
 
 
 @router.post("/providers/{pid}/delete", response_model=None)
@@ -101,29 +110,37 @@ async def provider_fetch_page(
     """fetch 审核页面：拉取端点模型 → 对比 → 勾选 → 写回。"""
     result = call("llm.fetch.plan", pid) or {"error": f"提供方 {pid} 不存在"}
     if "error" in result:
-        return render(request, "providers.html", {
+        return render(
+            request,
+            "providers.html",
+            {
+                "active_page": "providers",
+                "providers": _load_providers(),
+                "selected": pid,
+                "tab": "models",
+                "error": result["error"],
+            },
+        )
+    return render(
+        request,
+        "fetch.html",
+        {
             "active_page": "providers",
-            "providers": _load_providers(),
-            "selected": pid,
-            "tab": "models",
-            "error": result["error"],
-        })
-    return render(request, "fetch.html", {
-        "active_page": "providers",
-        "pid": pid,
-        "provider_name": result["provider_name"],
-        "added": result["added"],
-        "kept": result["kept"],
-        "missing": result["missing"],
-        "restored": result["restored"],
-        "retired_now": result["retired_now"],
-    })
+            "pid": pid,
+            "provider_name": result["provider_name"],
+            "added": result["added"],
+            "kept": result["kept"],
+            "missing": result["missing"],
+            "restored": result["restored"],
+            "retired_now": result["retired_now"],
+        },
+    )
 
 
 @router.post("/providers/{pid}/fetch/apply", response_model=None)
 async def provider_fetch_apply(
     pid: str,
-    selected: list[str] = Form([]),
+    selected: list[str] = Form([]),  # noqa: B008  # FastAPI 依赖注入
 ) -> RedirectResponse:
     """应用 fetch 结果：勾选的候选写入 providers.toml。"""
     call("llm.fetch.apply", pid, selected)
@@ -137,8 +154,9 @@ def _load_providers() -> list[dict]:
     """
     try:
         cfg = call("llm.providers.load")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
+
         logger.warning(f"提供商列表加载失败，按空列表展示: {e}")
         return []
     if cfg is None:
@@ -150,22 +168,28 @@ def _load_providers() -> list[dict]:
         for m in p.models:
             caps = ", ".join(m.capabilities) if m.capabilities else "-"
             ctx = f"{m.context_length // 1000}K" if m.context_length else "-"
-            models.append({
-                "id": m.id,
-                "name": m.name,
-                "context": ctx,
-                "capabilities": caps,
-                "thinking_default": str(m.thinking_default) if m.thinking_default is not None else "跟随",
-            })
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "base_url": p.base_url,
-            "key_ok": key_ok,
-            "key_env": p.api_key_env,
-            "model_count": len(p.models),
-            "models": models,
-        })
+            models.append(
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "context": ctx,
+                    "capabilities": caps,
+                    "thinking_default": str(m.thinking_default)
+                    if m.thinking_default is not None
+                    else "跟随",
+                }
+            )
+        result.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "base_url": p.base_url,
+                "key_ok": key_ok,
+                "key_env": p.api_key_env,
+                "model_count": len(p.models),
+                "models": models,
+            }
+        )
     return result
 
 
@@ -174,4 +198,7 @@ def _load_retired() -> list[dict]:
     entries = call("llm.retired.list")
     if entries is None:
         return []
-    return [{"model": e.model, "provider": e.provider, "first_missing": e.first_missing} for e in entries]
+    return [
+        {"model": e.model, "provider": e.provider, "first_missing": e.first_missing}
+        for e in entries
+    ]

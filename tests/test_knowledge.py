@@ -152,11 +152,13 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
-requires_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）")
+requires_pg = pytest.mark.skipif(
+    not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）"
+)
 
 
 @requires_pg
@@ -195,8 +197,6 @@ def test_ingest_search_remove_roundtrip(tmp_path: Path):
     finally:
         service.remove(str(doc_path))
 
-    assert not any(
-        s["source_path"] == str(doc_path.resolve()) for s in service.list_sources()
-    )
+    assert not any(s["source_path"] == str(doc_path.resolve()) for s in service.list_sources())
     hits = service.search("猫吃什么", limit=5)
     assert not any(r["source_path"] == str(doc_path.resolve()) for r in hits["results"])

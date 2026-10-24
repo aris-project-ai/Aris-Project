@@ -14,18 +14,23 @@ router = APIRouter()
 async def dashboard(request: Request) -> HTMLResponse:
     """仪表盘首页。"""
     stats = _gather_stats()
-    return render(request, "dashboard.html", {
-        "active_page": "dashboard",
-        "stats": stats,
-    })
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "active_page": "dashboard",
+            "stats": stats,
+        },
+    )
 
 
 def _gather_stats() -> dict:
     """收集仪表盘统计数据（外围展示功能：失败宽容降级，不中断页面）。"""
     try:
         return _gather_stats_impl()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
+
         logger.warning(f"仪表盘统计收集失败: {e}")
         return {
             "chat_count": 0,
@@ -41,6 +46,7 @@ def _gather_stats_impl() -> dict:
     import os
 
     from aris.core import call
+
     from ...config import get_settings
 
     settings = get_settings()

@@ -93,9 +93,11 @@ def ensure_micromamba(env: PgEnv) -> Path:
     tmp = dest.with_name(dest.name + ".tmp")
     logger.info(f"下载 micromamba {MAMBA_VERSION} ...")
     try:
-        with urllib.request.urlopen(MAMBA_URL, timeout=DOWNLOAD_TIMEOUT) as resp:
-            with open(tmp, "wb") as fh:
-                shutil.copyfileobj(resp, fh)
+        with (
+            urllib.request.urlopen(MAMBA_URL, timeout=DOWNLOAD_TIMEOUT) as resp,
+            open(tmp, "wb") as fh,
+        ):
+            shutil.copyfileobj(resp, fh)
     except OSError as exc:
         tmp.unlink(missing_ok=True)
         raise BootstrapError(f"下载 micromamba 失败：{exc}") from exc
@@ -103,9 +105,7 @@ def ensure_micromamba(env: PgEnv) -> Path:
     digest = _sha256(tmp)
     if digest != MAMBA_SHA256:
         tmp.unlink(missing_ok=True)
-        raise BootstrapError(
-            f"micromamba sha256 不匹配：期望 {MAMBA_SHA256}，实际 {digest}"
-        )
+        raise BootstrapError(f"micromamba sha256 不匹配：期望 {MAMBA_SHA256}，实际 {digest}")
     tmp.chmod(0o755)
     tmp.replace(dest)
     logger.success(f"micromamba 就位：{dest}")
@@ -442,8 +442,7 @@ def bootstrap_env(env: PgEnv, *, force: bool = False) -> PgEnv:
     """
     if force and env.source is PgSource.PROJECT:
         logger.warning(
-            f"重新获取便携 PostgreSQL（删除可重建的 {env.prefix}；数据目录 "
-            f"{env.pgdata} 保持不动）"
+            f"重新获取便携 PostgreSQL（删除可重建的 {env.prefix}；数据目录 {env.pgdata} 保持不动）"
         )
         shutil.rmtree(env.prefix, ignore_errors=True)
         _runnable_cache.clear()

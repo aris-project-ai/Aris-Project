@@ -11,8 +11,7 @@
 - query_recent / query_summary：审计流水与聚合统计查询
 """
 
-from . import audit
-from . import http
+from . import audit, http
 from .bus import (
     call,
     emit,
@@ -29,6 +28,7 @@ __all__ = [
     "call",
     "emit",
     "has_service",
+    "http",
     "provide",
     "query_recent",
     "query_summary",

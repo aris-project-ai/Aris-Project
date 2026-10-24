@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from urllib.parse import urlparse
 
 from aris.config import get_settings
@@ -22,7 +23,7 @@ from .fetch import write_providers
 _ID_RE = re.compile(r"[a-z0-9-]+")
 
 
-def _providers_path() -> str:
+def _providers_path() -> Path:
     """返回 providers.toml 路径（独立函数便于测试替换）。"""
     return get_settings().llm_providers_file
 
@@ -57,9 +58,7 @@ def provider_add(pid: str, name: str, base_url: str, api_key_env: str) -> bool:
     cfg = _load()
     if any(p.id == pid for p in cfg.providers):
         return False
-    cfg.providers.append(
-        LLMProvider(id=pid, name=name, base_url=base_url, api_key_env=api_key_env)
-    )
+    cfg.providers.append(LLMProvider(id=pid, name=name, base_url=base_url, api_key_env=api_key_env))
     _save(cfg)
     return True
 
@@ -114,14 +113,17 @@ def providers_check() -> list[tuple[str, str]]:
     cfg = _load()
     issues: list[tuple[str, str]] = []
     known = {p.id for p in cfg.providers}
-    for pid in cfg.order:
-        if pid not in known:
-            issues.append(("error", f"default_provider_order 引用不存在的提供方: {pid}"))
-    for p in cfg.providers:
-        if not p.models:
-            issues.append(("error", f"提供方 {p.id} 模型列表为空"))
-        if not os.environ.get(p.api_key_env):
-            issues.append(("error", f"提供方 {p.id} 缺 API key：请在 .env 设置 {p.api_key_env}"))
+    issues += [
+        ("error", f"default_provider_order 引用不存在的提供方: {pid}")
+        for pid in cfg.order
+        if pid not in known
+    ]
+    issues += [("error", f"提供方 {p.id} 模型列表为空") for p in cfg.providers if not p.models]
+    issues += [
+        ("error", f"提供方 {p.id} 缺 API key：请在 .env 设置 {p.api_key_env}")
+        for p in cfg.providers
+        if not os.environ.get(p.api_key_env)
+    ]
     if not cfg.default_model:
         issues.append(("warning", "default_model 未配置，CLI 将自动兜底取第一个可用模型"))
     elif cfg.default_model not in cfg.all_model_ids():

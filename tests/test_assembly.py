@@ -134,7 +134,7 @@ def test_runtime_without_tools_keeps_raw_prompt() -> None:
 def test_behavior_step_reports_runtime() -> None:
     """serve 的 behavior 步骤：探针报运行时状态，启动动作幂等装配。"""
     from aris.serve.conf import ServeConfig
-    from aris.serve.steps import build_steps, _probe_behavior, _start_behavior
+    from aris.serve.steps import _probe_behavior, _start_behavior, build_steps
 
     steps = {step.name: step for step in build_steps(ServeConfig())}
     assert steps["behavior"].start is not None

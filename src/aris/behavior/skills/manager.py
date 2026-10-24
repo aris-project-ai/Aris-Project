@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
+import shutil as _shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -168,6 +170,7 @@ class SkillManager:
             ensure_ascii=False,
         )
 
+
 # ---------- 技能文件 CRUD 总线服务（供 WebUI 常驻服务经 core.call 调用）----------
 #
 # 与 SkillManager 的运行时能力（菜单/激活）互补：这里只做 SKILL.md 目录的
@@ -176,9 +179,6 @@ class SkillManager:
 #
 # 返回约定：skills_detail 缺失返回 None；skills_create 返回 (ok, error) 元组，
 # 失败原因给前端展示用。
-
-import re
-import shutil as _shutil
 
 _NAME_RE = re.compile(r"[a-z0-9-]+")
 

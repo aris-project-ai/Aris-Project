@@ -265,7 +265,7 @@ def _embed_preload() -> dict[str, Any]:
     def _work() -> None:
         try:
             warmup()
-        except Exception as exc:  # 预热失败只记日志，不阻断 serve
+        except Exception as exc:  # 预热失败只记日志，不阻断 serve  # noqa: BLE001
             logger.warning(f"embedding 预热失败：{exc}")
             _embed_state.update(status="failed", detail=str(exc))
         else:

@@ -14,7 +14,6 @@ from aris.store import migrate, vector
 from aris.store.migrate import Migration, MigrationError
 from aris.store.vector import VectorError, quote_ident, to_vector_literal
 
-
 # ---------------------------------------------------------------------------
 # 迁移机制（假连接：只验证编排逻辑，不碰真库）
 # ---------------------------------------------------------------------------
@@ -23,11 +22,11 @@ from aris.store.vector import VectorError, quote_ident, to_vector_literal
 class _FakeCursor:
     """极简假游标：只服务于 migrate 用到的两条语句。"""
 
-    def __init__(self, conn: "_FakeConn") -> None:
+    def __init__(self, conn: _FakeConn) -> None:
         self.conn = conn
         self._rows: list[tuple[str, int, str]] = []
 
-    def __enter__(self) -> "_FakeCursor":
+    def __enter__(self) -> _FakeCursor:
         return self
 
     def __exit__(self, *exc: object) -> bool:
@@ -153,11 +152,13 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:  # 探针失败一律视为不可用，避免收集期报错
+    except Exception:  # 探针失败一律视为不可用，避免收集期报错  # noqa: BLE001
         return False
 
 
-requires_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）")
+requires_pg = pytest.mark.skipif(
+    not _pg_available(), reason="PostgreSQL 未运行（先 aris db start）"
+)
 
 
 @requires_pg
@@ -166,9 +167,7 @@ def test_vector_roundtrip_upsert_search_filter_and_index():
     from aris.store.db import connect
 
     with closing(connect()) as conn:
-        conn.execute(
-            "CREATE TEMP TABLE tvec (id text PRIMARY KEY, embedding vector(3), note text)"
-        )
+        conn.execute("CREATE TEMP TABLE tvec (id text PRIMARY KEY, embedding vector(3), note text)")
         rows = [
             {"id": "a", "embedding": [1.0, 0.0, 0.0], "note": "x"},
             {"id": "b", "embedding": [0.0, 1.0, 0.0], "note": "y"},

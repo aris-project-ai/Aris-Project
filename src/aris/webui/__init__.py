@@ -32,10 +32,12 @@ def create_app() -> FastAPI:
 
     # 安装 loguru SSE sink（必须在其他中间件之前）
     from .sse import install_loguru_sink
+
     install_loguru_sink()
 
     # 请求日志中间件（通过 loguru 记录，SSE 可捕获）
     from .middleware import RequestLoggingMiddleware
+
     app.add_middleware(RequestLoggingMiddleware)
 
     # 鉴权中间件
@@ -46,11 +48,8 @@ def create_app() -> FastAPI:
     static_dir.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    # 模板目录
-    templates_dir = Path(__file__).parent / "templates"
-
     # 注册路由
-    from .routes import dashboard, audit, providers, skills, config, logs, history
+    from .routes import audit, config, dashboard, history, logs, providers, skills
     from .routes import knowledge as knowledge_route
 
     app.include_router(dashboard.router)
@@ -155,8 +154,7 @@ def start_server(host: str | None = None, port: int | None = None) -> str:
         logger.warning(warning)
     if port_in_use(bind_host, bind_port):
         raise RuntimeError(
-            f"端口 {bind_host}:{bind_port} 已被占用，"
-            "可能是另一个 `aris web` / `aris serve` 在运行"
+            f"端口 {bind_host}:{bind_port} 已被占用，可能是另一个 `aris web` / `aris serve` 在运行"
         )
     from .auth import is_password_configured
 

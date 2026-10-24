@@ -103,10 +103,10 @@ def emit(event: str, payload: Any = None) -> None:
         for handler in handlers:
             try:
                 handler(payload)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"事件 {event} 的处理器 {handler.__name__} 异常: {e}")
         audit.audit_event(event, monotonic() - start)
-    except Exception:
+    except Exception:  # noqa: BLE001
         audit.audit_event(event, monotonic() - start, ok=False)
 
 

@@ -24,15 +24,19 @@ async def audit_page(
     records = _query_records(module=module, action=action, page=page)
     total = _count_records(module=module, action=action)
     total_pages = max(1, (total + 49) // 50)
-    return render(request, "audit.html", {
-        "active_page": "audit",
-        "records": records,
-        "page": page,
-        "total_pages": total_pages,
-        "total": total,
-        "module": module or "",
-        "action": action or "",
-    })
+    return render(
+        request,
+        "audit.html",
+        {
+            "active_page": "audit",
+            "records": records,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "module": module or "",
+            "action": action or "",
+        },
+    )
 
 
 def _query_records(
@@ -49,30 +53,27 @@ def _query_records(
 
         # 拉取足够覆盖目标页的记录数，再切片出该页窗口
         records = call("audit.recent", page * page_size) or []
-        matched = [
-            r for r in records
-            if _record_matches(r, module, action)
-        ]
-        window = matched[(page - 1) * page_size: page * page_size]
+        matched = [r for r in records if _record_matches(r, module, action)]
+        window = matched[(page - 1) * page_size : page * page_size]
         result = []
         for r in window:
             wall = getattr(r, "wall_ts", None)
-            ts_str = (
-                datetime.datetime.fromtimestamp(wall).strftime("%H:%M:%S")
-                if wall else "-"
-            )
+            ts_str = datetime.datetime.fromtimestamp(wall).strftime("%H:%M:%S") if wall else "-"
             target_parts = r.target.split(".")
             mod = target_parts[0] if target_parts else r.target
-            result.append({
-                "ts": ts_str,
-                "module": mod,
-                "action": r.target,
-                "result": "success" if r.ok else "error",
-                "detail": f"{r.duration*1000:.0f}ms" + (f" {r.detail}" if r.detail else ""),
-            })
+            result.append(
+                {
+                    "ts": ts_str,
+                    "module": mod,
+                    "action": r.target,
+                    "result": "success" if r.ok else "error",
+                    "detail": f"{r.duration * 1000:.0f}ms" + (f" {r.detail}" if r.detail else ""),
+                }
+            )
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
+
         logger.warning(f"审计查询失败: {e}")
         return []
 
@@ -84,19 +85,19 @@ def _record_matches(r: object, module: str | None, action: str | None) -> bool:
     mod = target_parts[0] if target_parts else target
     if module and mod != module:
         return False
-    if action and action not in target:
-        return False
-    return True
+    return not (action and action not in target)
 
 
 def _count_records(module: str | None = None, action: str | None = None) -> int:
     """统计筛选后的记录总数（上限为环形缓冲容量）。"""
     try:
         from aris.core import call
+
         records = call("audit.recent", None) or []  # 全量（受 max_records 环形缓冲约束）
         return sum(1 for r in records if _record_matches(r, module, action))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
+
         logger.warning(f"审计计数失败: {e}")
         return 0
 
@@ -117,7 +118,7 @@ async def audit_stream(request: Request) -> StreamingResponse:
                 try:
                     event = queue.get_nowait()
                     yield event
-                except Exception:
+                except Exception:  # noqa: BLE001
                     await asyncio.sleep(0.5)
         finally:
             audit_broker.unsubscribe(queue)

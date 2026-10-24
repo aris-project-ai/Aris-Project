@@ -14,11 +14,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from ..conf import get_store_config
 from .base import EmbeddingError
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 DEFAULT_MODEL = "hotchpotch/bekko-embedding-v1-a25m"
 OPENVINO_FILE = "openvino/openvino_model.xml"
@@ -39,7 +43,7 @@ class LocalBekkoProvider:
         self._model_id = model_id
         self._batch_size = batch_size
         self._truncate_dim = truncate_dim
-        self._model = None  # 懒加载：首次 embed 才真正加载
+        self._model: SentenceTransformer | None = None  # 懒加载：首次 embed 才真正加载
         self._lock = Lock()
         self._hf_home = (Path(data_dir) if data_dir else _data_dir()) / "models"
 
@@ -58,11 +62,15 @@ class LocalBekkoProvider:
         if not texts:
             return []
         self._load()
-        kwargs: dict[str, object] = {}
-        if self._truncate_dim:
-            kwargs["truncate_dim"] = self._truncate_dim
+        model = self._model
+        assert model is not None
         try:
-            vectors = self._model.encode(texts, batch_size=self._batch_size, **kwargs)
+            if self._truncate_dim:
+                vectors = model.encode(
+                    texts, batch_size=self._batch_size, truncate_dim=self._truncate_dim
+                )
+            else:
+                vectors = model.encode(texts, batch_size=self._batch_size)
         except Exception as exc:  # 推理期异常统一转成可读错误
             raise EmbeddingError(f"本地 embedding 编码失败：{exc}") from exc
         return [[float(x) for x in vec] for vec in vectors]
@@ -101,11 +109,39 @@ class LocalBekkoProvider:
         self._load()
 
     def _target(self) -> str:
-        """模型来源：``data/models/<name>`` 下的本地目录优先，否则用 HF 仓库 id。"""
+        """模型来源：本地目录 > HF 缓存快照 > 仓库 id（最后才联网）。"""
         local_dir = self._hf_home / self._model_id
         if local_dir.is_dir():
             return str(local_dir)
+        snapshot = self._cached_snapshot()
+        if snapshot is not None:
+            return str(snapshot)
         return self._model_id
+
+    def _cached_snapshot(self) -> Path | None:
+        """在 HF 缓存布局里找可用的 snapshot 目录。
+
+        HuggingFace 的缓存是 ``models--org--name/snapshots/<rev>``，不是
+        ``<name>`` 这种平铺目录；直接传仓库 id 会让 sentence-transformers
+        在加载前请求远程文件列表，离线时卡住。
+        """
+        repo_dir = self._hf_home / f"models--{self._model_id.replace('/', '--')}"
+        candidates: list[Path] = []
+        ref = repo_dir / "refs" / "main"
+        if ref.is_file():
+            try:
+                revision = ref.read_text(encoding="utf-8").strip()
+            except OSError:
+                revision = ""
+            if revision:
+                candidates.append(repo_dir / "snapshots" / revision)
+        snapshots = repo_dir / "snapshots"
+        if snapshots.is_dir():
+            candidates.extend(sorted(snapshots.iterdir(), reverse=True))
+        for candidate in candidates:
+            if (candidate / "modules.json").is_file():
+                return candidate
+        return None
 
     def _prepare_env(self) -> None:
         """把 HF 缓存收进项目 data/（在 import/加载模型之前设置才生效）。"""

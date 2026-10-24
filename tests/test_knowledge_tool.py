@@ -15,7 +15,6 @@ import pytest
 from aris.behavior import AgentLoop, LoopEventType
 from aris.behavior.registry import ToolRegistry
 from aris.behavior.tools import knowledge_search
-
 from support.helpers import build_engine, events_of, user_messages
 from support.mock_llm_server import MockLLMServer, Scenario, tool_call_chunk
 
@@ -36,7 +35,7 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -93,13 +92,9 @@ def test_tool_respects_top_k(registry: ToolRegistry, ingested_doc: Path) -> None
 
 
 @requires_pg
-def test_tool_reports_distance_for_weak_hits(
-    registry: ToolRegistry, ingested_doc: Path
-) -> None:
+def test_tool_reports_distance_for_weak_hits(registry: ToolRegistry, ingested_doc: Path) -> None:
     """不设相似度阈值（C4 定案）：无关查询也会返回最近片段，故必须给出距离供模型判断。"""
-    unrelated = json.loads(
-        registry.execute("knowledge_search", {"query": "量子纠缠退相干"})
-    )
+    unrelated = json.loads(registry.execute("knowledge_search", {"query": "量子纠缠退相干"}))
 
     assert unrelated["type"] == "knowledge_search_results"
     assert unrelated["count"] >= 1
@@ -143,9 +138,7 @@ def test_tool_rejects_bad_arguments(registry: ToolRegistry) -> None:
     bad_query = json.loads(registry.execute("knowledge_search", {"query": "   "}))
     assert bad_query["type"] == "knowledge_search_error"
 
-    bad_top_k = json.loads(
-        registry.execute("knowledge_search", {"query": "端口", "top_k": 0})
-    )
+    bad_top_k = json.loads(registry.execute("knowledge_search", {"query": "端口", "top_k": 0}))
     assert bad_top_k["type"] == "knowledge_search_error"
 
     missing = registry.execute("knowledge_search", {})
@@ -176,7 +169,7 @@ def test_agent_loop_calls_knowledge_search(
         model="m1",
     )
     engine = build_engine(llm_server, [{"id": "kb1", "models": [{"id": "m1"}]}])
-    loop = AgentLoop(engine, registry=registry, model_id="m1", max_rounds=3)
+    loop = AgentLoop(engine, registry=registry, max_rounds=3)
 
     events = events_of(loop, user_messages("m1", "知识库数据库端口是多少？"))
 
@@ -187,6 +180,6 @@ def test_agent_loop_calls_knowledge_search(
     assert tool_payload["type"] == "knowledge_search_results"
     assert str(ingested_doc.resolve()) in tool_payload["results"]
 
-    done = [e for e in events if e.type == LoopEventType.DONE][0]
+    done = next(e for e in events if e.type == LoopEventType.DONE)
     assert "55432" in done.content
     assert llm_server.request_count("kb1", "m1") == 2  # 工具轮 + 最终回答轮

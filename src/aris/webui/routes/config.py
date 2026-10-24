@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import datetime
 import os
 import shutil
-import datetime
+import tomllib
 from pathlib import Path
 
-import tomllib
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -75,14 +75,18 @@ async def config_page(
     if module and module in _MODULE_FIELDS:
         fields = _load_module_fields(module)
         current_module_label = _MODULES.get(module, module)
-    return render(request, "config.html", {
-        "active_page": "config",
-        "env_vars": env_vars,
-        "modules": modules,
-        "current_module": module,
-        "current_module_label": current_module_label,
-        "fields": fields,
-    })
+    return render(
+        request,
+        "config.html",
+        {
+            "active_page": "config",
+            "env_vars": env_vars,
+            "modules": modules,
+            "current_module": module,
+            "current_module_label": current_module_label,
+            "fields": fields,
+        },
+    )
 
 
 @router.post("/config/save", response_model=None)
@@ -110,15 +114,13 @@ def _check_env_vars() -> list[dict]:
         "TAVILY_API_KEY",
         "OPENCODE_API_KEY",
     ]
-    return [
-        {"name": v, "configured": bool(os.environ.get(v))}
-        for v in vars_to_check
-    ]
+    return [{"name": v, "configured": bool(os.environ.get(v))} for v in vars_to_check]
 
 
 def _load_module_fields(module: str) -> list[dict]:
     """从 toml 文件加载模块配置字段。"""
     from ...cfgtoml import config_dir
+
     toml_path = config_dir() / f"{module}.toml"
     values = {}
     if toml_path.exists():
@@ -127,11 +129,13 @@ def _load_module_fields(module: str) -> list[dict]:
     fields = []
     for field_def in _MODULE_FIELDS.get(module, []):
         key = field_def["key"]
-        fields.append({
-            "key": key,
-            "value": str(values.get(key, "")),
-            "description": field_def.get("description", ""),
-        })
+        fields.append(
+            {
+                "key": key,
+                "value": str(values.get(key, "")),
+                "description": field_def.get("description", ""),
+            }
+        )
     return fields
 
 
@@ -139,6 +143,7 @@ def _backup_config(module: str) -> None:
     """备份配置文件到 data/backup/config/。"""
     from ...cfgtoml import config_dir
     from ...config import get_settings
+
     settings = get_settings()
     src = config_dir() / f"{module}.toml"
     if not src.exists():
@@ -199,9 +204,7 @@ def _escape_toml_string(value: str) -> str:
     out = value.replace("\\", "\\\\")
     out = out.replace('"', '\\"')
     # 其余控制字符（含换行/制表）统一转成 \uXXXX，避免破坏行结构
-    out = "".join(
-        ch if ch >= " " else f"\\u{ord(ch):04X}" for ch in out
-    )
+    out = "".join(ch if ch >= " " else f"\\u{ord(ch):04X}" for ch in out)
     return out
 
 
@@ -212,9 +215,9 @@ def _write_toml(path: Path, data: dict) -> None:
         if isinstance(value, str):
             lines.append(f'{key} = "{_escape_toml_string(value)}"')
         elif isinstance(value, bool):
-            lines.append(f'{key} = {str(value).lower()}')
+            lines.append(f"{key} = {str(value).lower()}")
         elif isinstance(value, (int, float)):
-            lines.append(f'{key} = {value}')
+            lines.append(f"{key} = {value}")
         else:
             lines.append(f'{key} = "{_escape_toml_string(str(value))}"')
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

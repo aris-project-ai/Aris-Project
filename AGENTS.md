@@ -53,6 +53,7 @@
 | `uv run aris llm list\|check\|test\|fetch\|retired` | 提供方与模型管理 |
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
+| `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
 
 ## 3. 项目
 
@@ -66,6 +67,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **跑起来**：`uv sync` → `cp .env.example .env` → `uv run aris serve`。
   首次启动会自动获取便携 PostgreSQL（需联网数分钟），WebUI 在 `http://127.0.0.1:9690`。
 - 纯个人项目，但**可维护性是最高优先级**，目标运行数年。
+- **许可证**：GPL-3.0-only，全文见 `COPYING`；打包元数据以此为准。
 - **开发节奏**：先跑通核心链路（STT → LLM → TTS），再逐层叠加能力；基础架构方向提前定，
   功能随后逐步完善。
 
@@ -95,6 +97,9 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **Python**：最低 3.12，开发按 3.14，尽量用新特性；包名 `aris`，src 布局，依赖用 uv 管理。
 - **类型标注**尽量全，公开函数 / 类必须完整。
 - **行宽**：**代码**限 100 列；**文档不限宽**。
+- **格式与静态检查**：`ruff format` + `ruff check`（行宽 100，规则见 `pyproject.toml`）；
+  `mypy` 渐进推进，当前只查 `src/aris/core` 与 `src/aris/store`。
+- **行尾 / 缩进**：由 `.editorconfig`、`.gitattributes` 统一（LF、UTF-8）。
 - **C 代码**：clang-format（仓库根 `.clang-format`，行宽 100）。命名：函数大驼峰（`ArisDemoAdd`）、
   变量小驼峰（`userCount`）、指针星号靠变量（`int *p`）、常量宏 UPPER_SNAKE_CASE。
 - **注释**：简单代码不写废话；复杂算法、业务逻辑、易误解处写清楚。
@@ -103,7 +108,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **轮子哲学**：小功能自己写；重活（数据库、语音、LLM SDK）用成熟库。
 - **重构态度**：核心 / 基础模块尽早重构；外围模块记账延后。能跑就不动，除非它开始阻碍开发或影响正确性。
 - **技术栈（已定，勿自行更改）**：Python 为主、C 辅助（性能敏感处）、必要时 TypeScript；
-  pydantic-settings 配配置；loguru 记日志；pytest 写测试。
+  pydantic-settings 配配置；loguru 记日志；pytest 写测试；ruff + mypy 做静态检查。
 - **加依赖**：用 `uv add`；重依赖进 dependency-group `embedding`（默认安装，
   `uv sync --no-default-groups` 可要轻量环境）。
 
@@ -195,7 +200,8 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 ## 7. 验证
 
 - 改动可能影响运行时，**必须实际运行验证**。
-- 涉及业务逻辑的改动跑 `uv run pytest`，确认无回归。
+- **提交前**跑 `bash scripts/check.sh`（ruff check / format + mypy + pytest）；涉及业务逻辑的改动
+  至少跑它，确认无回归。
 - 纯文档改动不需要跑测试。
 - **开发闭环**：改代码 → 跑测试 / 起服务实测 → 更新文档（契约变化写模块文档，状态变化写
   `PROGRESS.md`）→ 提交。
@@ -216,8 +222,10 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
   不要写成技术文档长文（踩坑与背景记进本文件陷阱节或 `PROGRESS.md`）。
 - **一次提交只做一件事**（代码与文档分开）；同一文件的改动一次改完。
 - 版本号攒到**阶段性发布**再 bump，不要为了「有进展」频繁 bump。
-- 仓库自带 commit-msg 与 pre-commit hook（提交格式 + 分支保护），换机后先跑
-  `bash scripts/install-git-hooks.sh`。
+- 仓库自带 commit-msg 与 pre-commit hook（提交格式 + 分支保护 + staged Python 的 ruff 检查），
+  换机后先跑 `bash scripts/install-git-hooks.sh`。
+- 纯格式化提交记录在 `.git-blame-ignore-revs`；首次 clone 建议
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs`。
 
 ## 9. 版本号
 
@@ -335,5 +343,5 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 
 - STT 选型（候选：Groq Whisper / 通义听悟）。
 - 流式回复期间用户提前输入的文本：丢弃、缓存后交给 Aris，还是装没听见；判断依据待定。
-- Python 静态检查 / 格式化工具（ruff vs black+isort+flake8）。
+- mypy 从 `core` + `store` 扩到其余模块的时间。
 - `config/` 是否整体迁到 `data/config/`；若迁，模板 / 示例配置放哪里。

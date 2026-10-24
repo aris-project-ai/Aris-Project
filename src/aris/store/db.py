@@ -6,12 +6,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .pgenv import PgEnv, detect
 
+if TYPE_CHECKING:
+    import psycopg
 
-def connect(env: PgEnv | None = None, *, register_vector: bool = True):
+
+def connect(env: PgEnv | None = None, *, register_vector: bool = True) -> psycopg.Connection[Any]:
     """建立数据库连接（调用方负责关闭；返回 psycopg.Connection）。
 
     默认注册 pgvector 适配器：此后 Python 列表可直接读写 ``vector`` 列，
@@ -32,14 +35,15 @@ def connect(env: PgEnv | None = None, *, register_vector: bool = True):
 def health(env: PgEnv | None = None) -> dict[str, Any]:
     """探活：返回服务端版本、``vector`` 扩展版本、当前库与连接串。"""
     target = env or detect()
-    with connect(target) as conn:
-        with conn.cursor() as cur:
-            cur.execute("SHOW server_version")
-            server_version = cur.fetchone()[0]
-            cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-            row = cur.fetchone()
-            cur.execute("SELECT current_database()")
-            database = cur.fetchone()[0]
+    with connect(target) as conn, conn.cursor() as cur:
+        cur.execute("SHOW server_version")
+        server_row = cur.fetchone()
+        server_version = server_row[0] if server_row else None
+        cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+        row = cur.fetchone()
+        cur.execute("SELECT current_database()")
+        database_row = cur.fetchone()
+        database = database_row[0] if database_row else None
     return {
         "server_version": server_version,
         "vector_version": row[0] if row else None,

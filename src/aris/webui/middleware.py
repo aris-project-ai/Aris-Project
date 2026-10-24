@@ -22,8 +22,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # 只记录页面请求，不记录静态资源
         path = request.url.path
         if not path.startswith("/static"):
-            logger.info(
-                f"{request.method} {path} → {response.status_code} ({duration:.0f}ms)"
-            )
+            logger.info(f"{request.method} {path} → {response.status_code} ({duration:.0f}ms)")
 
         return response

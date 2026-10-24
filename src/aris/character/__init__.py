@@ -34,8 +34,7 @@ def _system_prompt(cid: str) -> str:
 def _list() -> list[dict[str, str]]:
     """角色列表（cid / 可读名 / 目录）。"""
     return [
-        {"cid": info.cid, "name": info.name, "path": str(info.path)}
-        for info in get_store().list()
+        {"cid": info.cid, "name": info.name, "path": str(info.path)} for info in get_store().list()
     ]
 
 
@@ -50,8 +49,8 @@ provide("character.list", _list)
 provide("character.resolve", _resolve)
 
 __all__ = [
-    "CHARACTER_FILE",
     "CHARACTERS_DIR",
+    "CHARACTER_FILE",
     "DEFAULT_NAME",
     "TEXT_FILES",
     "CharacterInfo",

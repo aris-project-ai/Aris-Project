@@ -121,9 +121,7 @@ def _data_dir() -> Path:
 def _pg_config_bindir(pg_config: str) -> Path | None:
     """由 ``pg_config --bindir`` 得到系统 PostgreSQL 的可执行文件目录。"""
     try:
-        out = subprocess.run(
-            [pg_config, "--bindir"], capture_output=True, text=True, timeout=10
-        )
+        out = subprocess.run([pg_config, "--bindir"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.SubprocessError):
         return None
     if out.returncode != 0:

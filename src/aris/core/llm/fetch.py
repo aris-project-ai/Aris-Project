@@ -16,11 +16,11 @@ import datetime as _dt
 import json
 import os
 import shutil
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import httpx
-import tomllib
 import tomli_w
 from loguru import logger
 
@@ -145,8 +145,8 @@ def enrich_model(provider_id: str, model_id: str, modelsdev: dict) -> LLMModel:
 class SyncDiff:
     """端点 vs 本地配置的对比结果。"""
 
-    added: list[str]    # 云有本地无（添加候选）
-    kept: list[str]     # 两边都有
+    added: list[str]  # 云有本地无（添加候选）
+    kept: list[str]  # 两边都有
     missing: list[str]  # 本地有云无（退休候选）
 
 
@@ -202,11 +202,7 @@ def load_retired(path: Path | None = None) -> list[RetiredEntry]:
 def save_retired(entries: list[RetiredEntry], path: Path | None = None) -> None:
     """写退休记录（按 provider+model 排序，保证幂等）。"""
     p = path or retired_file_path()
-    data = {
-        "retired": [
-            asdict(e) for e in sorted(entries, key=lambda e: (e.provider, e.model))
-        ]
-    }
+    data = {"retired": [asdict(e) for e in sorted(entries, key=lambda e: (e.provider, e.model))]}
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("wb") as f:
         tomli_w.dump(data, f)
@@ -216,9 +212,9 @@ def save_retired(entries: list[RetiredEntry], path: Path | None = None) -> None:
 class RetireResult:
     """退休巡检结果。"""
 
-    restored: list[str]          # 回归端点（从退休移除，自动恢复）
+    restored: list[str]  # 回归端点（从退休移除，自动恢复）
     expired: list[RetiredEntry]  # 超宽限期（永久删除）
-    active: list[RetiredEntry]   # 宽限期内（保留待下次）
+    active: list[RetiredEntry]  # 宽限期内（保留待下次）
     retired_now: list[RetiredEntry]  # 本次新退休（缺失 → 退休文件）
 
 
@@ -292,9 +288,7 @@ def plan_sync(
 ) -> SyncPlan:
     """生成同步计划：对比 + 退休巡检 + 候选 enrichment。"""
     diff = compute_diff(provider, endpoint_ids)
-    retire = reconcile_retired(
-        provider, endpoint_ids, retired, today=today, grace_days=grace_days
-    )
+    retire = reconcile_retired(provider, endpoint_ids, retired, today=today, grace_days=grace_days)
     to_enrich = sorted(set(diff.added) | set(retire.restored))
     candidates = [enrich_model(provider.id, mid, modelsdev) for mid in to_enrich]
     return SyncPlan(

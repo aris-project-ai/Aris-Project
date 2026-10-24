@@ -13,6 +13,10 @@ router = APIRouter()
 @router.get("/history", response_class=HTMLResponse)
 async def history_page(request: Request) -> HTMLResponse:
     """对话历史占位页。"""
-    return render(request, "history.html", {
-        "active_page": "history",
-    })
+    return render(
+        request,
+        "history.html",
+        {
+            "active_page": "history",
+        },
+    )

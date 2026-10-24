@@ -16,6 +16,7 @@ import json
 from loguru import logger
 
 from aris.core import call
+
 from ..registry import ToolRegistry
 
 # 单块内容截断上限：与分块上限（config/knowledge.toml: max_chars）同量级，
@@ -54,9 +55,7 @@ def _format_markdown(results: list[dict]) -> str:
 
 def _error(message: str, query: str = "") -> str:
     """统一的失败返回（宽容降级：交给模型消化，不抛到 UI）。"""
-    return json.dumps(
-        {"type": ERROR_TYPE, "query": query, "error": message}, ensure_ascii=False
-    )
+    return json.dumps({"type": ERROR_TYPE, "query": query, "error": message}, ensure_ascii=False)
 
 
 def _do_search(query: str, top_k: int | None = None) -> str:

@@ -16,8 +16,12 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from .bus import provide
+
+if TYPE_CHECKING:
+    import httpx
 
 # 默认浏览器 UA（与 web 抓取共用）
 DEFAULT_UA = (
@@ -26,11 +30,11 @@ DEFAULT_UA = (
 )
 
 # 命名会话池：session 名 → 持久 httpx.Client（cookie / 连接连续）
-_sessions: dict[str, "httpx.Client"] = {}
+_sessions: dict[str, httpx.Client] = {}
 _sessions_lock = threading.Lock()
 
 
-def _session_client(session: str, timeout: float, follow_redirects: bool) -> "httpx.Client":
+def _session_client(session: str, timeout: float, follow_redirects: bool) -> httpx.Client:
     """取（或创建）命名会话的持久 httpx.Client。"""
     import httpx
 

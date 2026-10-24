@@ -23,9 +23,7 @@ from .skills import SkillManager
 from .tools import register_builtin_tools
 
 # 工具可用时追加到系统提示词
-TOOLS_SYSTEM_HINT = (
-    "当需要实时信息（如当前时间、资料搜索）时使用提供的工具，使用前简单说明一句。"
-)
+TOOLS_SYSTEM_HINT = "当需要实时信息（如当前时间、资料搜索）时使用提供的工具，使用前简单说明一句。"
 
 
 class BehaviorRuntime:
@@ -71,4 +69,4 @@ class BehaviorRuntime:
         return "\n\n".join(parts)
 
 
-__all__ = ["BehaviorRuntime", "TOOLS_SYSTEM_HINT"]
+__all__ = ["TOOLS_SYSTEM_HINT", "BehaviorRuntime"]

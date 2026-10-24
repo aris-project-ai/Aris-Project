@@ -166,8 +166,7 @@ def run(
             with target.transaction():
                 m.up(target)
                 target.execute(
-                    f"INSERT INTO {TRACKING_TABLE} (owner, version, name) "
-                    "VALUES (%s, %s, %s)",
+                    f"INSERT INTO {TRACKING_TABLE} (owner, version, name) VALUES (%s, %s, %s)",
                     (m.owner, m.version, m.name),
                 )
         except Exception as exc:
@@ -184,8 +183,5 @@ def run(
 def applied_at(conn: Connection) -> dict[str, datetime]:
     """已应用迁移 → 时间（运维排查用）。"""
     with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT owner, version, applied_at FROM {TRACKING_TABLE} "
-            "ORDER BY applied_at"
-        )
+        cur.execute(f"SELECT owner, version, applied_at FROM {TRACKING_TABLE} ORDER BY applied_at")
         return {f"{owner}:{version:03d}": ts for owner, version, ts in cur.fetchall()}

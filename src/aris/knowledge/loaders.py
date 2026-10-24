@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -156,5 +156,5 @@ def load_document(path: Path) -> LoadedDoc:
         kind=kind,
         content_hash=hashlib.sha256(raw_bytes).hexdigest(),
         byte_size=len(raw_bytes),
-        mtime=datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc),
+        mtime=datetime.fromtimestamp(path.stat().st_mtime, tz=UTC),
     )

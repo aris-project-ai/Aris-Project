@@ -31,7 +31,7 @@ from dataclasses import replace
 from loguru import logger
 
 from ..bus import provide
-from .config import ProviderConfig
+from .config import LLMProvider, ProviderConfig
 from .errors import LLMError, NoCandidateError, is_retryable
 from .message import ChatRequest
 from .transport import StreamDelta, stream_chat
@@ -70,7 +70,7 @@ class _StreamRunner:
 
     def __init__(
         self,
-        provider,
+        provider: LLMProvider,
         request: ChatRequest,
         timeout: float,
         *,
@@ -85,7 +85,7 @@ class _StreamRunner:
         )
         self._thread.start()
 
-    def _run(self, provider, request, timeout) -> None:
+    def _run(self, provider: LLMProvider, request: ChatRequest, timeout: float) -> None:
         try:
             for delta in stream_chat(provider, request, timeout=timeout):
                 if self._stop.is_set():
@@ -98,7 +98,7 @@ class _StreamRunner:
         finally:
             self._stop.set()
 
-    def get(self, timeout: float | None = None):
+    def get(self, timeout: float | None = None) -> tuple[str, object]:
         """取一个 (tag, item)；空队列超时抛 queue.Empty。"""
         return self._q.get(timeout=timeout)
 
@@ -119,11 +119,11 @@ class LLMEngine:
         error_message: str,
     ):
         self.providers = providers
-        self.timeout = timeout            # 总体超时预算（秒）
+        self.timeout = timeout  # 总体超时预算（秒）
         self.first_token_stall = first_token_stall  # 首字占位阈值（秒）
         self.error_message = error_message
         # 注册为统一服务（实例自注册，重名覆盖会记警告）
-        provide("llm.stream", self.stream)        # 纯文本流式（简单场景）
+        provide("llm.stream", self.stream)  # 纯文本流式（简单场景）
         provide("llm.deltas", self.stream_deltas)  # 完整增量流式（agent loop 用）
         provide("llm.race", self.stream_deltas_race)  # 本家 vs 备选竞速（降级恢复）
 
@@ -183,9 +183,7 @@ class LLMEngine:
                         break
                     logger.info(f"提供方 {provider.id} 退避 {forward:.2f}s 后重试")
                     time.sleep(forward)
-                attempt_timeout = min(
-                    provider.timeout, self.timeout - (time.monotonic() - start)
-                )
+                attempt_timeout = min(provider.timeout, self.timeout - (time.monotonic() - start))
                 if attempt_timeout <= 0:
                     break
 
@@ -193,7 +191,11 @@ class LLMEngine:
                 runner = _StreamRunner(provider, effective, attempt_timeout)
                 try:
                     for delta in self._consume_attempt(runner, stall_deadline, stall_state):
-                        if (delta.content and not delta.stall) or delta.reasoning or delta.finish_reason:
+                        if (
+                            (delta.content and not delta.stall)
+                            or delta.reasoning
+                            or delta.finish_reason
+                        ):
                             emitted = True
                         if delta.finish_reason:
                             # 完成事件标记实际生效模型（未降级）
@@ -226,19 +228,19 @@ class LLMEngine:
             for provider in self.providers.candidates_for(target):
                 if self.timeout - (time.monotonic() - start) <= 0:
                     break
-                effective = self._effective_request(
-                    replace(request, model_id=target), provider
-                )
-                attempt_timeout = min(
-                    provider.timeout, self.timeout - (time.monotonic() - start)
-                )
+                effective = self._effective_request(replace(request, model_id=target), provider)
+                attempt_timeout = min(provider.timeout, self.timeout - (time.monotonic() - start))
                 if attempt_timeout <= 0:
                     break
                 emitted = False
                 runner = _StreamRunner(provider, effective, attempt_timeout)
                 try:
                     for delta in self._consume_attempt(runner, stall_deadline, stall_state):
-                        if (delta.content and not delta.stall) or delta.reasoning or delta.finish_reason:
+                        if (
+                            (delta.content and not delta.stall)
+                            or delta.reasoning
+                            or delta.finish_reason
+                        ):
                             emitted = True
                         if delta.finish_reason:
                             delta = replace(
@@ -283,7 +285,7 @@ class LLMEngine:
         stall_deadline = start + self.first_token_stall
         stall_state = {"emitted": False, "produced": False}
 
-        entries: list[tuple[str, object]] = []
+        entries: list[tuple[str, LLMProvider]] = []
         if home_cands:
             entries.append((RACE_TAG_HOME, home_cands[0]))
         if fb_cands:
@@ -393,9 +395,7 @@ class LLMEngine:
                         stall_emitted=stall_state["emitted"],
                     )
                 else:
-                    yield from self._handle_failure(
-                        first_err, stall_emitted=stall_state["emitted"]
-                    )
+                    yield from self._handle_failure(first_err, stall_emitted=stall_state["emitted"])
                 return
 
             # ---- 输出胜者：先吐决策期缓存的增量（含完成事件），未结束再实时读尾段 ----
@@ -445,7 +445,7 @@ class LLMEngine:
 
     # ------------------------------------------------------------------ 工具方法
 
-    def _effective_request(self, request: ChatRequest, provider) -> ChatRequest:
+    def _effective_request(self, request: ChatRequest, provider: LLMProvider) -> ChatRequest:
         """未显式指定 thinking 时，按该模型配置的 thinking_default 解析。"""
         model = provider.get_model(request.model_id)
         if request.thinking is None and model is not None and model.thinking_default is not None:
@@ -483,6 +483,7 @@ class LLMEngine:
         流正常结束返回；流错误以原类型上抛（供上层重试/切换判定）。
         """
         while True:
+            wait: float | None
             if not stall_state["emitted"] and not stall_state["produced"]:
                 wait = stall_deadline - time.monotonic()
                 if wait <= 0:
@@ -499,12 +500,13 @@ class LLMEngine:
                 return
             if isinstance(item, Exception):
                 raise item
+            assert isinstance(item, StreamDelta)
             if (item.content and not item.stall) or item.reasoning or item.finish_reason:
                 stall_state["produced"] = True
             yield item
 
     def _handle_failure(
-        self, error: LLMError, *, stall_emitted: bool = False
+        self, error: Exception, *, stall_emitted: bool = False
     ) -> Iterator[StreamDelta]:
         """错误处理逻辑：记录日志、广播提醒、返回预设提示语。
 

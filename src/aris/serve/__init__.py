@@ -7,8 +7,8 @@
 
 用法::
 
-    aris serve                    # 全启：PG 自启 + 迁移、embedding 后台预热、knowledge 建表、WebUI 并入
-    aris serve --only knowledge   # 只启知识库（自动补齐依赖的 store.db）
+    aris serve                    # 全启：PG + 迁移 + embedding + 知识库 + WebUI
+    aris serve --only knowledge   # 只启知识库（自动补齐 store.db）
     aris serve --skip webui       # 不启 WebUI
     aris serve --dry-run          # 只跑探针、打印清单，不启动任何东西
 
@@ -62,11 +62,11 @@ def assemble() -> None:
     LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
     真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
-    import aris.behavior  # noqa: F401  —— loop.run / tools.execute / skills.*
-    import aris.core.llm  # noqa: F401  —— llm.stream / llm.race / llm.deltas
-    import aris.knowledge  # noqa: F401  —— knowledge.*
-    import aris.character  # noqa: F401  —— character.system_prompt
-    import aris.store  # noqa: F401  —— store.*
+    import aris.behavior  # loop.run / tools.execute / skills.*
+    import aris.character  # character.system_prompt
+    import aris.core.llm  # llm.stream / llm.race / llm.deltas
+    import aris.knowledge  # knowledge.*
+    import aris.store  # store.*
     import aris.webui  # noqa: F401  —— webui.start / webui.probe
     from aris.behavior.skills import manager as _skills  # noqa: F401
     from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.retired.*
@@ -122,9 +122,7 @@ def run_plan(
     failed_required: set[str] = set()
     planned = {step.name for step in steps}
     for step in steps:
-        blocked_by = [
-            dep for dep in step.needs if dep not in planned or dep in failed_required
-        ]
+        blocked_by = [dep for dep in step.needs if dep not in planned or dep in failed_required]
         if blocked_by:
             reason = f"依赖的步骤未启用或失败（{', '.join(blocked_by)}），已跳过"
             logger.warning(f"跳过 {step.label}：{reason}")
@@ -137,7 +135,7 @@ def run_plan(
         action = step.probe if dry_run else (step.start or step.probe)
         try:
             detail = action() or ""
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.error(f"{step.label} 启动失败：{exc}")
             outcomes.append(StepOutcome(step, "failed", str(exc)))
             if step.level == "required":
@@ -154,7 +152,7 @@ def _teardown(config: ServeConfig) -> None:
         return
     try:
         stopped = call("store.stop", only_self_started=True)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"停止数据库失败：{exc}")
         return
     if stopped:
@@ -169,9 +167,7 @@ def _log_outcome(outcome: StepOutcome) -> None:
         logger.warning(outcome.line)
 
 
-def probe_all(
-    only: list[str] | None = None, skip: list[str] | None = None
-) -> list[StepOutcome]:
+def probe_all(only: list[str] | None = None, skip: list[str] | None = None) -> list[StepOutcome]:
     """只跑探针并返回清单（供 `aris doctor` 复用；不启动任何东西）。
 
     与 `aris serve --dry-run` 走同一条路径，保证「体检结论」与「启动结论」一致。
@@ -244,7 +240,7 @@ def serve(
                 step.start()
     except KeyboardInterrupt:
         logger.info("收到中断，正在收尾（再按一次 Ctrl-C 可强制退出）...")
-    except Exception as exc:  # 阻塞步骤启动失败（如端口被占）不拖垮收尾
+    except Exception as exc:  # 阻塞步骤启动失败（如端口被占）不拖垮收尾  # noqa: BLE001
         logger.error(f"{deferred[0].label if deferred else 'serve'} 启动失败：{exc}")
         exit_code = 1
     finally:
