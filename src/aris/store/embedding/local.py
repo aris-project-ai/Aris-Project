@@ -101,11 +101,39 @@ class LocalBekkoProvider:
         self._load()
 
     def _target(self) -> str:
-        """模型来源：``data/models/<name>`` 下的本地目录优先，否则用 HF 仓库 id。"""
+        """模型来源：本地目录 > HF 缓存快照 > 仓库 id（最后才联网）。"""
         local_dir = self._hf_home / self._model_id
         if local_dir.is_dir():
             return str(local_dir)
+        snapshot = self._cached_snapshot()
+        if snapshot is not None:
+            return str(snapshot)
         return self._model_id
+
+    def _cached_snapshot(self) -> Path | None:
+        """在 HF 缓存布局里找可用的 snapshot 目录。
+
+        HuggingFace 的缓存是 ``models--org--name/snapshots/<rev>``，不是
+        ``<name>`` 这种平铺目录；直接传仓库 id 会让 sentence-transformers
+        在加载前请求远程文件列表，离线时卡住。
+        """
+        repo_dir = self._hf_home / f"models--{self._model_id.replace('/', '--')}"
+        candidates: list[Path] = []
+        ref = repo_dir / "refs" / "main"
+        if ref.is_file():
+            try:
+                revision = ref.read_text(encoding="utf-8").strip()
+            except OSError:
+                revision = ""
+            if revision:
+                candidates.append(repo_dir / "snapshots" / revision)
+        snapshots = repo_dir / "snapshots"
+        if snapshots.is_dir():
+            candidates.extend(sorted(snapshots.iterdir(), reverse=True))
+        for candidate in candidates:
+            if (candidate / "modules.json").is_file():
+                return candidate
+        return None
 
     def _prepare_env(self) -> None:
         """把 HF 缓存收进项目 data/（在 import/加载模型之前设置才生效）。"""
