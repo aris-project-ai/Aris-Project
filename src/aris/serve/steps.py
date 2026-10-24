@@ -1,6 +1,6 @@
 """serve 的启动步骤表：每一步的探针（只读）与启动动作。
 
-三类步骤（见 docs/developDoc/SERVE.md 第 2 节）：
+三类步骤（见 docs/forAiDoc/SERVE.md 第 2 节）：
 
 - ① **import 即就绪**（core / character / behavior）：``start=None``，探针只做自检
 - ② **需要外部资源**（data / store.db / store.embed / knowledge）：启动动作由模块自己

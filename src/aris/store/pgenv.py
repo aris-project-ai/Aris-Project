@@ -1,6 +1,6 @@
 """PostgreSQL 环境探测：定位可用实例并拼装连接参数。
 
-探针链（按序命中即终止，定案见 docs/developDoc/KNOWLEDGE-BASE.md 第 3.1 节）：
+探针链（按序命中即终止，定案见 docs/forAiDoc/KNOWLEDGE-BASE.md 第 3.1 节）：
 
 1. 环境变量 ``ARIS_PG_BIN``（显式覆盖，指向外部安装的 bin 目录）
 2. PATH 中的 ``pg_config``（系统已装则直接用）
@@ -11,7 +11,7 @@
 ``ARIS_PG_DB`` / ``ARIS_PG_DSN``（整条 DSN 直用，优先级最高）。
 
 **可迁移性（D14，2026-10-01）**：角色名与端口都**不入库、不写配置文件**，只在运行期算，
-详见 docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md：
+详见 docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md：
 
 - **角色名**：新建集群统一用与主机无关的 ``aris``；已有集群读 ``<pgdata>/aris-role``
   标记（标记随 ``pgdata`` 一起搬走），没有标记就先按宿主用户名试（历史行为），

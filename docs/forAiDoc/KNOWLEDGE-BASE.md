@@ -31,7 +31,7 @@
 
 ## 2. 可沿用的既有地基（已定案，不重新讨论）
 
-以下来自 `docs/developDoc/EMBEDDING.md`，直接沿用：
+以下来自 `docs/forAiDoc/EMBEDDING.md`，直接沿用：
 
 - **Embedding 双 provider**：热记忆本地 Bekko-embedding-v1-a25m（384 维，
   OpenVINO CPU）/ 冷记忆云端 Cloudflare BGE-M3（1024 维），**维度不同不混表**，
@@ -173,7 +173,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 - `knowledge.search` / `knowledge.ingest` / `knowledge.sources`
 
 > **总线改名（已收口，2026-09-19）**：定名「跨模块通讯总线」（CMCB），
-> 文档与注释已统一改名（架构文档 `docs/developDoc/CMCB.md`）；服务名等代码
+> 文档与注释已统一改名（架构文档 `docs/forAiDoc/CMCB.md`）；服务名等代码
 > 标识符保持不变，详见 `AGENTS.md` §6 与 `CMCB.md`。
 
 ### 4.2 D. 检索侧
@@ -254,7 +254,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 **实测（2026-09-18）**：
 - `uv run pytest` **78 passed**，含端到端用例「摄入 → 幂等跳过 → 变更重建 →
   检索带来源 → 移除后查不到」（数据库未运行时自动跳过）
-- CLI 冒烟：摄入 `docs/developDoc/KNOWLEDGE-BASE.md` → 23 块；检索
+- CLI 冒烟：摄入 `docs/forAiDoc/KNOWLEDGE-BASE.md` → 23 块；检索
   「知识库的向量维度为什么选 384」命中 C1 段落（top-3 内），来源路径与标题路径
   一并返回；测试数据已移除
 
@@ -272,7 +272,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 多文件上传（md / txt / html）→ 落盘 `data/knowledge/`（**同名覆盖**）→
 后台任务摄入 + 页面轮询进度；文档列表 / 移除 / 检索试验 / 重建索引。
 限额与目录见 `config/knowledge.toml`；安全上文件名只取 basename + 后缀白名单 +
-落盘前再校验父目录（防穿越）。详见 `docs/developDoc/WEBUI.md`。
+落盘前再校验父目录（防穿越）。详见 `docs/forAiDoc/WEBUI.md`。
 
 **待实现**：PDF 与混合检索（第二阶段）。
 

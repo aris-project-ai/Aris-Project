@@ -20,7 +20,7 @@
 | `character/` | 完成：角色载体 `data/characters/<cid>/`；`character.system_prompt(cid)` / `list` / `resolve` |
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根装配一份进程级运行时 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
-| `memory/` | **暂停开发**：设计审查发现重大缺陷，重启时间由开发者决定（见 `docs/developDoc/MEMORY.md`） |
+| `memory/` | **暂停开发**：设计审查发现重大缺陷，重启时间由开发者决定（见 `docs/forAiDoc/MEMORY.md`） |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
@@ -40,7 +40,7 @@
 ## 下一步
 
 1. **合并 `docs/AGENTS`**：审核后 `git merge --no-ff` 回 `develop`，再删分支。
-2. **重置其余文档**：`docs/developDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
+2. **重置其余文档**：`docs/forAiDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
    把过程迁入 `docs/archive/`、重复内容只留一处；逐份来，改完顺手更新本文件。
 3. 等 memory 设计重审结论，再决定后续主线。
-4. 其他可插入项见 `docs/developDoc/BACKLOG.md`。
+4. 其他可插入项见 `docs/forAiDoc/BACKLOG.md`。

@@ -21,7 +21,7 @@ def create_app() -> FastAPI:
     总线服务的注册由**组装根**负责（`aris serve` / `aris web` 都走
     `serve.assemble()`，测试走 `tests/conftest.py`）——本函数只搭 HTTP 层，
     不再自己 import 各模块：同一份「需要哪些服务」的清单散在多处必然漂移
-    （见 docs/developDoc/SERVE.md 第 7 节）。依赖清单仍由本模块声明
+    （见 docs/forAiDoc/SERVE.md 第 7 节）。依赖清单仍由本模块声明
     （:data:`REQUIRED_SERVICES`），交给 serve 的 `services` 步骤统一校验。
     """
     app = FastAPI(
@@ -100,7 +100,7 @@ REQUIRED_SERVICES = (
 
 
 def port_in_use(host: str, port: int) -> bool:
-    """端口是否已被占用（启动前的冲突检测，见 docs/developDoc/SERVE.md 第 4 节）。"""
+    """端口是否已被占用（启动前的冲突检测，见 docs/forAiDoc/SERVE.md 第 4 节）。"""
     import socket
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -145,7 +145,7 @@ def start_server(host: str | None = None, port: int | None = None) -> str:
     """总线服务：启动 WebUI 管理后台（**阻塞**，`aris web` 与 `aris serve` 共用）。
 
     端口被占用（多半是另一个 `aris web` / `aris serve` 在跑）时抛 RuntimeError，
-    由调用方决定是拒绝启动 webui 还是整体退出——见 docs/developDoc/SERVE.md 第 4 节。
+    由调用方决定是拒绝启动 webui 还是整体退出——见 docs/forAiDoc/SERVE.md 第 4 节。
     """
     import uvicorn
     from loguru import logger

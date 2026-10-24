@@ -75,7 +75,7 @@ def register_adapters(conn: Any) -> bool:
 def table_dimension(conn: Any, table: str, column: str = "embedding") -> int | None:
     """读某表向量列的维度；列不存在或不是 ``vector(n)`` 时返回 None。
 
-    维度定案见 docs/developDoc/KNOWLEDGE-BASE.md 5.2（C1）：换维度 = 重建该表 + 重摄入，
+    维度定案见 docs/forAiDoc/KNOWLEDGE-BASE.md 5.2（C1）：换维度 = 重建该表 + 重摄入，
     故调用方应先读维度再决定是否建表。
     """
     with conn.cursor() as cur:

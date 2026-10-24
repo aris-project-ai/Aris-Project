@@ -1,6 +1,6 @@
 """store 模块 —— 存储与向量基础设施（PostgreSQL + embedding）。
 
-定位（2026-09-18 定案，见 docs/developDoc/KNOWLEDGE-BASE.md 第 4.1 节）：
+定位（2026-09-18 定案，见 docs/forAiDoc/KNOWLEDGE-BASE.md 第 4.1 节）：
 
 - embedding 抽象与 PostgreSQL/pgvector 基础设施（DSN、连接、迁移、向量检索 helper）
   都收在本模块，供 `knowledge/` / `memory/` 复用，避免两套连接与迁移；

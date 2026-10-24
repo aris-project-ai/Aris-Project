@@ -8,7 +8,7 @@
 ## 1. 权威与规则
 
 - **最终权威归开发者，尤其是莫琳。**
-- 冲突时的取用顺序：**AGENTS.md > `docs/developDoc/` 各专文档 > `PROGRESS.md` / `BACKLOG.md`
+- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `BACKLOG.md`
   > `docs/archive/`**。都不合，停下来问开发者，不要自己拍板。
 - **准入标准**：AGENTS.md 只收两类内容——**通用规则**（适用于所有模块）与**最高权威判定**。
   单模块实现细节、一次性决定、历史过程都不进来。
@@ -21,7 +21,7 @@
 - **面向未来（i18n 远景）**：将来可能做多语言，现在不引框架、不做翻译，但**新增用户可见文案
   不要硬编码在业务逻辑里**（集中到常量 / 资源处），避免到时候满地改。
 - **两份文件不要乱动**：`README.md` 面向使用者（简介 + 快速开始），
-  `docs/developDoc/Project-Aris.md` 是全项目的信念与蓝图（定位与大致形态）。改这两份要先
+  `docs/forAiDoc/Project-Aris.md` 是全项目的信念与蓝图（定位与大致形态）。改这两份要先
   得到开发者同意；日常开发只在确有必要时补一句，不要重写、不要把它们当索引用（索引由本文件负责）。
 - **必须读进度**：每次开工前先读 `PROGRESS.md`，确认当前版本、模块状态与阻塞；
   不要凭记忆或聊天记录判断项目状态。读完再按 §10 取对应模块文档。
@@ -76,7 +76,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | `src/aris/core/` | CMCB 总线（服务注册 + 事件 + 审计）、LLM 提供方抽象（fallback / 流式 / 工具调用） |
 | `src/aris/store/` | 存储基础设施：便携 PG + pgvector、embedding 抽象、迁移机制、向量检索 helper；不认识业务语义 |
 | `src/aris/knowledge/` | 知识库：外部资料的 RAG（摄入 / 分块 / 检索），384 维本地 embedding；不做 skill，只经总线暴露；摄入走 CLI，agent 只给检索工具 |
-| `src/aris/memory/` | Aris 的个人记忆。**暂停开发**，重启时间由开发者决定；详见 `docs/developDoc/MEMORY.md` |
+| `src/aris/memory/` | Aris 的个人记忆。**暂停开发**，重启时间由开发者决定；详见 `docs/forAiDoc/MEMORY.md` |
 | `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
 | `src/aris/behavior/` | 行为：工具注册表、agent loop、内置工具、skills 系统；联网搜索 Bing 直连为主、Tavily 兜底 |
 | `src/aris/chat/` | 文字对话 + TUI（`aris chat`，开发调试用） |
@@ -86,7 +86,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | `src/aris/autorun/` | 定时与主动任务（只留设计，暂不实现） |
 | `config/*.toml` | 模块级可调参数（缺文件 / 缺键时用代码默认值） |
 | `data/` | 运行时数据：`pgdata/` `knowledge/` `characters/` `skills/` `autorun/` `logs/` `models/` `pg/`（不进 git） |
-| `docs/developDoc/` | 设计与契约文档（为什么这么设计、接口是什么） |
+| `docs/forAiDoc/` | 设计与契约文档（为什么这么设计、接口是什么） |
 | `docs/archive/` | 历史存档（已作废的规则与方案），只读 |
 
 ## 5. 编码规范
@@ -128,8 +128,8 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **不走总线的边界**：对象构造 / 依赖注入、同模块内部调用、纯类型引用（如 `Message`）、CLI 组装根。
 - **依赖声明与核验**：各模块声明自己的 `REQUIRED_SERVICES`，由 `serve` 的 `services` 步骤
   （required）统一核验；`serve.assemble()` 是**唯一**的 import 触发点，别在别处 import 所有者模块。
-- **改服务时**：新增 / 改名 / 删除要同步 `docs/developDoc/CMCB.md` 的服务表，并全仓搜索调用点。
-- 服务表与架构详见 `docs/developDoc/CMCB.md`。
+- **改服务时**：新增 / 改名 / 删除要同步 `docs/forAiDoc/CMCB.md` 的服务表，并全仓搜索调用点。
+- 服务表与架构详见 `docs/forAiDoc/CMCB.md`。
 
 ### 依赖与错误处理
 
@@ -160,7 +160,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
   **密钥永远只在 `.env`**（toml 里只写 key 的环境变量名）。
 - `.env` 里的变量会 `setdefault` 进 `os.environ`（提供方直读环境变量时应保持一致）。
 - **待定**：`config/` 拟整体迁到 `data/config/`，模板 / 示例配置放哪尚未决定。
-- 详见 `docs/developDoc/CONFIG.md`。
+- 详见 `docs/forAiDoc/CONFIG.md`。
 
 ### 可迁移性与启动幂等
 
@@ -246,25 +246,25 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 
 | 要做的事 | 先读 |
 |---|---|
-| LLM 接入 / `core` 模块 | `docs/developDoc/API-CALL.md` |
-| 跨模块通讯总线 CMCB | `docs/developDoc/CMCB.md` |
-| 配置体系 | `docs/developDoc/CONFIG.md` |
-| 启动编排 `serve/` | `docs/developDoc/SERVE.md` |
-| 记忆系统（暂停） | `docs/developDoc/MEMORY.md` |
-| 知识库 | `docs/developDoc/KNOWLEDGE-BASE.md` |
-| 技能系统 | `docs/developDoc/SKILLS.md` |
-| 提供商 / 模型管理 | `docs/developDoc/LLM-PROVIDER-MGMT.md` |
-| WebUI 管理后台 | `docs/developDoc/WEBUI.md` |
-| 可迁移性 / 单一会话 | `docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
-| v1.0 施工方案与验收 | `docs/developDoc/V1.0-PLAN.md` |
+| LLM 接入 / `core` 模块 | `docs/forAiDoc/API-CALL.md` |
+| 跨模块通讯总线 CMCB | `docs/forAiDoc/CMCB.md` |
+| 配置体系 | `docs/forAiDoc/CONFIG.md` |
+| 启动编排 `serve/` | `docs/forAiDoc/SERVE.md` |
+| 记忆系统（暂停） | `docs/forAiDoc/MEMORY.md` |
+| 知识库 | `docs/forAiDoc/KNOWLEDGE-BASE.md` |
+| 技能系统 | `docs/forAiDoc/SKILLS.md` |
+| 提供商 / 模型管理 | `docs/forAiDoc/LLM-PROVIDER-MGMT.md` |
+| WebUI 管理后台 | `docs/forAiDoc/WEBUI.md` |
+| 可迁移性 / 单一会话 | `docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
+| v1.0 施工方案与验收 | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
-| 中长期待办 | `docs/developDoc/BACKLOG.md` |
-| 暂不实现的既定方向（多模态 / Responses API / 降级纪律 / autorun） | `docs/developDoc/BACKLOG.md` |
-| 项目蓝图 / 参考材料 | `docs/developDoc/Project-Aris.md`、`docs/referenceDocumentation/` |
-| embedding（`store/` 侧） | `docs/developDoc/EMBEDDING.md` |
-| 插件系统 / 文档站（均搁置） | `docs/developDoc/PLUGIN.md`、`docs/developDoc/DOCS-SITE.md` |
-| 安全审查与总线化改造记录 | `docs/developDoc/SECURITY-AND-REFACTOR-PLAN.md` |
-| TUI 已知问题 | `docs/developDoc/TUI-问题修复.md` |
+| 中长期待办 | `docs/forAiDoc/BACKLOG.md` |
+| 暂不实现的既定方向（多模态 / Responses API / 降级纪律 / autorun） | `docs/forAiDoc/BACKLOG.md` |
+| 项目蓝图 / 参考材料 | `docs/forAiDoc/Project-Aris.md`、`docs/referenceDocumentation/` |
+| embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
+| 插件系统 / 文档站（均搁置） | `docs/forAiDoc/PLUGIN.md`、`docs/forAiDoc/DOCS-SITE.md` |
+| 安全审查与总线化改造记录 | `docs/forAiDoc/SECURITY-AND-REFACTOR-PLAN.md` |
+| TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 | 旧事 / 已作废的方案 | `docs/archive/` |
 
 ## 11. 已知陷阱
@@ -317,7 +317,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 
 **主线**：v1.0 的主体是人格 / 角色载体；记忆系统暂停中，重启由开发者决定。之后是语音链路
 （STT → LLM → TTS）、知识库第二阶段（PDF / 混合检索）、GraphRAG。阶段划分与验收见
-`docs/developDoc/V1.0-PLAN.md`，中长期方向见 `docs/developDoc/BACKLOG.md`。
+`docs/forAiDoc/V1.0-PLAN.md`，中长期方向见 `docs/forAiDoc/BACKLOG.md`。
 
 **已定方向（未实现）**：
 

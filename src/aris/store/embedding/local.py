@@ -6,7 +6,7 @@
 :class:`EmbeddingError`，主 CLI 不受影响。
 
 模型缓存经 ``HF_HOME`` 指向项目内 ``data/models/``（data/ 不进 git），不散落到
-``~/.cache/huggingface``。实测数据与选型见 docs/developDoc/EMBEDDING.md。
+``~/.cache/huggingface``。实测数据与选型见 docs/forAiDoc/EMBEDDING.md。
 """
 
 from __future__ import annotations

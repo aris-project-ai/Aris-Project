@@ -1,6 +1,6 @@
 """/models 同步核心逻辑：拉取 + 对比 + models.dev enrichment + 写回 + 退休巡检。
 
-设计见 `docs/developDoc/LLM-PROVIDER-MGMT.md` 阶段二。本模块保持纯逻辑
+设计见 `docs/forAiDoc/LLM-PROVIDER-MGMT.md` 阶段二。本模块保持纯逻辑
 （不依赖 prompt_toolkit），交互勾选 UI 在 cli.py 组装。
 
 同步规则（白名单语义）：

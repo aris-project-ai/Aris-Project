@@ -16,7 +16,7 @@ from ..cfgtoml import load_config
 class KnowledgeConfig:
     """知识库可调参数。"""
 
-    # 总开关：关闭后检索返回空、摄入直接拒绝（见 docs/developDoc/KNOWLEDGE-BASE.md）
+    # 总开关：关闭后检索返回空、摄入直接拒绝（见 docs/forAiDoc/KNOWLEDGE-BASE.md）
     enabled: bool = True
     # 单块字符上限（超过则按段落/句子做定长兜底切分）
     max_chars: int = 800

@@ -1,4 +1,4 @@
-"""``data/`` 目录分层（可迁移性 D14，见 docs/developDoc/PORTABILITY-AND-SINGLE-SESSION.md）。
+"""``data/`` 目录分层（可迁移性 D14，见 docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md）。
 
 换主机 = 新机 ``git clone`` → 把原机 ``data/`` 全量拷过来 → ``uv run aris serve`` 直接起。
 为了让「拷过来就能起」成立，**必须带的目录在启动时幂等创建**（缺什么补什么），
