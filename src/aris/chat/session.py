@@ -19,9 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aris.cfgtoml import load_config
+
 from ..behavior import BehaviorRuntime, LoopEventType
 from ..core import call, has_service
-from ..core.llm import ChatRequest, LLMEngine, Message, MessageRole
+from ..core.llm import LLMEngine, Message, MessageRole
 from .commands import (
     COMMAND_HELP,
     PROMPT_ARIS,

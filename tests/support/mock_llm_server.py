@@ -27,6 +27,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
 import time
@@ -108,7 +109,6 @@ class _Handler(BaseHTTPRequestHandler):
     # ---- 请求处理 ----
 
     def do_GET(self) -> None:
-        mock: MockLLMServer = self.server.mock
         parts = self.path.split("/")
         if len(parts) >= 4 and parts[1] == "prov" and parts[3] == "models":
             self._send_models(parts[2])
@@ -125,10 +125,7 @@ class _Handler(BaseHTTPRequestHandler):
         mock.count_request(pid, model)
 
         with mock.lock:
-            if scenario.errors:
-                status = int(scenario.errors.pop(0))
-            else:
-                status = None
+            status = int(scenario.errors.pop(0)) if scenario.errors else None
         if status is not None:
             self._send_error(status)
             return
@@ -198,10 +195,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._write_sse(json.dumps(_delta(finish_reason=scenario.finish_reason)))
             self._write_sse("[DONE]")
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 self.wfile.flush()
-            except OSError:
-                pass
 
     def _write_sse(self, payload: str) -> None:
         try:
@@ -232,7 +227,7 @@ class MockLLMServer:
         self.port = self._httpd.server_address[1]
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
 
-    def start(self) -> "MockLLMServer":
+    def start(self) -> MockLLMServer:
         self._thread.start()
         return self
 
@@ -354,7 +349,7 @@ def main() -> None:
     )
     print(
         "  测试: ARIS_LLM_PROVIDERS_FILE=config/providers.mock.toml "
-        "uv run aris llm test --model %s" % args.model
+        f"uv run aris llm test --model {args.model}"
     )
     print("  停止: Ctrl+C")
     try:

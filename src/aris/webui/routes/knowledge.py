@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
-from loguru import logger
 from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 
 from aris.core import call
+
 from .. import tasks
 from ..templates import render
 
@@ -52,7 +53,7 @@ def knowledge_page(request: Request, q: str = "", top_k: int = 0, job: str = "")
     if status.get("enabled") and not status.get("error"):
         try:
             sources = call("knowledge.sources") or []
-        except Exception as exc:  # 数据库不可用：页面照常显示，只是列表为空
+        except Exception as exc:  # 数据库不可用：页面照常显示，只是列表为空  # noqa: BLE001
             logger.warning(f"知识库列表查询失败：{exc}")
             status["error"] = str(exc)
 
@@ -66,7 +67,7 @@ def knowledge_page(request: Request, q: str = "", top_k: int = 0, job: str = "")
         try:
             payload = call("knowledge.search", q, limit=top_k or None)
             results = payload.get("results", [])
-        except Exception as exc:  # 检索失败只提示，不影响页面其余部分
+        except Exception as exc:  # 检索失败只提示，不影响页面其余部分  # noqa: BLE001
             search_error = str(exc)
 
     # 任务面板：显式 ?job= 优先（页面据此轮询），否则静态显示最近一次（不轮询）
@@ -94,7 +95,9 @@ def knowledge_page(request: Request, q: str = "", top_k: int = 0, job: str = "")
 
 @router.post("/knowledge/upload")
 async def knowledge_upload(
-    request: Request, background: BackgroundTasks, files: list[UploadFile] = File(default=[])
+    request: Request,
+    background: BackgroundTasks,
+    files: list[UploadFile] = File(default=[]),  # noqa: B008  # FastAPI 依赖注入
 ) -> RedirectResponse:
     """接收上传（异步读入内存）→ 登记任务 → 后台落盘并摄入。"""
     status = call("knowledge.status") or {}

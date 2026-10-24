@@ -62,7 +62,7 @@ def verify_session(cookie_value: str) -> bool:
     if not hmac.compare_digest(sig, _sign(payload)):
         return False
     try:
-        issued, expires = int(parts[0]), int(parts[1])
+        _issued, expires = int(parts[0]), int(parts[1])
     except ValueError:
         return False
     return time.time() < expires

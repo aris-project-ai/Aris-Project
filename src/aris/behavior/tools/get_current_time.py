@@ -32,7 +32,9 @@ def register(registry: ToolRegistry) -> None:
     """向 registry 注册 get_current_time 工具。"""
     registry.register(
         "get_current_time",
-        description="获取当前日期和时间（年/月/日/时/分/秒/星期（含中英文及 ISO 数字编号）/时区偏移）",
+        description=(
+            "获取当前日期和时间（年/月/日/时/分/秒/星期（含中英文及 ISO 数字编号）/时区偏移）"
+        ),
         parameters={
             "type": "object",
             "properties": {},

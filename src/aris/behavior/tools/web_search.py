@@ -39,8 +39,9 @@ from loguru import logger
 
 from aris.cfgtoml import load_config
 from aris.core import call
-from .web_common import extract_page
+
 from ..registry import ToolRegistry
+from .web_common import extract_page
 
 
 class WebSearchResultType(StrEnum):

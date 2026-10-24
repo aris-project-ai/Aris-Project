@@ -69,4 +69,4 @@ class BehaviorRuntime:
         return "\n\n".join(parts)
 
 
-__all__ = ["BehaviorRuntime", "TOOLS_SYSTEM_HINT"]
+__all__ = ["TOOLS_SYSTEM_HINT", "BehaviorRuntime"]

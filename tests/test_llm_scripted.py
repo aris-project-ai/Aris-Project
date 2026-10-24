@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from aris.behavior import AgentLoop, LoopEventType, ToolRegistry
 from aris.chat.session import ChatSession
-
 from support.helpers import build_engine, events_of, user_messages
 from support.mock_llm_server import MockLLMServer, Scenario, tool_call_chunk
 
@@ -79,7 +78,7 @@ def test_scripted_tool_roundtrip(llm_server: MockLLMServer) -> None:
     assert tools[0].name == "echo", repr(tools[0].name)
     assert tools[0].result == "你好", repr(tools[0].result)
 
-    done = [e for e in events if e.type == LoopEventType.DONE][0]
+    done = next(e for e in events if e.type == LoopEventType.DONE)
     assert done.content == "收到，已完成", repr(done.content)
 
     # 工具往返恰好两次请求（tool_calls 轮 + 最终回答轮）

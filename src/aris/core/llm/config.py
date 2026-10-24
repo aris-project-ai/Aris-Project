@@ -171,7 +171,8 @@ def load_providers(path: str | Path) -> ProviderConfig:
     p = Path(path)
     if not p.exists():
         raise ProviderConfigError(
-            f"提供方配置文件不存在: {p}（可复制 config/providers.example.toml 为 config/providers.toml）"
+            f"提供方配置文件不存在: {p}"
+            "（可复制 config/providers.example.toml 为 config/providers.toml）"
         )
     with p.open("rb") as f:
         data = tomllib.load(f)

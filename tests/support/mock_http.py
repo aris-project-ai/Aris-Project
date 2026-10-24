@@ -28,7 +28,7 @@ RAW_HTML = "<html><body><div id='x'>raw 原始内容</div></body></html>"
 
 
 class _Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # noqa: D102
+    def log_message(self, *a):
         pass
 
     def _send(self, code: int, body: str, ctype: str = "text/html; charset=utf-8") -> None:
@@ -39,7 +39,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         if self.path.startswith("/page"):
             self._send(200, LONG_HTML)
         elif self.path.startswith("/raw"):
@@ -61,7 +61,7 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "not found")
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length).decode()
         body = json.dumps({"method": "POST", "body": raw}, ensure_ascii=False)
@@ -79,7 +79,7 @@ class MockHTTP:
     def base_url(self) -> str:
         return f"http://127.0.0.1:{self._httpd.server_address[1]}"
 
-    def start(self) -> "MockHTTP":
+    def start(self) -> MockHTTP:
         self._thread.start()
         return self
 

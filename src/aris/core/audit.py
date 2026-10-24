@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import threading
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from time import monotonic, time
 from typing import Any
@@ -85,7 +85,7 @@ class AuditLog:
                         detail=detail,
                     )
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass  # 审计失败不影响业务
 
     def recent(self, limit: int | None = None) -> list[AuditRecord]:

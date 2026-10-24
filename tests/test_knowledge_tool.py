@@ -15,7 +15,6 @@ import pytest
 from aris.behavior import AgentLoop, LoopEventType
 from aris.behavior.registry import ToolRegistry
 from aris.behavior.tools import knowledge_search
-
 from support.helpers import build_engine, events_of, user_messages
 from support.mock_llm_server import MockLLMServer, Scenario, tool_call_chunk
 
@@ -36,7 +35,7 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -181,6 +180,6 @@ def test_agent_loop_calls_knowledge_search(
     assert tool_payload["type"] == "knowledge_search_results"
     assert str(ingested_doc.resolve()) in tool_payload["results"]
 
-    done = [e for e in events if e.type == LoopEventType.DONE][0]
+    done = next(e for e in events if e.type == LoopEventType.DONE)
     assert "55432" in done.content
     assert llm_server.request_count("kb1", "m1") == 2  # 工具轮 + 最终回答轮

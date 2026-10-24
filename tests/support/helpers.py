@@ -12,7 +12,6 @@ from aris.behavior import AgentLoop, ToolRegistry
 from aris.core.llm.config import LLMModel, LLMProvider, ProviderConfig
 from aris.core.llm.engine import LLMEngine
 from aris.core.llm.message import ChatRequest, Message, MessageRole
-
 from support.mock_llm_server import MockLLMServer, Scenario
 
 STALL = 0.5  # 首字占位阈值（测试用，config 里默认 3.0）

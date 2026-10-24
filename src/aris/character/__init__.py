@@ -49,8 +49,8 @@ provide("character.list", _list)
 provide("character.resolve", _resolve)
 
 __all__ = [
-    "CHARACTER_FILE",
     "CHARACTERS_DIR",
+    "CHARACTER_FILE",
     "DEFAULT_NAME",
     "TEXT_FILES",
     "CharacterInfo",

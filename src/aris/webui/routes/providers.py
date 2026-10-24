@@ -14,6 +14,7 @@ from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from aris.core import call
+
 from ..templates import render
 
 router = APIRouter()
@@ -139,7 +140,7 @@ async def provider_fetch_page(
 @router.post("/providers/{pid}/fetch/apply", response_model=None)
 async def provider_fetch_apply(
     pid: str,
-    selected: list[str] = Form([]),
+    selected: list[str] = Form([]),  # noqa: B008  # FastAPI 依赖注入
 ) -> RedirectResponse:
     """应用 fetch 结果：勾选的候选写入 providers.toml。"""
     call("llm.fetch.apply", pid, selected)
@@ -153,7 +154,7 @@ def _load_providers() -> list[dict]:
     """
     try:
         cfg = call("llm.providers.load")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
 
         logger.warning(f"提供商列表加载失败，按空列表展示: {e}")

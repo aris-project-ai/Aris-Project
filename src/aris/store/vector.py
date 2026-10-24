@@ -66,7 +66,7 @@ def register_adapters(conn: Any) -> bool:
         return False
     try:
         register_vector(conn)
-    except Exception as exc:  # 扩展未建或数据库不支持时不该阻塞连接
+    except Exception as exc:  # 扩展未建或数据库不支持时不该阻塞连接  # noqa: BLE001
         logger.debug(f"注册 vector 适配器失败（可能未建扩展）: {exc}")
         return False
     return True

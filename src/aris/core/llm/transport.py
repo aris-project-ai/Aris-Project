@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
 
 import httpx
 from loguru import logger
@@ -50,7 +50,7 @@ class StreamDelta:
     content: str = ""
     reasoning: str = ""
     finish_reason: str | None = None
-    tool_calls: list["ToolCall"] | None = None
+    tool_calls: list[ToolCall] | None = None
     stall: bool = False
     model_id: str | None = None
     degraded: bool = False
@@ -144,7 +144,7 @@ def _stream_openai_sdk(
                 calls.clear()
                 break
     except Exception as e:
-        raise _wrap_sdk_error(e, provider.id)
+        raise _wrap_sdk_error(e, provider.id) from e
 
 
 def _finalize_calls(calls: dict[int, dict]) -> list[ToolCall]:
@@ -234,9 +234,9 @@ def _stream_httpx(
 
 def _wrap_sdk_error(e: Exception, provider_id: str) -> LLMError:
     """把 openai SDK 异常归一化成 LLMError 层级。"""
+    from openai import APIStatusError, APITimeoutError
     from openai import AuthenticationError as SdkAuthError
     from openai import RateLimitError as SdkRateLimitError
-    from openai import APIStatusError, APITimeoutError
 
     if isinstance(e, APITimeoutError):
         return LLMTimeoutError(f"请求超时: {e}", provider_id=provider_id)

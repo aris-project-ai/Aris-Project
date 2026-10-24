@@ -16,11 +16,11 @@ import datetime as _dt
 import json
 import os
 import shutil
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import httpx
-import tomllib
 import tomli_w
 from loguru import logger
 

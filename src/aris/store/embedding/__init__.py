@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from .base import EmbeddingError, EmbeddingProvider
 from ..conf import get_store_config
+from .base import EmbeddingError, EmbeddingProvider
 
 # provider 单例：本地模型常驻内存，避免重复加载（加载一次约 20s / 1.5 GiB）
 _providers: dict[str, EmbeddingProvider] = {}

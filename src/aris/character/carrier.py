@@ -90,8 +90,7 @@ def _toml_str(value: str) -> str:
 def _render_toml(values: dict[str, str]) -> str:
     """按固定字段顺序生成 character.toml 文本。"""
     lines = ["# 角色载体（v1.0 M2）：改名 / 改人设不影响 cid", ""]
-    for key in _PROFILE_FIELDS:
-        lines.append(f"{key} = {_toml_str(values.get(key, ''))}")
+    lines.extend(f"{key} = {_toml_str(values.get(key, ''))}" for key in _PROFILE_FIELDS)
     return "\n".join(lines) + "\n"
 
 

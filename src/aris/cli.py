@@ -10,15 +10,14 @@
 import argparse
 import os
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
 from . import __version__
 from .config import get_settings
-from .logging import setup_logging
 from .core.llm.config import LLMModel
+from .logging import setup_logging
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -27,9 +26,6 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 
     logger.info(f"Aris {__version__}")
     logger.info(f"Python: {sys.version.split()[0]} (需要 >= 3.12)")
-    if sys.version_info < (3, 12):
-        logger.error("Python 版本过低，无法运行")
-        ok = False
 
     try:
         from aris.csrc import demo_available
@@ -117,9 +113,8 @@ def _cmd_llm_list(args: argparse.Namespace) -> int:
             marker = "  [默认]" if m.id == default_model else ""
             caps = ", ".join(m.capabilities) if m.capabilities else "-"
             name_col = f"{m.id}{marker}".ljust(34)
-            print(
-                f"    - {name_col}  capabilities: {caps:<20}  context: {_format_context(m.context_length)}"
-            )
+            context = _format_context(m.context_length)
+            print(f"    - {name_col}  capabilities: {caps:<20}  context: {context}")
     print(f"\n默认模型: {default_model}")
     return 0
 
@@ -151,7 +146,7 @@ def _cmd_llm_test(args: argparse.Namespace) -> int:
 
     settings = get_settings()
     providers = load_providers(settings.llm_providers_file)
-    engine = LLMEngine(
+    LLMEngine(
         providers,
         timeout=settings.llm_fallback_timeout,
         first_token_stall=settings.llm_first_token_stall,
@@ -599,7 +594,7 @@ def _cmd_db(args: argparse.Namespace) -> int:
                 from aris.store.db import health
 
                 info = health(env)
-            except Exception as e:  # 探活失败只提示，不改 status 的退出码语义
+            except Exception as e:  # 探活失败只提示，不改 status 的退出码语义  # noqa: BLE001
                 logger.warning(f"连接失败: {e}")
             else:
                 vector = info["vector_version"] or "未安装"
@@ -631,7 +626,8 @@ def _cmd_db(args: argparse.Namespace) -> int:
         from contextlib import closing
 
         from aris.store.db import connect
-        from aris.store.migrate import MigrationError, run as run_migrations
+        from aris.store.migrate import MigrationError
+        from aris.store.migrate import run as run_migrations
 
         if not is_running(env):
             logger.error("数据库未运行，先执行 aris db start")
@@ -939,7 +935,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # 注册模块级总线服务（各模块在 import 时自注册；此处只挂轻量模块）
-    import aris.knowledge  # noqa: F401  —— 注册 knowledge.* 与建表迁移
+    import aris.knowledge  # 注册 knowledge.* 与建表迁移
     import aris.store  # noqa: F401  —— 注册 store.*
 
     if args.command == "llm" and args.llm_command is None:

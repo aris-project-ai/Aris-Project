@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 
 from aris.behavior.registry import ToolRegistry
-
 from support.mock_http import MockHTTP
 
 

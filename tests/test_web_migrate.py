@@ -15,14 +15,13 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 
 import pytest
 
+from aris.behavior.tools import web_search
 from aris.core import bus
 from aris.core.bus import provide
 from aris.core.http import HttpResponse
-from aris.behavior.tools import web_search
 
 _calls: list[dict] = []
 

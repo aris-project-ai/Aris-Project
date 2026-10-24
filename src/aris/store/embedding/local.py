@@ -14,11 +14,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from ..conf import get_store_config
 from .base import EmbeddingError
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 DEFAULT_MODEL = "hotchpotch/bekko-embedding-v1-a25m"
 OPENVINO_FILE = "openvino/openvino_model.xml"
@@ -39,7 +43,7 @@ class LocalBekkoProvider:
         self._model_id = model_id
         self._batch_size = batch_size
         self._truncate_dim = truncate_dim
-        self._model = None  # 懒加载：首次 embed 才真正加载
+        self._model: SentenceTransformer | None = None  # 懒加载：首次 embed 才真正加载
         self._lock = Lock()
         self._hf_home = (Path(data_dir) if data_dir else _data_dir()) / "models"
 
@@ -58,11 +62,15 @@ class LocalBekkoProvider:
         if not texts:
             return []
         self._load()
-        kwargs: dict[str, object] = {}
-        if self._truncate_dim:
-            kwargs["truncate_dim"] = self._truncate_dim
+        model = self._model
+        assert model is not None
         try:
-            vectors = self._model.encode(texts, batch_size=self._batch_size, **kwargs)
+            if self._truncate_dim:
+                vectors = model.encode(
+                    texts, batch_size=self._batch_size, truncate_dim=self._truncate_dim
+                )
+            else:
+                vectors = model.encode(texts, batch_size=self._batch_size)
         except Exception as exc:  # 推理期异常统一转成可读错误
             raise EmbeddingError(f"本地 embedding 编码失败：{exc}") from exc
         return [[float(x) for x in vec] for vec in vectors]

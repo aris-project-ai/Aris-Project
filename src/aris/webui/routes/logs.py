@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import AsyncGenerator
-from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -40,11 +39,13 @@ async def logs_page(
         date = datetime.date.today().isoformat()
 
     log_dir = (settings.data_dir / "logs" / date).resolve()
-    log_files = []
+    log_files: list[dict[str, str]] = []
     if log_dir.exists():
-        for f in sorted(log_dir.iterdir(), reverse=True):
-            if f.is_file() and f.name.startswith("aris"):
-                log_files.append({"name": f.name})
+        log_files = [
+            {"name": f.name}
+            for f in sorted(log_dir.iterdir(), reverse=True)
+            if f.is_file() and f.name.startswith("aris")
+        ]
 
     log_content = ""
     total_lines = 0
@@ -94,7 +95,7 @@ async def logs_stream(request: Request) -> StreamingResponse:
                 try:
                     event = queue.get_nowait()
                     yield event
-                except Exception:
+                except Exception:  # noqa: BLE001
                     await asyncio.sleep(0.5)
         finally:
             log_broker.unsubscribe(queue)

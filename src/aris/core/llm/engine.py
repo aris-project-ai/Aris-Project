@@ -31,7 +31,7 @@ from dataclasses import replace
 from loguru import logger
 
 from ..bus import provide
-from .config import ProviderConfig
+from .config import LLMProvider, ProviderConfig
 from .errors import LLMError, NoCandidateError, is_retryable
 from .message import ChatRequest
 from .transport import StreamDelta, stream_chat
@@ -70,7 +70,7 @@ class _StreamRunner:
 
     def __init__(
         self,
-        provider,
+        provider: LLMProvider,
         request: ChatRequest,
         timeout: float,
         *,
@@ -85,7 +85,7 @@ class _StreamRunner:
         )
         self._thread.start()
 
-    def _run(self, provider, request, timeout) -> None:
+    def _run(self, provider: LLMProvider, request: ChatRequest, timeout: float) -> None:
         try:
             for delta in stream_chat(provider, request, timeout=timeout):
                 if self._stop.is_set():
@@ -98,7 +98,7 @@ class _StreamRunner:
         finally:
             self._stop.set()
 
-    def get(self, timeout: float | None = None):
+    def get(self, timeout: float | None = None) -> tuple[str, object]:
         """取一个 (tag, item)；空队列超时抛 queue.Empty。"""
         return self._q.get(timeout=timeout)
 
@@ -285,7 +285,7 @@ class LLMEngine:
         stall_deadline = start + self.first_token_stall
         stall_state = {"emitted": False, "produced": False}
 
-        entries: list[tuple[str, object]] = []
+        entries: list[tuple[str, LLMProvider]] = []
         if home_cands:
             entries.append((RACE_TAG_HOME, home_cands[0]))
         if fb_cands:
@@ -445,7 +445,7 @@ class LLMEngine:
 
     # ------------------------------------------------------------------ 工具方法
 
-    def _effective_request(self, request: ChatRequest, provider) -> ChatRequest:
+    def _effective_request(self, request: ChatRequest, provider: LLMProvider) -> ChatRequest:
         """未显式指定 thinking 时，按该模型配置的 thinking_default 解析。"""
         model = provider.get_model(request.model_id)
         if request.thinking is None and model is not None and model.thinking_default is not None:
@@ -483,6 +483,7 @@ class LLMEngine:
         流正常结束返回；流错误以原类型上抛（供上层重试/切换判定）。
         """
         while True:
+            wait: float | None
             if not stall_state["emitted"] and not stall_state["produced"]:
                 wait = stall_deadline - time.monotonic()
                 if wait <= 0:
@@ -499,12 +500,13 @@ class LLMEngine:
                 return
             if isinstance(item, Exception):
                 raise item
+            assert isinstance(item, StreamDelta)
             if (item.content and not item.stall) or item.reasoning or item.finish_reason:
                 stall_state["produced"] = True
             yield item
 
     def _handle_failure(
-        self, error: LLMError, *, stall_emitted: bool = False
+        self, error: Exception, *, stall_emitted: bool = False
     ) -> Iterator[StreamDelta]:
         """错误处理逻辑：记录日志、广播提醒、返回预设提示语。
 

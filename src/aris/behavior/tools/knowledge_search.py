@@ -16,6 +16,7 @@ import json
 from loguru import logger
 
 from aris.core import call
+
 from ..registry import ToolRegistry
 
 # 单块内容截断上限：与分块上限（config/knowledge.toml: max_chars）同量级，

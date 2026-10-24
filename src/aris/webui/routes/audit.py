@@ -71,7 +71,7 @@ def _query_records(
                 }
             )
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
 
         logger.warning(f"审计查询失败: {e}")
@@ -85,9 +85,7 @@ def _record_matches(r: object, module: str | None, action: str | None) -> bool:
     mod = target_parts[0] if target_parts else target
     if module and mod != module:
         return False
-    if action and action not in target:
-        return False
-    return True
+    return not (action and action not in target)
 
 
 def _count_records(module: str | None = None, action: str | None = None) -> int:
@@ -97,7 +95,7 @@ def _count_records(module: str | None = None, action: str | None = None) -> int:
 
         records = call("audit.recent", None) or []  # 全量（受 max_records 环形缓冲约束）
         return sum(1 for r in records if _record_matches(r, module, action))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         from loguru import logger
 
         logger.warning(f"审计计数失败: {e}")
@@ -120,7 +118,7 @@ async def audit_stream(request: Request) -> StreamingResponse:
                 try:
                     event = queue.get_nowait()
                     yield event
-                except Exception:
+                except Exception:  # noqa: BLE001
                     await asyncio.sleep(0.5)
         finally:
             audit_broker.unsubscribe(queue)

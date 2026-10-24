@@ -144,75 +144,74 @@ class KnowledgeService:
         doc = load_document(path)
         source_path = str(path.resolve())
 
-        with closing(call("store.connect")) as conn:
-            with conn.transaction():
-                existing = conn.execute(
-                    f"SELECT doc_id, content_hash FROM {DOCS_TABLE} "
-                    "WHERE source_path = %s AND deleted_at IS NULL",
-                    (source_path,),
-                ).fetchone()
-                if existing and existing[1] == doc.content_hash:
-                    return IngestOutcome(source_path, STATUS_SKIPPED, 0, reason="内容未变")
+        with closing(call("store.connect")) as conn, conn.transaction():
+            existing = conn.execute(
+                f"SELECT doc_id, content_hash FROM {DOCS_TABLE} "
+                "WHERE source_path = %s AND deleted_at IS NULL",
+                (source_path,),
+            ).fetchone()
+            if existing and existing[1] == doc.content_hash:
+                return IngestOutcome(source_path, STATUS_SKIPPED, 0, reason="内容未变")
 
-                chunks = chunk_document(
-                    doc.text,
-                    kind=doc.kind,
-                    max_chars=self._config.max_chars,
-                    min_chars=self._config.min_chars,
-                    overlap_ratio=self._config.overlap_ratio,
+            chunks = chunk_document(
+                doc.text,
+                kind=doc.kind,
+                max_chars=self._config.max_chars,
+                min_chars=self._config.min_chars,
+                overlap_ratio=self._config.overlap_ratio,
+            )
+            if not chunks:
+                raise LoadError(f"没有切出任何块：{path.name}（正文过短或全为空行）")
+
+            vectors = call("store.embed", [c.embed_text for c in chunks])
+            if len(vectors) != len(chunks):
+                raise KnowledgeError(
+                    f"embedding 返回 {len(vectors)} 条，与块数 {len(chunks)} 不一致"
                 )
-                if not chunks:
-                    raise LoadError(f"没有切出任何块：{path.name}（正文过短或全为空行）")
 
-                vectors = call("store.embed", [c.embed_text for c in chunks])
-                if len(vectors) != len(chunks):
-                    raise KnowledgeError(
-                        f"embedding 返回 {len(vectors)} 条，与块数 {len(chunks)} 不一致"
-                    )
+            if existing:
+                conn.execute(
+                    f"UPDATE {DOCS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
+                    (existing[0],),
+                )
+                conn.execute(
+                    f"UPDATE {CHUNKS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
+                    (existing[0],),
+                )
 
-                if existing:
-                    conn.execute(
-                        f"UPDATE {DOCS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
-                        (existing[0],),
-                    )
-                    conn.execute(
-                        f"UPDATE {CHUNKS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
-                        (existing[0],),
-                    )
+            row = conn.execute(
+                f"INSERT INTO {DOCS_TABLE} "
+                "(source_path, title, content_hash, byte_size, source_mtime, chunk_count) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING doc_id",
+                (
+                    source_path,
+                    doc.title,
+                    doc.content_hash,
+                    doc.byte_size,
+                    doc.mtime,
+                    len(chunks),
+                ),
+            ).fetchone()
+            doc_id = row[0]
 
-                row = conn.execute(
-                    f"INSERT INTO {DOCS_TABLE} "
-                    "(source_path, title, content_hash, byte_size, source_mtime, chunk_count) "
-                    "VALUES (%s, %s, %s, %s, %s, %s) RETURNING doc_id",
+            for chunk, vector in zip(chunks, vectors, strict=True):
+                conn.execute(
+                    f"INSERT INTO {CHUNKS_TABLE} "
+                    "(doc_id, chunk_index, source_path, title, heading_path, "
+                    " content, content_hash, char_count, embedding) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     (
+                        doc_id,
+                        chunk.index,
                         source_path,
                         doc.title,
-                        doc.content_hash,
-                        doc.byte_size,
-                        doc.mtime,
-                        len(chunks),
+                        chunk.heading_path,
+                        chunk.content,
+                        hashlib.sha256(chunk.content.encode("utf-8")).hexdigest(),
+                        chunk.char_count,
+                        vector,
                     ),
-                ).fetchone()
-                doc_id = row[0]
-
-                for chunk, vector in zip(chunks, vectors, strict=True):
-                    conn.execute(
-                        f"INSERT INTO {CHUNKS_TABLE} "
-                        "(doc_id, chunk_index, source_path, title, heading_path, "
-                        " content, content_hash, char_count, embedding) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                        (
-                            doc_id,
-                            chunk.index,
-                            source_path,
-                            doc.title,
-                            chunk.heading_path,
-                            chunk.content,
-                            hashlib.sha256(chunk.content.encode("utf-8")).hexdigest(),
-                            chunk.char_count,
-                            vector,
-                        ),
-                    )
+                )
 
         status = STATUS_UPDATED if existing else STATUS_ADDED
         logger.info(f"{status}：{source_path}（{len(chunks)} 块）")
@@ -298,7 +297,7 @@ class KnowledgeService:
             info["chunks"] = int(
                 call("store.vector.count", CHUNKS_TABLE, where="deleted_at IS NULL")
             )
-        except Exception as exc:  # 状态查询不该因数据库未就绪而让页面 500
+        except Exception as exc:  # 状态查询不该因数据库未就绪而让页面 500  # noqa: BLE001
             logger.warning(f"知识库状态查询失败：{exc}")
             info["error"] = str(exc)
         return info
@@ -328,23 +327,22 @@ class KnowledgeService:
     def remove(self, source_path: str) -> dict[str, Any]:
         """软删一个文档及其全部块（可重新摄入恢复）。"""
         key = str(Path(source_path).expanduser().resolve())
-        with closing(call("store.connect")) as conn:
-            with conn.transaction():
-                row = conn.execute(
-                    f"SELECT doc_id, chunk_count FROM {DOCS_TABLE} "
-                    "WHERE source_path = %s AND deleted_at IS NULL",
-                    (key,),
-                ).fetchone()
-                if row is None:
-                    return {"source_path": key, "removed": 0, "chunks": 0}
-                conn.execute(
-                    f"UPDATE {CHUNKS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
-                    (row[0],),
-                )
-                conn.execute(
-                    f"UPDATE {DOCS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
-                    (row[0],),
-                )
+        with closing(call("store.connect")) as conn, conn.transaction():
+            row = conn.execute(
+                f"SELECT doc_id, chunk_count FROM {DOCS_TABLE} "
+                "WHERE source_path = %s AND deleted_at IS NULL",
+                (key,),
+            ).fetchone()
+            if row is None:
+                return {"source_path": key, "removed": 0, "chunks": 0}
+            conn.execute(
+                f"UPDATE {CHUNKS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
+                (row[0],),
+            )
+            conn.execute(
+                f"UPDATE {DOCS_TABLE} SET deleted_at = now() WHERE doc_id = %s",
+                (row[0],),
+            )
         logger.info(f"已移除：{key}（{row[1]} 块）")
         return {"source_path": key, "removed": 1, "chunks": row[1]}
 

@@ -9,13 +9,13 @@
 经总线 `character.system_prompt(cid)` 拿（不再直引 character 模块常量）。
 """
 
+from .commands import COMMAND_HELP, parse_command
 from .session import ChatSession
 from .tui import ChatTUI
-from .commands import COMMAND_HELP, parse_command
 
 __all__ = [
+    "COMMAND_HELP",
     "ChatSession",
     "ChatTUI",
-    "COMMAND_HELP",
     "parse_command",
 ]

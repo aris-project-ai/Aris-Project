@@ -93,9 +93,11 @@ def ensure_micromamba(env: PgEnv) -> Path:
     tmp = dest.with_name(dest.name + ".tmp")
     logger.info(f"下载 micromamba {MAMBA_VERSION} ...")
     try:
-        with urllib.request.urlopen(MAMBA_URL, timeout=DOWNLOAD_TIMEOUT) as resp:
-            with open(tmp, "wb") as fh:
-                shutil.copyfileobj(resp, fh)
+        with (
+            urllib.request.urlopen(MAMBA_URL, timeout=DOWNLOAD_TIMEOUT) as resp,
+            open(tmp, "wb") as fh,
+        ):
+            shutil.copyfileobj(resp, fh)
     except OSError as exc:
         tmp.unlink(missing_ok=True)
         raise BootstrapError(f"下载 micromamba 失败：{exc}") from exc

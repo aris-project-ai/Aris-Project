@@ -48,11 +48,8 @@ def create_app() -> FastAPI:
     static_dir.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    # 模板目录
-    templates_dir = Path(__file__).parent / "templates"
-
     # 注册路由
-    from .routes import dashboard, audit, providers, skills, config, logs, history
+    from .routes import audit, config, dashboard, history, logs, providers, skills
     from .routes import knowledge as knowledge_route
 
     app.include_router(dashboard.router)

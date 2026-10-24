@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import fields, is_dataclass
 from pathlib import Path
 
 from loguru import logger
@@ -26,7 +26,7 @@ def config_dir() -> Path:
     return CONFIG_DIR
 
 
-def load_config(instance: dataclass, filename: str) -> dataclass:
+def load_config[T](instance: T, filename: str) -> T:
     """把 `config/<filename>` 中与 dataclass 字段同名的键覆盖到实例。
 
     文件缺失、解析失败或键不存在时静默用默认值，不抛异常

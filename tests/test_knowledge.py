@@ -152,7 +152,7 @@ def _pg_available() -> bool:
         from aris.store import detect, is_running
 
         return is_running(detect())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 

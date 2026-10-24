@@ -25,14 +25,12 @@ from __future__ import annotations
 import hashlib
 import json
 import urllib.parse
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
-from loguru import logger
-
 from aris.cfgtoml import load_config
 from aris.core import call
+
 from ..registry import ToolRegistry
 from .web_common import extract_page
 
@@ -123,10 +121,8 @@ def _do_request(
         if status >= 400:
             raise RuntimeError(f"HTTP {status}: {url}")
         is_html = method == "GET" and "html" in resp.content_type.lower()
-        if raw or not is_html:
-            full = resp.text
-        else:
-            full = extract_page(resp.text, url) or resp.text  # 提取失败退回原文
+        # 提取失败退回原文
+        full = resp.text if raw or not is_html else extract_page(resp.text, url) or resp.text
         full = full.strip()
         _page_cache.clear()  # 覆盖式缓存，只保留最近一次
         _page_cache[key] = full
