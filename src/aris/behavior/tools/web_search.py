@@ -1,6 +1,6 @@
 """内置工具：web_search / web_open —— 联网搜索与网页正文读取（壳层）。
 
-搜索走多引擎池（第三程重整，docs/forAiDoc/BEHAVIOR-REWORK.md §3）：
+搜索走多引擎池（2026-10-25 重整，详见 docs/forAiDoc/WEB-SEARCH.md「第三程重整」）：
 **Bing 直连为主 + Tavily（keyed / keyless）兜底 + Exa（mcp 型端点）**。
 引擎住在 `behavior/search/`（只吐归一化 Result），本文件只做三件事：
 - 渲染（markdown 省 token，外层 JSON 标识）；

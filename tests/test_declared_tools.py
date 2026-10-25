@@ -1,6 +1,6 @@
 """`.ai_tools` 声明契约与探询收编的回归用例。
 
-覆盖（docs/forAiDoc/BEHAVIOR-REWORK.md 第 1 节）：
+覆盖（行为工具表重整的声明式收编契约，定案详见 AGENTS.md §6「业务模块的 agent 工具」行）：
 - 探询按 `.ai_tools` 后缀收编，spec 字段（owner / needs_context）落到注册表；
 - 单提供方失败（抛错 / 返回 None / 畸形 spec）不连坐，错误进 declaration_failures；
 - enabled=False 的声明照常登记但模型不可见；

@@ -1,8 +1,8 @@
 # MCP 模块契约（`src/aris/mcp/`）
 
 > 通用 MCP 客户端：一个客户端接所有 server，官方 `mcp` SDK + 配置驱动 transport。
-> 定案与起因见 `docs/forAiDoc/BEHAVIOR-REWORK.md` 第 2 节（调研：AstrBot /
-> deepseek-harness / opencode 三家都是「一个通用客户端 + 配置驱动 transport」，不为单个端点手写适配）。
+> 形状调研自 AstrBot / deepseek-harness / opencode——三家都是「一个通用客户端 +
+> 配置驱动 transport」，不为单个端点手写适配。
 
 ## 定位
 

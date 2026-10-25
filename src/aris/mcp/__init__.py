@@ -1,6 +1,6 @@
 """mcp 模块 —— 通用 MCP 客户端（一个客户端接所有 server）。
 
-定位（docs/forAiDoc/BEHAVIOR-REWORK.md 第 2 节定案）：官方 ``mcp`` SDK +
+定位：官方 ``mcp`` SDK +
 配置驱动 transport（stdio / streamable-http），SDK 跑在专属 owner 线程
 （AstrBot owner-task 模式搬线程），对外只给**同步**服务。Exa 这类 MCP 型
 搜索端点不走手写适配，直接配置接进来（第三程联网搜索依赖本模块）。

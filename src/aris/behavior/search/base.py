@@ -1,6 +1,6 @@
 """搜索引擎池基础设施：归一化 Result、失败元数据、冷却与尝试循环。
 
-定案（docs/forAiDoc/BEHAVIOR-REWORK.md 第 3 节，抄 opencode 形状去掉多 KV）：
+引擎池定案（2026-10-25，抄 opencode 形状去掉多 KV；演进史见 WEB-SEARCH.md）：
 
 - 引擎只吐归一化 `Result`（url / title / content / published），**壳层
   （tools/web_search.py）统一渲染 markdown**——引擎不做格式化；

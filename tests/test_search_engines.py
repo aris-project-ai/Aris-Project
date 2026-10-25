@@ -1,7 +1,7 @@
 """第三程搜索引擎池用例：冷却 / 失败元数据 / exa 门控与解析 / 渲染收档。
 
 引擎真实 HTTP 已由 test_web_migrate.py 覆盖（bing / tavily 各自的请求细节）；
-本文件聚焦 train-3 重整引入的新语义（docs/forAiDoc/BEHAVIOR-REWORK.md §3）：
+本文件聚焦 2026-10-25 搜索重整引入的新语义（docs/forAiDoc/WEB-SEARCH.md「第三程重整」）：
 - EngineFailure 带 provider；429 解析 retry-after → 冷却，冷却中的引擎跳过；
 - attempt_search 的 prior_failures（成功前已折的引擎如实上报）；
 - exa 经 mcp 模块接入：server 未连接就缺席；markdown 回包解析成 Result；

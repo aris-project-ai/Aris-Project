@@ -1,6 +1,6 @@
 """搜索引擎池（第三程）：Bing 直连 / Tavily（keyed + keyless 兜底） / Exa（经 mcp）。
 
-定案（docs/forAiDoc/BEHAVIOR-REWORK.md 第 3 节；详见 base.py 顶部注释）：
+定案与形状详见 base.py 顶部注释；演进史见 docs/forAiDoc/WEB-SEARCH.md：
 - 引擎只吐归一化 `Result`，渲染归壳层（`behavior/tools/web_search.py`）；
 - 失败带 provider 元数据；429 冷却 + 单查询 attempted 防回环。
 """
