@@ -1,12 +1,14 @@
-"""内置工具：knowledge_search —— 检索用户投喂的本地知识库（RAG）。
+"""knowledge 的 agent 工具壳：knowledge_search —— 检索本地知识库（RAG）。
 
 与 `web_search` 并列的检索工具（D1 定案）：**由 Aris 自主判断何时查**，
-不做每轮自动 RAG 注入。返回格式沿用 web_search 约定（D3）：外层 JSON 标识类型，
-内部 markdown 省 token，**每条必带来源标识**（文件路径 + 标题 + 标题层级）——
-可引用是知识库的存在意义。
+不做每轮自动 RAG 注入。返回格式沿用 web_search 约定（D3）：外层 JSON 标识
+类型，内部 markdown 省 token，**每条必带来源标识**（文件路径 + 标题 +
+标题层级）——可引用是知识库的存在意义。
 
-本文件只是薄壳：知识库能力由 `knowledge/` 提供、经总线 `knowledge.search` 暴露，
-工具不直接 import 业务实现（AGENTS.md §6 CMCB）。
+工具壳归本模块所有（不在 behavior 塞壳）：schema、格式化、截断与降级文案
+都跟 knowledge 走；经 `knowledge.ai_tools` 总线服务向 behavior 声明
+（`core/tools.py: ToolSpec` 契约），由 behavior 装配时探询收编。
+同模块内部调用不走总线（AGENTS.md §6 边界）：fn 直接用 service 实例。
 """
 
 from __future__ import annotations
@@ -15,9 +17,9 @@ import json
 
 from loguru import logger
 
-from aris.core import call
-
-from ..registry import ToolRegistry
+from ..core.tools import ToolSpec
+from .conf import get_knowledge_config
+from .service import get_service
 
 # 单块内容截断上限：与分块上限（config/knowledge.toml: max_chars）同量级，
 # 防止一次检索把上下文吃光
@@ -59,17 +61,18 @@ def _error(message: str, query: str = "") -> str:
 
 
 def _do_search(query: str, top_k: int | None = None) -> str:
-    """执行检索并组装工具返回值（JSON 字符串）。"""
-    # 确保 knowledge 模块已导入（各模块 import 时自注册总线服务）
-    import aris.knowledge  # noqa: F401
+    """执行一次检索并组装工具返回值（JSON 字符串）。
 
+    同模块内部调用：直接用 service 实例（不走总线，审计只覆盖跨模块调用）。
+    知识库关闭时 service 返回空结果 + enabled=False，这里给出明确说明。
+    """
     if not isinstance(query, str) or not query.strip():
         return _error("query 不能为空")
     if top_k is not None and (not isinstance(top_k, int) or top_k <= 0):
         return _error(f"top_k 必须是正整数，收到 {top_k!r}", query)
 
     try:
-        payload = call("knowledge.search", query, limit=top_k)
+        payload = get_service().search(query, limit=top_k)
     except Exception as exc:  # noqa: BLE001 —— 工具层宽容降级
         logger.warning(f"知识库检索失败：{exc}")
         return _error(str(exc), query)
@@ -93,36 +96,42 @@ def _do_search(query: str, top_k: int | None = None) -> str:
     )
 
 
-def register(registry: ToolRegistry) -> None:
-    """向 registry 注册 knowledge_search 工具。"""
+def tool_specs() -> list[ToolSpec]:
+    """本模块的 agent 工具声明（经 `knowledge.ai_tools` 总线服务给出）。
 
-    def _fn(query: str, top_k: int | None = None) -> str:
-        return _do_search(query, top_k)
-
-    registry.register(
-        "knowledge_search",
-        description=(
-            "检索用户投喂的本地知识库（md / txt / html 资料）。"
-            "当问题可能涉及用户提供的文档、笔记或资料时使用；"
-            "参数 query 用自然语言即可。返回带来源路径与标题层级的片段，"
-            "引用时请标注来源。"
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "检索词，自然语言即可",
+    声明必须廉价：只读配置与构造结构，不连库。知识库关闭（enabled=false）
+    时照常声明、`enabled=False`——模型看不到该工具，但 CLI / 工具页仍可
+    枚举；启用与否由 `registry.register_spec` 的 `enabled` 契约落到模型
+    可见性上（见 `core/tools.py`）。
+    """
+    return [
+        ToolSpec(
+            name="knowledge_search",
+            description=(
+                "检索用户投喂的本地知识库（md / txt / html 资料）。"
+                "当问题可能涉及用户提供的文档、笔记或资料时使用；"
+                "参数 query 用自然语言即可。返回带来源路径与标题层级的片段，"
+                "引用时请标注来源。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "检索词，自然语言即可",
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "返回条数（默认取配置 top_k）",
+                        "minimum": 1,
+                        "maximum": 20,
+                    },
                 },
-                "top_k": {
-                    "type": "integer",
-                    "description": "返回条数（默认取配置 top_k）",
-                    "minimum": 1,
-                    "maximum": 20,
-                },
+                "required": ["query"],
+                "additionalProperties": False,
             },
-            "required": ["query"],
-            "additionalProperties": False,
-        },
-        fn=_fn,
-    )
+            fn=_do_search,
+            owner="knowledge",
+            enabled=get_knowledge_config().enabled,
+        ),
+    ]

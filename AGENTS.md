@@ -78,9 +78,10 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | `src/aris/core/` | CMCB 总线（服务注册 + 事件 + 审计）、LLM 提供方抽象（fallback / 流式 / 工具调用） |
 | `src/aris/store/` | 存储基础设施：便携 PG + pgvector、embedding 抽象、迁移机制、向量检索 helper；不认识业务语义 |
 | `src/aris/knowledge/` | 知识库：外部资料的 RAG（摄入 / 分块 / 检索），384 维本地 embedding；不做 skill，只经总线暴露；摄入走 CLI，agent 只给检索工具 |
+| `src/aris/mcp/` | 通用 MCP 客户端：官方 `mcp` SDK + `config/mcp.toml` 驱动 transport；owner 线程 asyncio，同步总线服务（见 `docs/forAiDoc/MCP.md`） |
 | `src/aris/memory/` | Aris 的个人记忆。**暂停开发**，重启时间由开发者决定；详见 `docs/forAiDoc/MEMORY.md` |
 | `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
-| `src/aris/behavior/` | 行为：工具注册表、agent loop、内置工具、skills 系统；联网搜索 Bing 直连为主、Tavily 兜底 |
+| `src/aris/behavior/` | 行为：工具注册表（含世代同步）、agent loop、内置工具、skills 系统；联网搜索是**引擎池**（`behavior/search/`：Bing 直连 / Tavily 含 keyless / Exa 经 mcp，见 `docs/forAiDoc/WEB-SEARCH.md`） |
 | `src/aris/chat/` | 文字对话 + TUI（`aris chat`，开发调试用） |
 | `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI，不对外提供查询服务 |
 | `src/aris/webui/` | 管理后台：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库 |
@@ -191,6 +192,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 |---|---|
 | 新的跨模块能力 | 在模块 `__init__` 里 `provide` 服务 + 同步 `CMCB.md` 服务表 |
 | 新的内置工具 | `behavior/tools/<name>.py`（提供 `register(registry)`）+ 在 `tools/__init__.py` 汇总注册 |
+| 业务模块的 agent 工具 | 壳声明在**能力归属模块**：模块内 `tools.py` 构造 `ToolSpec`（`core/tools.py`），`__init__.py` 里 `provide("<模块>.ai_tools", tool_specs)`；behavior 装配时探询收编，behavior / serve 零改动。工具 fn 不 provide 成总线服务。**文案不做人味**（不拟人、无第一人称）：只有 HTTP 报错给映射成「限流 / 鉴权失败」等人话 |
 | 新的数据库表 | `store/migrate.py` 的 `register([Migration(...)])`：owner 内 version 递增，历史迁移不许改写 |
 | 新的可调参数 | 模块 dataclass 默认值 + `config/<module>.toml` + `CONFIG.md`；密钥不进来 |
 | 新的 CLI 子命令 | `cli.py` 的 subparsers（含 `-h` 文案） |
@@ -260,6 +262,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | 启动编排 `serve/` | `docs/forAiDoc/SERVE.md` |
 | 记忆系统（暂停） | `docs/forAiDoc/MEMORY.md` |
 | 知识库 | `docs/forAiDoc/KNOWLEDGE-BASE.md` |
+| 通用 MCP 客户端 | `docs/forAiDoc/MCP.md` |
 | 技能系统 | `docs/forAiDoc/SKILLS.md` |
 | 提供商 / 模型管理 | `docs/forAiDoc/LLM-PROVIDER-MGMT.md` |
 | WebUI 管理后台 | `docs/forAiDoc/WEBUI.md` |

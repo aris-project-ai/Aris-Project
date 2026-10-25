@@ -35,6 +35,8 @@ dependencies = [
     "python-multipart>=0.0.32",
     "psycopg[binary]>=3.2",
     "pgvector>=0.3",
+    # MCP 官方 SDK；代码按 v2 API 写（v1 的 FastMCP/旧客户端已废），锁上限防 v3 破坏
+    "mcp>=2.0,<3",
 ]
 
 [project.scripts]

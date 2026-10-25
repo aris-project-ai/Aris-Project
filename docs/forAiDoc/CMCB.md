@@ -60,7 +60,7 @@
 
 - **服务**：`module.service` 两级，如 `llm.stream`、`llm.deltas`、
   `tools.execute`、`loop.run`。
-- **事件**：`domain.event` 两级，如 `memory.saved`、`voice.ready`（规划）。
+- **事件**：`domain.event` 两级，如 `memory.saved`（规划）、`mcp.tools_changed`（已实现）。
 - **前缀**：`core.` 是模块名不是项目名——项目名 aris 随时可能改，
   函数名绝不含 `aris`，减小改名成本。
 
@@ -140,6 +140,11 @@ summary = query_summary()            # 聚合统计
 | `llm.retired.list/delete` | `core/llm/fetch.py` 模块级 | 退休模型：列表 / 手动删除 | `webui` 提供商页 |
 | `skills.list/detail` | `behavior/skills/manager.py` 模块级 | 技能清单 / 详情 | `webui` 技能页 |
 | `skills.create/save/delete` | `behavior/skills/manager.py` 模块级 | 技能增改删 | `webui` 技能页 |
+| `knowledge.ai_tools` | `knowledge/__init__.py` 模块级 | agent 工具声明（`list[ToolSpec]`，契约 `core/tools.py`；`.ai_tools` 后缀由 behavior 探询） | behavior 装配（`register_declared_tools`） |
+| `tools.sync_generation(specs, owner)` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 世代同步：旧代（同 owner）全量卸下 ↔ 新代全量登记；新代校验失败保旧代 | `mcp/_runtime.py`（动态工具换装） |
+| `mcp.ai_tools` | `mcp/__init__.py` 模块级 | agent 工具声明（触发连接 + 目录拉取；失败 server 不连坐） | behavior 装配（`register_declared_tools`） |
+| `mcp.call_tool(server, tool, arguments)` | `mcp/__init__.py` 模块级 | 执行一次 MCP 工具调用（文本归一化，失败抛 MCPToolError） | `mcp` 自家工具壳（fn 闭包直调，不过总线） |
+| `mcp.status` | `mcp/__init__.py` 模块级 | server 状态快照（不触发连接） | `serve` mcp 探针；将来的 WebUI 工具页 |
 
 > 注：`llm.*` 提供商管理服务由 `core/llm/manage.py`、`core/llm/fetch.py`
 > **模块级注册**（import 即注册），无核心类实例；注册触发与启动自检归**组装根**

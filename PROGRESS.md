@@ -15,7 +15,8 @@
 | `core/` | 完成：CMCB 总线（服务注册 + 事件 + 审计）、LLM 多提供方 / fallback / 流式 / 工具调用 |
 | `store/` | 完成：便携 PG + pgvector、本地 embedding（Bekko 384 维）、迁移机制、向量 helper；可迁移性与启动幂等已落地 |
 | `knowledge/` | 首期完成：摄入 / 分块 / 纯向量检索 / CLI / agent 工具 / WebUI 知识库页 |
-| `behavior/` | 完成：agent loop、工具注册表、内置工具、skills 系统 |
+| `behavior/` | 完成：agent loop、工具注册表（含世代同步）、内置工具、skills 系统；agent 工具已改**声明式收编**（`.ai_tools` 契约） |
+| `mcp/` | 完成：通用 MCP 客户端（stdio / streamable-http，owner 线程 asyncio + 同步总线服务）；server 在 `config/mcp.toml` 配置（见 `docs/forAiDoc/MCP.md`） |
 | `chat/` | 完成：会话逻辑 + TUI（`aris chat`，调试用） |
 | `character/` | 完成：角色载体 `data/characters/<cid>/`；`character.system_prompt(cid)` / `list` / `resolve` |
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根装配一份进程级运行时 |
@@ -26,8 +27,18 @@
 
 ## 当前聚焦
 
+- **behavior 重整（三程，已全部完成并入 develop）**：
+  1. 声明式工具收编——业务模块的 agent 工具在自有模块声明（`<模块>.ai_tools` 契约，
+     `ToolSpec` 在 `core/tools.py`），behavior 装配时探询收编；新增 `aris tools list` /
+     `aris services list`；
+  2. 通用 MCP 客户端——`mcp` 模块接任意 MCP server（`config/mcp.toml` 驱动，契约见
+     `docs/forAiDoc/MCP.md`），工具动态汇入靠 `tools.sync_generation` 世代同步；
+  3. 联网搜索重整——引擎池在 `behavior/search/`（Bing 直连 / Tavily 含 keyless /
+     Exa 经 mcp 接入），引擎只吐归一化 Result、渲染归壳层；429 冷却 + 失败 provider
+     元数据；详见 `docs/forAiDoc/WEB-SEARCH.md`「第三程重整」。
+  施工方案文档 BEHAVIOR-REWORK.md 已随收官删除（定案各自归档）。
 - **工程化 P0（已完成，随 `chore/tooling` 合并进入 develop）**：ruff + mypy + `scripts/check.sh`；
-  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-or-later 元数据；全量测试 163 passed。
+  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-or-later 元数据；全量测试 186 passed。
 - **文档整治**：目录已统一为 `docs/forAiDoc/`；其余文档按 AGENTS.md 标准分批清理
   （删历史与日期、过程迁 `docs/archive/`、重复内容只留一处）。
 - **v1.0**：`character` 已完成；`memory` 暂停，原 M3（会话落库）之后的阶段一并挂起。

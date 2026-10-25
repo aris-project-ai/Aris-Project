@@ -14,7 +14,7 @@ import pytest
 
 from aris.behavior import AgentLoop, LoopEventType
 from aris.behavior.registry import ToolRegistry
-from aris.behavior.tools import knowledge_search
+from aris.knowledge.tools import tool_specs
 from support.helpers import build_engine, events_of, user_messages
 from support.mock_llm_server import MockLLMServer, Scenario, tool_call_chunk
 
@@ -48,7 +48,8 @@ requires_pg = pytest.mark.skipif(
 def registry() -> ToolRegistry:
     """只挂 knowledge_search 的工具注册表（避免真去联网）。"""
     reg = ToolRegistry()
-    knowledge_search.register(reg)
+    for spec in tool_specs():
+        reg.register_spec(spec)
     return reg
 
 
@@ -118,14 +119,18 @@ def test_tool_reports_disabled(registry: ToolRegistry, ingested_doc: Path) -> No
 
 
 def test_tool_handles_empty_results(monkeypatch) -> None:
-    """库为空时的友好提示（直接替换总线调用，不需要数据库）。"""
-    monkeypatch.setattr(
-        knowledge_search,
-        "call",
-        lambda *a, **k: {"query": "", "results": [], "enabled": True},
-    )
+    """库为空时的友好提示（同模块直调 service，直接替换 get_service 即可）。"""
+
+    class _StubService:
+        """够用的假 service：固定返回空结果（不需要数据库）。"""
+
+        def search(self, query: str, limit: int | None = None) -> dict:
+            return {"query": query, "results": [], "enabled": True}
+
+    monkeypatch.setattr("aris.knowledge.tools.get_service", lambda: _StubService())
     reg = ToolRegistry()
-    knowledge_search.register(reg)
+    for spec in tool_specs():
+        reg.register_spec(spec)
 
     payload = json.loads(reg.execute("knowledge_search", {"query": "任意"}))
 

@@ -1,0 +1,29 @@
+# mcp 模块配置（优先级：代码内默认值 < 本文件）
+# 详见 docs/forAiDoc/MCP.md；.ai_tools 收编契约见 AGENTS.md §6
+#
+# server 名约束：[a-z0-9_-]{1,32}（会进入工具名 mcp_<server>_<tool>）；
+# transport 支持 stdio / http；密钥只写环境变量名，值放 .env。
+
+# ── 超时（秒） ──────────────────────────────────────────────
+# startup_timeout：连接 + initialize 单 server 上限
+# catalog_timeout：list_tools 单次上限
+# execution_timeout：call_tool 一次上限
+
+# ── 断线退避 ────────────────────────────────────────────────
+# backoff_base = 0.5 首次等待；backoff_max = 30 上限；
+# backoff_reset = 300 连接保持多久后重置连续失败预算
+
+# ── tools/list_changed 防抖窗口（秒） ──────────────────────
+# resync_debounce = 1.0
+
+# ── server 示例（取消注释后按需改） ────────────────────────
+# [servers.exa]
+# transport = "http"
+# url = "https://mcp.exa.ai/mcp"
+# # bearer_env = "EXA_API_KEY"      # .env 里提供该变量（免 key 的端点可省）
+#
+# [servers.files]
+# transport = "stdio"
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-filesystem", "/home/me/notes"]
+# # env_names = ["SOME_CREDENTIAL"]  # 只写 .env 里的环境变量名，值自动转发给子进程

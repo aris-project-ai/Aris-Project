@@ -44,6 +44,37 @@
   旧 id 失效（覆盖式缓存）。agent 可自主多轮换搜索词（试错）。
 - 局限：不适用于 JS 动态渲染页面（正文提取为空）；国内源未做深抓。
 
+## 第三程重整（2026-10-25：引擎池结构化）
+
+> 详见下文「第三程重整（2026-10-25：引擎池结构化）」一节
+>（引擎池的长期契约以该节与 `behavior/search/` 代码 docstring 为准）。
+
+结构变化：引擎从 `tools/web_search.py` 拆到子包 `behavior/search/`：
+- `search/base.py`——归一化 `Result`（url/title/content/published，抄 opencode
+  形状去掉多 KV/会话亲和）、`EngineFailure`（自带 provider 元数据 + 可选
+  retry-after）、`SearchAllFailed`、冷却表与尝试循环（`attempt_search`）；
+- `search/engines.py`——三个引擎实现（`bing_search` / `tavily_search` /
+  `exa_search`），契约：`(query, count, timeout) -> list[Result]`；
+- `search/render.py`——统一渲染 markdown + `RECENT_RESULTS` 收档
+  （id→url，web_open 点开依据）；无链接的条目不收档（点不开）。
+
+新增能力：
+- **Tavily keyless 模式**：无 `TAVILY_API_KEY` 时改发
+  `X-Tavily-Access-Mode: keyless` 头走免费通道；有 key 行为不变。
+- **Exa 引擎**：经第二程 `mcp` 模块接 `mcp.exa.ai`（免 key），server 名固定
+  `exa`（`config/mcp.toml` 的 `[servers.exa]`），工具 `web_search_exa`，
+  markdown 回包正则解析成 Result；server 未配置/未连接时引擎缺席。
+- **429 冷却**：HTTP 429 时解析 `retry-after`（秒数或 HTTP 日期），
+  冷却中的引擎跳过（缺席原因给模型可见，`prior_failures` / `failed` 字段）；
+  无该头的引擎按 60s 缺省冷却。冷却进程内即可，无跨会话状态设施。
+- **结果 JSON 增量字段**：`failed`: `[{provider, error}, ...]`（本轮试过但
+  折了的引擎，成功与全失败两种 JSON 都带）——模型与 WebUI 都知道谁出的错。
+- `prefer_engine` 合法值扩为 `bing` / `tavily` / `exa` / `auto`。
+
+**不变动的**：`web_open` 还是 id → 抓正文的老约定；工具名 / schema /
+`web_search_results` / `web_search_error` / `web_open_result` /
+`web_open_error` 外层标识全部保持（模型侧零感知）；http_request 工具不受影响。
+
 ### 后续方向（未定，勿现在实现）
 
 - 国内源深抓（正文提取 + 反爬处理）。

@@ -1,10 +1,10 @@
 # Project-Aris
 
-> ## 隆重发布 beta v0.4.2
+> ## 隆重发布 beta v0.4.3
 >
 > uv sync && cp .env.example .env && uv run aris serve : 一键启动
-> 本地优先: 自动下载便携版PostgreSQL + pgvector + Embedding 模型并加载
-> WebUI: 实现简陋的WebUI管理界面
+> 工具系统重构: 声明式工具收编 + 通用 MCP 客户端，任意 MCP server 即插即用
+> 联网搜索兜底: 引擎池 Bing / Tavily(免 key 可用) / Exa，限流自动冷却换引擎
 
 ## 简介
 在 2026-07 我看了Neuro-sama后，萌生了自建的想法，恰逢 Agentic 爆发，于是，在 AI （Opencode伟大，无需多言）的辅助下，本项目诞生了
@@ -57,3 +57,9 @@ aris web # 仅启动 WebUI
 通常情况下，只需在其他位置 git clone 本项目后将旧的 data/ 复制到新位置即可，如需迁移密钥与配置，请将 .env 与 config/ 也一并迁移
 
 > 本项目的代码均由 AI 生成
+
+## 参考项目
+
+- [AstrBot](https://github.com/AstrBotDevs/AstrBot)
+- [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+- [opencode](https://github.com/anomalyco/opencode)

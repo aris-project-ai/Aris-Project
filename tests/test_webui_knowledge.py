@@ -237,8 +237,8 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
 
     from aris.behavior import AgentLoop, LoopEventType
     from aris.behavior.registry import ToolRegistry
-    from aris.behavior.tools import knowledge_search
     from aris.config import get_settings
+    from aris.knowledge.tools import tool_specs
     from support.helpers import build_engine, events_of, user_messages
     from support.mock_llm_server import Scenario, tool_call_chunk
 
@@ -259,7 +259,8 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
     )
     engine = build_engine(llm_server, [{"id": "kbw", "models": [{"id": "m1"}]}])
     registry = ToolRegistry()
-    knowledge_search.register(registry)
+    for spec in tool_specs():
+        registry.register_spec(spec)
     loop = AgentLoop(engine, registry=registry, max_rounds=3)
 
     events = events_of(loop, user_messages("m1", "周三谁值班？"))

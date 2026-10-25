@@ -10,10 +10,9 @@
 - ``knowledge.remove`` —— 软删一个文档及其块
 - ``knowledge.search`` —— 纯向量检索（带来源标识）
 - ``knowledge.reindex`` —— 建 HNSW 索引（幂等）
+- ``knowledge.ai_tools`` —— agent 工具声明（壳在 `tools.py`，契约见 AGENTS.md §6）
 
 启用开关：`config/knowledge.toml` 的 ``enabled``。
-
-尚未实现（后续）：agent 工具 `knowledge_search`（D1）、WebUI 上传（B3 第二阶段）。
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from ..core import provide
 from . import migrations  # noqa: F401  —— import 即登记建表迁移
 from .conf import KnowledgeConfig, get_knowledge_config
 from .service import KnowledgeError, KnowledgeService, get_service
+from .tools import tool_specs
 
 _service = get_service()
 
@@ -34,6 +34,8 @@ provide("knowledge.search", _service.search)
 provide("knowledge.reindex", _service.ensure_index)
 provide("knowledge.upload", _service.upload)
 provide("knowledge.status", _service.status)
+# agent 工具声明（.ai_tools 契约）：behavior 装配时探询收编，见 core/tools.py
+provide("knowledge.ai_tools", tool_specs)
 
 
 def _start() -> dict[str, Any]:
