@@ -1,5 +1,5 @@
 # mcp 模块配置（优先级：代码内默认值 < 本文件）
-# 详见 docs/forAiDoc/MCP.md；契约见 AGENTS.md §6 / docs/forAiDoc/BEHAVIOR-REWORK.md 第 2 节
+# 详见 docs/forAiDoc/MCP.md；.ai_tools 收编契约见 AGENTS.md §6
 #
 # server 名约束：[a-z0-9_-]{1,32}（会进入工具名 mcp_<server>_<tool>）；
 # transport 支持 stdio / http；密钥只写环境变量名，值放 .env。

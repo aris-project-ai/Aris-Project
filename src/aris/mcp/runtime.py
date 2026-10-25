@@ -1,6 +1,6 @@
 """mcp 模块的运行时：通用 MCP 客户端（owner 线程 asyncio + 同步总线服务）。
 
-设计定案（docs/forAiDoc/BEHAVIOR-REWORK.md 第 2 节）：
+设计定案（契约全文见 docs/forAiDoc/MCP.md）：
 
 - 官方 ``mcp`` SDK（v2）是 asyncio，Aris 总线是同步——SDK 跑在**专属 owner
   线程**的事件循环里，对外只给同步入口（AstrBot owner-task 模式搬线程）：
