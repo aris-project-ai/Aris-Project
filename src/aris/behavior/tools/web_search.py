@@ -20,7 +20,7 @@
 
 HTTP 传输统一走 core.http（`core.call("http.request", ...)`）；Bing 的
 「先访问首页拿 cookie 再搜索」由引擎层用命名会话（session="bing"）保证
-cookie 连续。旧全量实现可考古：web_search.py.bak。
+cookie 连续。旧全量实现要考古走 git 历史（297abf1 之前的版本）。
 """
 
 from __future__ import annotations
