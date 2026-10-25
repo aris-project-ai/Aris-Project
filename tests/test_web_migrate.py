@@ -135,7 +135,8 @@ def test_tavily_fallback(fake_http, monkeypatch) -> None:
 def test_web_open(fake_http) -> None:
     global _calls
     _calls = []
-    web_search._recent_results = {1: {"title": "T", "url": "http://example.com/x"}}
+    web_search._recent_results.clear()
+    web_search._recent_results.update({1: {"title": "T", "url": "http://example.com/x"}})
     out = json.loads(web_search._do_web_open_result(1))
     assert out["type"] == "web_open_result", str(out.get("type"))
     assert "网页正文段落内容" in out["content"], repr(out.get("content"))
