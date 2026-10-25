@@ -747,6 +747,42 @@ def _cmd_store(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_tools(args: argparse.Namespace) -> int:
+    """tools 命令：list —— agent 工具面清单（registry 全量 + 声明探询失败）。"""
+    from aris.serve import assemble, get_runtime
+
+    assemble()
+    try:
+        runtime = get_runtime()
+    except Exception as exc:  # noqa: BLE001 —— 组装降级时给明确报错而非裸 traceback
+        logger.error(f"behavior 运行时未装配：{exc}")
+        return 1
+
+    items = runtime.registry.items()
+    visible = sum(1 for tool in items if tool.enabled)
+    failures = runtime.registry.declaration_failures
+    print(f"共 {len(items)} 个工具：模型可见 {visible}，声明探询失败 {len(failures)} 条")
+    for tool in items:
+        desc = tool.definition.description.replace("\n", " ")
+        flag = "" if tool.enabled else "（模型不可见）"
+        print(f"- {tool.definition.name} [{tool.owner or 'behavior'}]{flag}: {desc[:76]}")
+    for provider, error in failures:
+        print(f"! 声明未收编 {provider}: {error}")
+    return 0
+
+
+def _cmd_services(args: argparse.Namespace) -> int:
+    """services 命令：list —— 打印全部已注册的 CMCB 总线服务（按模块分组排序）。"""
+    from aris.core import services
+
+    names = sorted(services())
+    print(f"共 {len(names)} 个总线服务：")
+    for name in names:
+        prefix = name.split(".", 1)[0]
+        print(f"- {prefix:<12} {name}")
+    return 0
+
+
 def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
     """摘出 `aris db psql` 之后的参数（原样透传，不参与 argparse）。
 
@@ -905,6 +941,16 @@ def main(argv: list[str] | None = None) -> int:
     p_kb_reindex = p_kb_sub.add_parser("reindex", help="建 HNSW 索引（幂等）")
     p_kb_reindex.set_defaults(func=_cmd_knowledge)
 
+    p_tools = sub.add_parser("tools", help="agent 工具面（列表 / 状态）")
+    p_tools_sub = p_tools.add_subparsers(dest="tools_command")
+    p_tools_list = p_tools_sub.add_parser("list", help="列出已登记的 agent 工具与声明探询失败条目")
+    p_tools_list.set_defaults(func=_cmd_tools)
+
+    p_services = sub.add_parser("services", help="CMCB 总线服务管理")
+    p_services_sub = p_services.add_subparsers(dest="services_command")
+    p_services_list = p_services_sub.add_parser("list", help="列出全部已注册的总线服务")
+    p_services_list.set_defaults(func=_cmd_services)
+
     # `db psql` 之后的参数不参与 argparse（-c 这类选项会被误判），解析前先摘出
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     parse_argv, psql_args = _extract_psql_passthrough(raw_argv)
@@ -914,11 +960,8 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     # doctor / db / store / knowledge / serve / web 是环境与运维命令，始终显示 INFO
     # 级别——serve 的启动清单本身就是输出，web 的监听地址也要看得见
-    console_level = (
-        "INFO"
-        if (args.verbose or args.command in ("doctor", "db", "store", "knowledge", "serve", "web"))
-        else None
-    )
+    ops_commands = ("doctor", "db", "store", "knowledge", "serve", "web", "tools", "services")
+    console_level = "INFO" if (args.verbose or args.command in ops_commands) else None
     # chat 命令默认不向控制台输出日志——全屏 TUI 由 prompt_toolkit 接管终端，
     # loguru 直接写 stderr 会破坏渲染（spinner 残留、界面错位）；日志仍写文件。
     # --verbose 可强制开启，用于联调排查。
@@ -952,6 +995,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "knowledge" and args.knowledge_command is None:
         p_kb.print_help()
+        return 0
+
+    if args.command == "tools" and args.tools_command is None:
+        p_tools.print_help()
+        return 0
+
+    if args.command == "services" and args.services_command is None:
+        p_services.print_help()
         return 0
 
     return args.func(args)

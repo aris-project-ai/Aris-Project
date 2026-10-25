@@ -191,6 +191,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 |---|---|
 | 新的跨模块能力 | 在模块 `__init__` 里 `provide` 服务 + 同步 `CMCB.md` 服务表 |
 | 新的内置工具 | `behavior/tools/<name>.py`（提供 `register(registry)`）+ 在 `tools/__init__.py` 汇总注册 |
+| 业务模块的 agent 工具 | 壳声明在**能力归属模块**：模块内 `tools.py` 构造 `ToolSpec`（`core/tools.py`），`__init__.py` 里 `provide("<模块>.ai_tools", tool_specs)`；behavior 装配时探询收编，behavior / serve 零改动。工具 fn 不 provide 成总线服务 |
 | 新的数据库表 | `store/migrate.py` 的 `register([Migration(...)])`：owner 内 version 递增，历史迁移不许改写 |
 | 新的可调参数 | 模块 dataclass 默认值 + `config/<module>.toml` + `CONFIG.md`；密钥不进来 |
 | 新的 CLI 子命令 | `cli.py` 的 subparsers（含 `-h` 文案） |

@@ -18,7 +18,7 @@ from pathlib import Path
 
 from ..core.llm.engine import LLMEngine
 from .loop import AgentLoop
-from .registry import ToolRegistry
+from .registry import ToolRegistry, register_declared_tools
 from .skills import SkillManager
 from .tools import register_builtin_tools
 
@@ -41,6 +41,9 @@ class BehaviorRuntime:
         ``with_tools=False`` 只建空注册表、不装载技能（`--no-tools` 与测试里
         要「请求不带任何工具定义」的会话用）；agent loop 仍要建，会话的
         `ask()` 靠它跑。
+
+        工具装配顺序：内置 → 技能 → 业务模块声明（`.ai_tools` 契约探询）。
+        声明探询要求 owner 模块已被 import——时序由组装根保证。
         """
         self.engine = engine
         self.registry = ToolRegistry()
@@ -49,11 +52,18 @@ class BehaviorRuntime:
             register_builtin_tools(self.registry)
             # 实例化即注册 skills.menu 服务与 activate_skill 工具
             self.skills = SkillManager(self.registry, skills_dir)
+            # 各模块经 <模块名>.ai_tools 声明的 agent 工具探询收编；
+            # 失败已在 registry 侧记 warning 并进 declaration_failures
+            register_declared_tools(self.registry)
         self.loop = AgentLoop(engine, registry=self.registry)
 
     def tool_count(self) -> int:
-        """当前注册的工具数（启动探针用）。"""
-        return len(self.registry.definitions())
+        """当前登记的工具数（启动探针用）。
+
+        统计**全部登记**（含 disabled / 不可见工具），探针数字只反映装配
+        结果，不随模型可见性开关波动；模型可见数看 `definitions()`。
+        """
+        return len(self.registry.items())
 
     def system_prompt(self, base: str) -> str:
         """拼系统提示词：人设 + 工具提示 +（有技能时）技能菜单。

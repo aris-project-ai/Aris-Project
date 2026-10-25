@@ -140,6 +140,7 @@ summary = query_summary()            # 聚合统计
 | `llm.retired.list/delete` | `core/llm/fetch.py` 模块级 | 退休模型：列表 / 手动删除 | `webui` 提供商页 |
 | `skills.list/detail` | `behavior/skills/manager.py` 模块级 | 技能清单 / 详情 | `webui` 技能页 |
 | `skills.create/save/delete` | `behavior/skills/manager.py` 模块级 | 技能增改删 | `webui` 技能页 |
+| `knowledge.ai_tools` | `knowledge/__init__.py` 模块级 | agent 工具声明（`list[ToolSpec]`，契约 `core/tools.py`；`.ai_tools` 后缀由 behavior 探询） | behavior 装配（`register_declared_tools`） |
 
 > 注：`llm.*` 提供商管理服务由 `core/llm/manage.py`、`core/llm/fetch.py`
 > **模块级注册**（import 即注册），无核心类实例；注册触发与启动自检归**组装根**
