@@ -22,7 +22,12 @@
 ### 1.1 已定案的设计
 
 - **契约载体 `core/tools.py: ToolSpec`**（frozen dataclass）：
-  `name / description / parameters / fn / owner / needs_context`。
+  `name / description / parameters / fn / owner / needs_context / enabled`。
+  `enabled` 来自声明方的自身配置（如 knowledge 的 `enabled`）：照常声明进
+  registry（CLI / WebUI 能看到它的存在与状态），但 `definitions()` 过滤掉
+  disabled 的工具——**模型看不到，不占请求工具面**；执行侧 fn 仍保留
+  「已关闭」降级文案（手动调用兜底）。这就是未来「工具开关」的地基。
+- **重名策略**：warning 后后注册者胜（与 skills 覆盖语义一致）。
   放 core 不放 behavior：knowledge 声明工具要**运行期**构造它，放 behavior 会
   形成「业务模块 → agent 栈」的运行期 import（AGENTS §6「纯类型引用」豁免盖不住）；
   core 是共享词汇层，`ToolDefinition` 已有先例住在 core。
@@ -54,7 +59,8 @@
 |---|---|
 | `core/tools.py` | 新增：`ToolSpec` + `ToolFn`（简短契约说明） |
 | `behavior/registry.py` | `register_spec` / `register_declared_tools` / `owner` / 重名 warning / 失败清单 |
-| `behavior/runtime.py` | 内置 → 技能 → 声明探询的装配顺序 |
+| `behavior/runtime.py` | 内置 → 技能 → 声明探询的装配顺序；`tool_count()` 统计**全部登记**（含 disabled），探针数字稳定 |
+| `cli.py` | 新增 `aris tools list`（name / owner / enabled / description 截断）与 `aris services list`（总线服务清单）；不碰 WebUI |
 | `behavior/tools/knowledge_search.py` | 删除 |
 | `knowledge/tools.py` | 新增：壳整体迁入；`tool_specs()` 导出；同模块直调 service |
 | `knowledge/__init__.py` | `provide("knowledge.ai_tools", tool_specs)` + docstring 纠偏 |

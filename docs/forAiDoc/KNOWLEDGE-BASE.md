@@ -259,7 +259,8 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
   一并返回；测试数据已移除
 
 **已实现（续，2026-09-18）**：agent 工具 `knowledge_search`
-（`behavior/tools/knowledge_search.py`，随内置工具集注册）——D1 定案落地：
+（壳在 `knowledge/tools.py`，2026-10 起随 `.ai_tools` 声明契约自模块声明，
+不再寄居 behavior 内置工具集）——D1 定案落地：
 与 `web_search` 并列、**由 Aris 自主调用**，不依赖每轮自动注入。返回 D3 约定格式
 `{"type": "knowledge_search_results", "query", "count", "results"}`，内部 markdown，
 每条为 `id. 标题｜路径 › 标题层级（距离 x.xxx）` + 缩进内容。
