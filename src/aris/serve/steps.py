@@ -225,6 +225,27 @@ def _start_knowledge() -> str:
     return f"{info.get('docs', 0)} 文档 / {info.get('chunks', 0)} 块，索引已就绪"
 
 
+def _probe_mcp() -> str:
+    """探针：mcp server 面状态（只读；连接已在 behavior 装配时发生）。"""
+    info: dict[str, Any] = call("mcp.status") or {}
+    if not info:
+        raise RuntimeError("mcp.status 未注册")
+    servers: dict[str, Any] = info.get("servers") or {}
+    if not servers:
+        return "未配置 server（config/mcp.toml 无 [servers.*]）"
+    connected = sum(1 for s in servers.values() if s.get("status") == "已连接")
+    tools = sum(s.get("tools") or 0 for s in servers.values())
+    bad = [
+        f"{name}({s.get('status')}" + (f"：{s.get('detail')}" if s.get("detail") else "") + ")"
+        for name, s in servers.items()
+        if s.get("status") == "已失败"
+    ]
+    line = f"{len(servers)} 个 server，{connected} 已连接 / {tools} 个工具"
+    if bad:
+        line += f"；失败 {len(bad)} 个（{'、'.join(bad)}）"
+    return line
+
+
 def _probe_webui() -> str:
     """探针：监听端口是否可用（被占用即抛错，交由档位处理）。"""
     info: dict[str, Any] = call("webui.probe") or {}
@@ -268,6 +289,7 @@ def build_steps(config: ServeConfig) -> list[ServeStep]:
             start=_start_knowledge,
             needs=("store.db",),
         ),
+        ServeStep("mcp", "mcp", _probe_mcp),
         ServeStep("webui", "webui", _probe_webui, start=_start_webui, blocks=True),
     ]
 

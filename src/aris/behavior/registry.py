@@ -5,7 +5,10 @@
 - 技能工具：SkillManager 激活时登记；
 - 业务模块声明的 agent 工具：模块经 `<模块名>.ai_tools` 总线服务给出
   `ToolSpec` 清单，`register_declared_tools` 在装配时探询收编——工具的 fn
-  本身不上总线，总线只传声明（契约见 `core/tools.py`）。
+  本身不上总线，总线只传声明（契约见 `core/tools.py`）；
+- **动态工具**（如 mcp 模块供的远端 MCP 工具，列表会变）：经总线服务
+  `tools.sync_generation` 做**世代同步**——旧代（同 owner）全量卸下 ↔ 新代
+  全量登记，新代校验失败保旧代（dsh 验证过的两相式，避免工具面空窗）。
 
 执行失败宽容降级：返回错误文本给模型消化，不抛到 UI（设计哲学第 3 条）。
 """
@@ -13,6 +16,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -49,12 +54,17 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[str, RegisteredTool] = {}
+        # 登记表锁：mcp 的世代同步发生在 **mcp owner 线程**，agent loop 在主线程
+        # 读 —— 同一把 RLock 保证整表/单条互不撕裂（RLock 允许嵌套 register）。
+        self._lock = threading.RLock()
         # 声明探询失败的提供方清单：[(provider 服务名, 错误摘要)]。
         # 每轮 `register_declared_tools` 重置；WebUI 工具页据此醒目展示
         # 「声明了但没收编上」的条目（日志是时间线，这里是状态面）。
         self.declaration_failures: list[tuple[str, str]] = []
         # 注册为统一服务：工具执行统一走 core.call("tools.execute", ...)
         provide("tools.execute", self.execute)
+        # 世代同步：动态工具提供方（mcp）经它做「旧代↔新代」两相式换装
+        provide("tools.sync_generation", self.sync_generation)
 
     def register(
         self,
@@ -67,19 +77,22 @@ class ToolRegistry:
         owner: str = "",
         enabled: bool = True,
     ) -> None:
-        """登记一个工具。重名时记 warning 后覆盖（后注册优先）。"""
-        if name in self._tools:
-            logger.warning(
-                f"工具 {name} 重名注册（{owner or 'behavior 内置'} 覆盖 "
-                f"{self._tools[name].owner or 'behavior 内置'} 的旧定义）"
+        """登记一个工具（持锁）。重名时记 warning 后覆盖（后注册优先）。"""
+        with self._lock:
+            if name in self._tools:
+                logger.warning(
+                    f"工具 {name} 重名注册（{owner or 'behavior 内置'} 覆盖 "
+                    f"{self._tools[name].owner or 'behavior 内置'} 的旧定义）"
+                )
+            self._tools[name] = RegisteredTool(
+                definition=ToolDefinition(
+                    name=name, description=description, parameters=parameters
+                ),
+                fn=fn,
+                needs_context=needs_context,
+                owner=owner,
+                enabled=enabled,
             )
-        self._tools[name] = RegisteredTool(
-            definition=ToolDefinition(name=name, description=description, parameters=parameters),
-            fn=fn,
-            needs_context=needs_context,
-            owner=owner,
-            enabled=enabled,
-        )
 
     def register_spec(self, spec: ToolSpec) -> None:
         """收编一条业务模块的工具声明；非法声明抛 ValueError（探询层负责降级）。"""
@@ -101,14 +114,45 @@ class ToolRegistry:
 
     def items(self) -> list[RegisteredTool]:
         """全部登记项（按注册顺序，含 disabled），供 CLI / WebUI 工具页枚举。"""
-        return list(self._tools.values())
+        with self._lock:
+            return list(self._tools.values())
 
     def definitions(self) -> list[ToolDefinition]:
         """返回**模型可见**的工具定义（按注册顺序），供请求携带。
 
         disabled 的工具不进请求工具面（`ToolSpec.enabled` 契约）。
         """
-        return [t.definition for t in self._tools.values() if t.enabled]
+        with self._lock:
+            return [t.definition for t in self._tools.values() if t.enabled]
+
+    def sync_generation(self, specs: Sequence[ToolSpec], *, owner: str) -> dict[str, int]:
+        """世代同步（持锁）：旧代（同 ``owner``）全量卸下 ↔ 新代全量登记。
+
+        两相式纪律：**先整体校验新代**，任何一条非法就整代拒绝、旧代原样保留
+        （工具面不空窗）；都合法才卸旧装新。返回 `{"registered": n,
+        "unregistered": m}`。供动态工具提供方（mcp）经 `tools.sync_generation`
+        总线服务调用——server 断线把它的工具撤下，`tools/list_changed` 换新目录。
+        """
+        with self._lock:
+            for spec in specs:
+                if (
+                    not isinstance(spec.name, str)
+                    or not spec.name.strip()
+                    or not callable(spec.fn)
+                    or not isinstance(spec.parameters, dict)
+                ):
+                    raise ValueError(f"新代存在非法声明：{spec!r}")
+            old = {k: v for k, v in self._tools.items() if v.owner == owner}
+            for name in old:
+                del self._tools[name]
+            try:
+                for spec in specs:
+                    self.register_spec(spec)
+            except Exception:
+                for name, tool in old.items():
+                    self._tools[name] = tool
+                raise
+            return {"registered": len(specs), "unregistered": len(old)}
 
     def execute(self, name: str, arguments: dict, *, context: str | None = None) -> str:
         """执行工具，返回文本形式的结果。

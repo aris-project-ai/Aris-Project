@@ -142,6 +142,7 @@ def test_builtin_steps_shape() -> None:
         "store.db",
         "store.embed",
         "knowledge",
+        "mcp",
         "webui",
     ]
     levels = {s.name: s.level for s in steps}

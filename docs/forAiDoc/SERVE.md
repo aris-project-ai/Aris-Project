@@ -44,7 +44,8 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 | 4 | `store.db` | 探活；没跑则**自启**便携 PG（端口被占则换端口、二进制跑不起来则重获取、角色名在线对齐）；跑迁移到最新 | **required** |
 | 5 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
 | 6 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 4） |
-| 7 | `webui` | 端口探测 → 起 HTTP（见 §4） | optional |
+| 7 | `mcp` | 报 server 面状态（连接已在 3 的 behavior 装配时发生；`mcp.status`） | optional（import 即就绪） |
+| 8 | `webui` | 端口探测 → 起 HTTP（见 §4） | optional |
 
 说明：探针是「只读 + 可失败」的体检（`aris doctor` 复用同一份），启动动作才是真正
 拉东西；`--dry-run` 只跑前者。

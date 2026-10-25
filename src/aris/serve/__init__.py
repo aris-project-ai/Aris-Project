@@ -66,6 +66,7 @@ def assemble() -> None:
     import aris.character  # character.system_prompt
     import aris.core.llm  # llm.stream / llm.race / llm.deltas
     import aris.knowledge  # knowledge.*
+    import aris.mcp  # mcp.ai_tools / mcp.call_tool / mcp.status
     import aris.store  # store.*
     import aris.webui  # noqa: F401  —— webui.start / webui.probe
     from aris.behavior.skills import manager as _skills  # noqa: F401

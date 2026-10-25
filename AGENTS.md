@@ -78,6 +78,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | `src/aris/core/` | CMCB 总线（服务注册 + 事件 + 审计）、LLM 提供方抽象（fallback / 流式 / 工具调用） |
 | `src/aris/store/` | 存储基础设施：便携 PG + pgvector、embedding 抽象、迁移机制、向量检索 helper；不认识业务语义 |
 | `src/aris/knowledge/` | 知识库：外部资料的 RAG（摄入 / 分块 / 检索），384 维本地 embedding；不做 skill，只经总线暴露；摄入走 CLI，agent 只给检索工具 |
+| `src/aris/mcp/` | 通用 MCP 客户端：官方 `mcp` SDK + `config/mcp.toml` 驱动 transport；owner 线程 asyncio，同步总线服务（见 `docs/forAiDoc/MCP.md`） |
 | `src/aris/memory/` | Aris 的个人记忆。**暂停开发**，重启时间由开发者决定；详见 `docs/forAiDoc/MEMORY.md` |
 | `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
 | `src/aris/behavior/` | 行为：工具注册表、agent loop、内置工具、skills 系统；联网搜索 Bing 直连为主、Tavily 兜底 |
@@ -261,6 +262,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | 启动编排 `serve/` | `docs/forAiDoc/SERVE.md` |
 | 记忆系统（暂停） | `docs/forAiDoc/MEMORY.md` |
 | 知识库 | `docs/forAiDoc/KNOWLEDGE-BASE.md` |
+| 通用 MCP 客户端 | `docs/forAiDoc/MCP.md` |
 | 技能系统 | `docs/forAiDoc/SKILLS.md` |
 | 提供商 / 模型管理 | `docs/forAiDoc/LLM-PROVIDER-MGMT.md` |
 | WebUI 管理后台 | `docs/forAiDoc/WEBUI.md` |
