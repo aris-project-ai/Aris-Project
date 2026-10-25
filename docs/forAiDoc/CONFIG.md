@@ -44,6 +44,10 @@ _search_config = load_config(SearchConfig(), "search.toml")
 | `logging.toml` | aris/logging | `file_rotation`、`retention` |
 | `audit.toml` | core/audit | `max_records`、`recent_default_limit` |
 | `notify.toml` | core/llm/notify | `timeout_seconds` |
+| `knowledge.toml` | knowledge | `enabled`、分块、检索与索引参数、WebUI 上传目录 |
+| `store.toml` | store | embedding 提供方 / 本地模型 / batch / 截断维度 |
+| `serve.toml` | serve | 步骤与预热开关（`skip` / `web_enabled` / `preload_embedding` 等） |
+| `mcp.toml` | mcp | server 表 `[servers.*]` + 三组超时 + 断线退避 + 防抖（详见 `MCP.md`） |
 
 ## 收口原则（2026-08-12 定案）
 
