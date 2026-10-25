@@ -27,16 +27,18 @@
 
 ## 当前聚焦
 
-- **behavior 重整（三程）**：第一程「声明式工具收编」与第二程「通用 MCP 客户端」
-  均已并入 develop——业务模块的 agent 工具在自有模块声明（`<模块>.ai_tools` 契约，
-  `ToolSpec` 在 `core/tools.py`），behavior 装配时探询收编；`mcp` 模块接任意
-  MCP server（`config/mcp.toml` 驱动，契约见 `docs/forAiDoc/MCP.md`），工具动态
-  汇入靠 `tools.sync_generation` 世代同步；新增 `aris tools list` /
-  `aris services list`。第三程「联网搜索重整」（Bing / Tavily+keyless / Exa
-  引擎池，Exa 经 mcp 接入）未开工，施工方案见 `docs/forAiDoc/BEHAVIOR-REWORK.md`，
-  全部完成后该文档删除。
+- **behavior 重整（三程，已全部完成并入 develop）**：
+  1. 声明式工具收编——业务模块的 agent 工具在自有模块声明（`<模块>.ai_tools` 契约，
+     `ToolSpec` 在 `core/tools.py`），behavior 装配时探询收编；新增 `aris tools list` /
+     `aris services list`；
+  2. 通用 MCP 客户端——`mcp` 模块接任意 MCP server（`config/mcp.toml` 驱动，契约见
+     `docs/forAiDoc/MCP.md`），工具动态汇入靠 `tools.sync_generation` 世代同步；
+  3. 联网搜索重整——引擎池在 `behavior/search/`（Bing 直连 / Tavily 含 keyless /
+     Exa 经 mcp 接入），引擎只吐归一化 Result、渲染归壳层；429 冷却 + 失败 provider
+     元数据；详见 `docs/forAiDoc/WEB-SEARCH.md`「第三程重整」。
+  施工方案文档 BEHAVIOR-REWORK.md 已随收官删除（定案各自归档）。
 - **工程化 P0（已完成，随 `chore/tooling` 合并进入 develop）**：ruff + mypy + `scripts/check.sh`；
-  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-or-later 元数据；全量测试 163 passed。
+  wheel 补齐 WebUI 模板 / 静态文件、`py.typed` 与 GPL-3.0-or-later 元数据；全量测试 186 passed。
 - **文档整治**：目录已统一为 `docs/forAiDoc/`；其余文档按 AGENTS.md 标准分批清理
   （删历史与日期、过程迁 `docs/archive/`、重复内容只留一处）。
 - **v1.0**：`character` 已完成；`memory` 暂停，原 M3（会话落库）之后的阶段一并挂起。
