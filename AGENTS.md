@@ -8,8 +8,11 @@
 ## 1. 权威与规则
 
 - **最终权威归开发者，尤其是莫琳。**
-- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `BACKLOG.md`
+- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`
   > `docs/archive/`**。都不合，停下来问开发者，不要自己拍板。
+- **待办唯一真相源是仓库根 `todolist.md`**：要做的事只写在那里，按阶段推进；
+  旧的 `BACKLOG.md` 已归档作废。**事实优先于文档**——能用 CLI / 代码常量表达的事实，
+  不再单独写进文档。
 - **准入标准**：AGENTS.md 只收两类内容——**通用规则**（适用于所有模块）与**最高权威判定**。
   单模块实现细节、一次性决定、历史过程都不进来。
 - **职责不重复原则**：一个事实只在一个地方写完整。
@@ -55,6 +58,8 @@
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
 
+**CLI 功能必须 ≥ WebUI**：WebUI 有的能力，CLI 必须先有（只能多不能少）；新增 WebUI 功能前先补对应命令。
+
 ## 3. 项目
 
 Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上的人**：长期独立的人格、
@@ -83,7 +88,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
 | `src/aris/behavior/` | 行为：工具注册表（含世代同步）、agent loop、内置工具、skills 系统；联网搜索是**引擎池**（`behavior/search/`：Bing 直连 / Tavily 含 keyless / Exa 经 mcp，见 `docs/forAiDoc/WEB-SEARCH.md`） |
 | `src/aris/chat/` | 文字对话 + TUI（`aris chat`，开发调试用） |
-| `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI，不对外提供查询服务 |
+| `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI，不对外提供查询服务；**任何模块不得 import serve**（serve 是启动器，不是库；运行时对象归 `behavior/runtime.py`） |
 | `src/aris/webui/` | 管理后台：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库 |
 | `src/aris/voice/` | STT / TTS：TTS 已定 Edge TTS 起步（Azure 备选），STT 选型未定 |
 | `src/aris/autorun/` | 定时与主动任务（只留设计，暂不实现） |
@@ -132,6 +137,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **审计**：每次 `call` / `emit` 记一条流水（`audit.recent` / `audit.summary` 本身也是总线服务），
   审计失败不影响业务调用。
 - **不走总线的边界**：对象构造 / 依赖注入、同模块内部调用、纯类型引用（如 `Message`）、CLI 组装根。
+- **serve 是启动器，不是库**：任何模块不得 import `serve`（`cli.py` 入口与测试除外）；运行期单例（engine / registry / runtime）归 `behavior/runtime.py`。
 - **依赖声明与核验**：各模块声明自己的 `REQUIRED_SERVICES`，由 `serve` 的 `services` 步骤
   （required）统一核验；`serve.assemble()` 是**唯一**的 import 触发点，别在别处 import 所有者模块。
 - **改服务时**：新增 / 改名 / 删除要同步 `docs/forAiDoc/CMCB.md` 的服务表，并全仓搜索调用点。
@@ -245,8 +251,8 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
   有 `beta-v1.0.1` 就没有 `v1.0.1`，反之亦然；要发另一个渠道就用更高的号。
 - beta 不是预发布，只是小版本更新标记；不靠版本串排序区分渠道。
 - **密集发布、单个 patch 装不下的小功能**可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- **alpha 渠道（预留，未实现）**：只在 `develop` 发布，用于 v1.0.0 预发布；
-  tag 形态与是否占用号码届时再定。
+- **alpha 渠道**：只在 `develop` 发布，tag 形如 `alpha-vX.Y.Z`，用于 v1.0.0 前的预发布；
+  **占用数字线**（与 beta / 正式同规则，同号不得再发其他渠道）。
 - 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
   号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
 - 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
@@ -269,14 +275,41 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | 可迁移性 / 单一会话 | `docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
 | v1.0 施工方案与验收 | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
-| 中长期待办 | `docs/forAiDoc/BACKLOG.md` |
-| 暂不实现的既定方向（多模态 / Responses API / 降级纪律 / autorun） | `docs/forAiDoc/BACKLOG.md` |
+| 待办与阶段计划（唯一真相源） | `todolist.md` |
+| 已作废的旧待办（只读） | `docs/archive/BACKLOG-2026-10.md` |
 | 项目蓝图 / 参考材料 | `docs/forAiDoc/Project-Aris.md`、`docs/referenceDocumentation/` |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
 | 插件系统 / 文档站（均搁置） | `docs/forAiDoc/PLUGIN.md`、`docs/forAiDoc/DOCS-SITE.md` |
 | 安全审查与总线化改造记录 | `docs/forAiDoc/SECURITY-AND-REFACTOR-PLAN.md` |
 | TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 | 旧事 / 已作废的方案 | `docs/archive/` |
+
+### 文档规范（`docs/forAiDoc/`）
+
+**分层**：AGENTS 是规则与唯一索引；`docs/forAiDoc/` 只收**契约与约束**（边界、接口、为什么这么设计、坑、未决）；
+`docs/` 放人类文档（如 `DEV-FLOW.md`）；`docs/referenceDocumentation/` 是外部资料快照（已基本废弃，暂不维护）；
+`docs/archive/` 只读。**状态进 `PROGRESS.md`，待办进 `todolist.md`，过程进 archive。**
+
+**准入（硬规则）**：
+
+1. **能从代码或 CLI 得到的事实不写文档**——模块 / 开关看 `aris modules list`，服务看 `aris services list`，
+   工具看 `aris tools list`，配置看 `aris config list|show`，路径与版本看 `aris info`，健康看 `aris doctor`。
+   文档不再抄这些表与清单。
+2. 历史、进度、待办、过程不进 forAiDoc。
+3. 一个事实只写一处；其余只留指针。
+4. **不写行号、文件名清单、函数名清单、服务表、配置项表**——这些必然漂移；引用符号名或命令。
+
+**每份文档固定开头**：
+
+```
+# <主题>
+> 状态：契约 | 暂停 | 搁置
+> 代码入口：src/aris/<module>/
+> 事实查看：aris <command>
+```
+
+**其它**：正文不写日期（外部资料快照在头部标抓取年月）；不设行数上限，但写长了先自查是否重复或该拆；
+**未开工的设计不进 forAiDoc**（归档，开工时按 `todolist.md` 重写）；`MEMORY.md` 由开发者本人维护。
 
 ## 11. 已知陷阱
 
@@ -328,7 +361,8 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 
 **主线**：v1.0 的主体是人格 / 角色载体；记忆系统暂停中，重启由开发者决定。之后是语音链路
 （STT → LLM → TTS）、知识库第二阶段（PDF / 混合检索）、GraphRAG。阶段划分与验收见
-`docs/forAiDoc/V1.0-PLAN.md`，中长期方向见 `docs/forAiDoc/BACKLOG.md`。
+`docs/forAiDoc/V1.0-PLAN.md`（阶段划分将被 `todolist.md` 的两阶段计划取代）；
+待办与阶段计划见 `todolist.md`。
 
 **已定方向（未实现）**：
 

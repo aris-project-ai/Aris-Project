@@ -56,4 +56,4 @@
 1. **重置其余文档**：`docs/forAiDoc/*` 还没按 AGENTS.md 的标准清理——删除历史与日期、
    把过程迁入 `docs/archive/`、重复内容只留一处；逐份来，改完顺手更新本文件。
 2. 等 memory 设计重审结论，再决定后续主线。
-3. 其他可插入项见 `docs/forAiDoc/BACKLOG.md`。
+3. 其他可插入项见 `todolist.md`（待办唯一真相源；旧 BACKLOG 已归档）。
