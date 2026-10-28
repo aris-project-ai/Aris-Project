@@ -51,7 +51,7 @@
 
 ### v0.4.4 范围（W1–W6）
 1. **W1 统一数据目录**：新增 `paths.py`；解析顺序 `ARIS_DATA_DIR` > 开发树 `./data` > 安装 `~/.project-aris`；清除硬编码；加守卫测试；`aris info` 打印解析结果。
-2. **W2 配置收口**：`data/config/` 为运行时权威，模板随包（`src/aris/seed/config/`）首次幂等播种；**`.env` 不搬家，改为 TOML 并入 `data/config/`**（启动级参数与密钥同目录，文件权限 0600，不再保留 `.env`）；删除 `.env.example`，变量清单由 `aris config env` 只读展示；**不做自动迁移**（v1.0 前不承诺兼容）；同批改 `README.md` 快速开始——去掉 `cp`，目标形态是 `uv sync && uv run aris serve` 一条命令。
+2. **W2 配置收口**：`data/config/` 为运行时权威，模板随包（`src/aris/seed/config/`）首次幂等播种；**`.env` 不搬家，改为 TOML 并入 `data/config/`**（不再保留 `.env`；拆 `settings.toml` + `secrets.toml`，后者 0600；加载器改为「先读 TOML，再把 key 字段 setdefault 进 `os.environ`」以保住 provider 的 `api_key_env` 链路）；删除 `.env.example`，变量清单由 `aris config env` 只读展示；**不做自动迁移**（v1.0 前不承诺兼容）；同批改 `README.md` 快速开始——去掉 `cp`，目标形态是 `uv sync && uv run aris serve` 一条命令。
 3. **W3 CLI 事实入口**：`aris info` / `aris config path|list|show|validate`（只读，不写配置）/ `aris modules list|status|enable|disable`；模块开关 7 个（store / knowledge / mcp / behavior / webui / character / voice），`modules.toml` 统一，`knowledge.toml.enabled` 并入；关闭时日志报错、不退出程序。
 4. **W4 架构原则落地**：`serve` 只做组装与启动，**任何模块不得 import serve**；`get_runtime` 等运行时对象移到 `behavior/runtime.py`；加守卫测试。
 5. **W5 LLM 退休机制退役**：`fetch` 只把同步后消失的模型写入 `data/state/llm-list-missing.json`，`aris llm missing list` 与 WebUI 只读查看。
@@ -63,6 +63,6 @@
 - CLI 不负责配置写入（查看 / 校验即可，编辑交给编辑器）。
 - alpha tag 形如 `alpha-vX.Y.Z`，只在 develop，**占用数字线**。
 - 旧配置 / 旧 `.env` 的迁移与兼容性：v1.0+ 再做。
-- `.env` 的去向是**转成 TOML 并入 `data/config/`**，不是原样搬进 `data/`。
+- `.env` 的去向是**转成 TOML 并入 `data/config/`**，不是原样搬进 `data/`；拆分方案已定：`settings.toml`（启动参数）+ `secrets.toml`（密钥，0600）。
 - 图标、CI、项目标准化、彩蛋、备份、公开：v1.0 或之后。
 
