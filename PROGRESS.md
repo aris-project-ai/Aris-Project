@@ -9,7 +9,7 @@
 
 ## 当前阶段
 
-**v0.4.4 规划完成，尚未开工。** 范围与决策见 `todolist.md` 末尾「备注（2026-10-28 定）」：
+**v0.4.4 规划完成，尚未开工。** 施工文档：`docs/process/v0.4.4.md`；范围与决策见 `todolist.md` 末尾「备注（2026-10-28 定）」：
 
 - **W1** 统一数据目录（新增 `paths.py`，清硬编码）
 - **W2** 配置收口（`data/config/`；`.env` 转 TOML 迁入；拆 `settings.toml` + `secrets.toml`）
