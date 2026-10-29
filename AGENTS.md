@@ -108,6 +108,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 - **行尾 / 缩进**：由 `.editorconfig`、`.gitattributes` 统一（LF、UTF-8）。
 - **C 代码**：clang-format（仓库根 `.clang-format`，行宽 100）。命名：函数大驼峰（`ArisDemoAdd`）、
   变量小驼峰（`userCount`）、指针星号靠变量（`int *p`）、常量宏 UPPER_SNAKE_CASE。
+  `src/aris/csrc/` 保留为 C 扩展示范（demo），真实性能热点再按需加入，**不要删**。
 - **注释**：简单代码不写废话；复杂算法、业务逻辑、易误解处写清楚。
 - **KISS**：一个东西只做一件事，每处职责单一；不写聪明的花活。
 - **YAGNI**：不为不存在的需求设计，但基础架构方向要提前明确。
