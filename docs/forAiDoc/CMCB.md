@@ -223,6 +223,21 @@ summary = query_summary()            # 聚合统计
 - **纯数据/类型引用**：`Message`/`ChatRequest`/`ToolDefinition` 等
   数据结构跨模块共享，import 类型即可，不经总线。
 
+### 例外登记（2026-10-29）
+
+以下直连是**有意保留**的例外，不算模块间通讯。新增例外必须先在表里登记并写清边界，否则视为违例。
+
+| 直连 | 为什么不走总线 | 边界 |
+|---|---|---|
+| `knowledge/migrations.py` → `store.migrate` | 迁移以「注册函数」形式在 import 时登记（`Migration` 含建表函数），总线只承载可调用服务，不适合承载迁移注册 | 只允许 `knowledge → store`；禁止反向 |
+| `chat/session.py` → `behavior`（`BehaviorRuntime` / `LoopEventType`） | 会话经构造注入拿运行时，属对象构造 / 依赖注入 + 纯类型引用 | 只取类型与注入实例，不在 chat 内直接调 behavior 内部函数 |
+| `aris.config.get_settings()` / `aris.cfgtoml` | 配置是基础设施，三层三源本身即一层，不是模块间业务通讯（WebUI 配置页同） | 只读写配置；不要借此绕过业务服务 |
+| `serve/assembly.py` → 各所有者模块 | 组装根是唯一 import 触发点；serve 只被入口与测试使用，**不被任何模块 import** | serve 不对外提供查询服务 |
+| `tests/conftest.py` → `serve.assemble()` | 测试也是宿主，需注册全部服务再建 app | 仅测试 |
+
+> 事件总线目前只有 `mcp.tools_changed` 一个发布者、无总线订阅者（WebUI SSE 用自有 broker）；
+> 首个真实订阅者随 memory / voice 落地，暂不新增事件面。
+
 ### 未迁移（遗留，后续视需要处理）
 
 - ~~`session.py` 中 `self.browser.close()`、`cleanup_stale_browser_processes()`~~
