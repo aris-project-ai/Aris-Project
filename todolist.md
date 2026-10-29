@@ -49,6 +49,8 @@
 - **阶段一 beta-v0.4.3 → 正式 v0.4.4（地基版）**：路径与配置收口、CLI 事实入口、模块开关、退休机制退役、工程小件。不承诺旧数据 / 旧配置兼容。
 - **阶段二 alpha-v0.4.6 → 正式 v1.0.0**：项目标准化、备份系统、WebUI 重整与设置页、统一连接路径、LLM 提供商重构、memory / 角色、打包与 GUI、公开。
 
+> 施工文档：`docs/process/v0.4.4.md`（规划完成，未开工）。
+
 ### v0.4.4 范围（W1–W6）
 1. **W1 统一数据目录**：新增 `paths.py`；解析顺序 `ARIS_DATA_DIR` > 开发树 `./data` > 安装 `~/.project-aris`；清除硬编码；加守卫测试；`aris info` 打印解析结果。
 2. **W2 配置收口**：`data/config/` 为运行时权威，模板随包（`src/aris/seed/config/`）首次幂等播种；**`.env` 不搬家，改为 TOML 并入 `data/config/`**（不再保留 `.env`；拆 `settings.toml` + `secrets.toml`，后者 0600；加载器改为「先读 TOML，再把 key 字段 setdefault 进 `os.environ`」以保住 provider 的 `api_key_env` 链路）；删除 `.env.example`，变量清单由 `aris config env` 只读展示；**不做自动迁移**（v1.0 前不承诺兼容）；同批改 `README.md` 快速开始——去掉 `cp`，目标形态是 `uv sync && uv run aris serve` 一条命令。

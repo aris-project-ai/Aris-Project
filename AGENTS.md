@@ -276,6 +276,7 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 | v1.0 施工方案与验收 | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
+| 当前阶段施工文档（过程性） | `docs/process/v0.4.4.md` |
 | 已作废的旧待办（只读） | `docs/archive/BACKLOG-2026-10.md` |
 | 项目蓝图 / 参考材料 | `docs/forAiDoc/Project-Aris.md`、`docs/referenceDocumentation/` |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
@@ -287,7 +288,8 @@ Aris 是一个拟人 AI。目标不是做助手，而是做**社会学意义上�
 ### 文档规范（`docs/forAiDoc/`）
 
 **分层**：AGENTS 是规则与唯一索引；`docs/forAiDoc/` 只收**契约与约束**（边界、接口、为什么这么设计、坑、未决）；
-`docs/` 放人类文档（如 `DEV-FLOW.md`）；`docs/referenceDocumentation/` 是外部资料快照（已基本废弃，暂不维护）；
+`docs/` 放人类文档（如 `DEV-FLOW.md`）；`docs/process/` 放阶段施工文档（过程性，阶段结束后移入 archive）；
+`docs/referenceDocumentation/` 是外部资料快照（已基本废弃，暂不维护）；
 `docs/archive/` 只读。**状态进 `PROGRESS.md`，待办进 `todolist.md`，过程进 archive。**
 
 **准入（硬规则）**：
