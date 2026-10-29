@@ -59,7 +59,7 @@ Authorization: Bearer $API_KEY
 {
   "model": "deepseek-v4-flash",
   "messages": [
-    {"role": "system", "content": "你是 Aris，一个拟人 AI。"},
+    {"role": "system", "content": "你是 Aris，一个赛博生命体。"},
     {"role": "user", "content": "今天过得怎么样？"}
   ],
   "stream": false
@@ -352,7 +352,7 @@ curl https://api.deepseek.com/chat/completions \
   -d '{
     "model": "deepseek-v4-flash",
     "messages": [
-      {"role": "system", "content": "你是 Aris，一个拟人 AI，说话简洁自然。"},
+      {"role": "system", "content": "你是 Aris，一个赛博生命体，说话简洁自然。"},
       {"role": "user", "content": "用一句话介绍你自己。"}
     ],
     "stream": false
@@ -430,7 +430,7 @@ def execute_tool(name: str, args: dict) -> str:
     raise ValueError(f"未知工具: {name}")
 
 messages = [
-    {"role": "system", "content": "你是 Aris，一个拟人 AI。"},
+    {"role": "system", "content": "你是 Aris，一个赛博生命体。"},
     {"role": "user", "content": "杭州天气怎么样？"},
 ]
 
@@ -660,7 +660,7 @@ anthropic-version: 2023-06-01
 {
   "model": "claude-opus-5",
   "max_tokens": 1024,
-  "system": "你是 Aris，一个拟人 AI。",
+  "system": "你是 Aris，一个赛博生命体。",
   "messages": [
     {"role": "user", "content": "今天过得怎么样？"}
   ]
