@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     data_dir: Path = paths.data_root()
 
     # LLM 连接
-    llm_providers_file: Path = paths.config_dir() / "providers.toml"
+    llm_providers_file: Path = Path(__file__).resolve().parents[2] / "config" / "providers.toml"
     llm_fallback_timeout: float = 30.0
     llm_first_token_stall: float = 3.0  # 首字占位：超过该秒数无产出先显示预设提示语
     llm_error_message: str = "Someone tell Morin there's some problem with my AI."

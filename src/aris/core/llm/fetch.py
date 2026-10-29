@@ -24,7 +24,7 @@ import httpx
 import tomli_w
 from loguru import logger
 
-from aris.cfgtoml import config_dir
+from aris.cfgtoml import CONFIG_DIR
 
 from .config import LLMModel, LLMProvider, ProviderConfig, load_providers
 from .errors import AuthError, LLMError
@@ -175,7 +175,7 @@ class RetiredEntry:
 
 def retired_file_path() -> Path:
     """退休文件位置（config/retired_models.toml，机器维护）。"""
-    return config_dir() / "retired_models.toml"
+    return CONFIG_DIR / "retired_models.toml"
 
 
 def load_retired(path: Path | None = None) -> list[RetiredEntry]:

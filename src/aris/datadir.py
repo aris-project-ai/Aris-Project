@@ -18,13 +18,20 @@ from __future__ import annotations
 from pathlib import Path
 
 # 启动时幂等创建的目录（相对 data_dir）；其余由各模块首次使用时自建
-REQUIRED_DIRS: tuple[str, ...] = ("characters", "skills", "autorun", "config", "state", "logs")
+REQUIRED_DIRS: tuple[str, ...] = ("characters", "skills", "autorun")
 
 # 必须随 data/ 一起搬走的项（缺失只提示，不代为创建）
-CARRIED_PATHS: tuple[str, ...] = ("pgdata", "knowledge", "characters", "skills", "autorun")
+CARRIED_PATHS: tuple[str, ...] = (
+    "pgdata",
+    "knowledge",
+    "characters",
+    "skills",
+    "autorun",
+    "config",
+)
 
 # 可重建的项（不必带；换机后自动获取 / 重算）
-REBUILDABLE_PATHS: tuple[str, ...] = ("pg", "bin", "models", "logs")
+REBUILDABLE_PATHS: tuple[str, ...] = ("pg", "bin", "models", "logs", "state")
 
 
 def ensure_dirs(data_dir: Path | str) -> list[str]:
