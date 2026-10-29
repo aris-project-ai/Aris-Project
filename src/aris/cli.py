@@ -797,6 +797,23 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
     return argv, []
 
 
+def _cmd_info(args: argparse.Namespace) -> int:
+    """显示版本、路径与运行环境信息。"""
+    from . import __version__, paths
+    from .config import get_settings
+
+    settings = get_settings()
+    print(f"Aris {__version__}")
+    print(f"Python: {sys.version.split()[0]}")
+    print(f"data_root: {paths.data_root()}")
+    print(f"config_dir: {paths.config_dir()}")
+    print(f"state_dir: {paths.state_dir()}")
+    print(f"logs_dir: {paths.logs_dir()}")
+    print(f"cwd: {Path.cwd().resolve()}")
+    print(f"llm_providers_file: {settings.llm_providers_file}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI 主入口。"""
     parser = argparse.ArgumentParser(prog="aris", description="拟人 AI Aris —— 社会学意义上的人")
@@ -810,6 +827,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_doctor = sub.add_parser("doctor", help="环境自检")
     p_doctor.set_defaults(func=_cmd_doctor)
+
+    p_info = sub.add_parser("info", help="显示版本、路径与运行环境信息")
+    p_info.set_defaults(func=_cmd_info)
 
     p_llm = sub.add_parser("llm", help="LLM 提供方与模型管理")
     p_llm_test = p_llm.add_subparsers(dest="llm_command")

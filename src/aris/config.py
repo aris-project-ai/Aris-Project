@@ -14,7 +14,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .cfgtoml import config_dir
+from . import paths
 
 
 def _load_env_into_environ() -> None:
@@ -44,10 +44,10 @@ class Settings(BaseSettings):
     )
 
     log_level: str = "INFO"
-    data_dir: Path = Path("data")
+    data_dir: Path = paths.data_root()
 
     # LLM 连接
-    llm_providers_file: Path = config_dir() / "providers.toml"
+    llm_providers_file: Path = paths.config_dir() / "providers.toml"
     llm_fallback_timeout: float = 30.0
     llm_first_token_stall: float = 3.0  # 首字占位：超过该秒数无产出先显示预设提示语
     llm_error_message: str = "Someone tell Morin there's some problem with my AI."

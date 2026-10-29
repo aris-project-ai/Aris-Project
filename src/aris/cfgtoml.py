@@ -17,6 +17,8 @@ from pathlib import Path
 
 from loguru import logger
 
+from . import paths
+
 # config/ 目录绝对路径（相对本文件向上 2 级 = 项目根），与运行 cwd 无关
 CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 
@@ -32,7 +34,7 @@ def load_config[T](instance: T, filename: str) -> T:
     文件缺失、解析失败或键不存在时静默用默认值，不抛异常
     （配置缺失不致命，代码内默认值兜底）。
     """
-    path = CONFIG_DIR / filename
+    path = paths.config_dir() / filename
     if not path.exists():
         return instance
     try:
