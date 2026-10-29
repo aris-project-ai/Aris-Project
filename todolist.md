@@ -68,3 +68,10 @@
 - `.env` 的去向是**转成 TOML 并入 `data/config/`**，不是原样搬进 `data/`；拆分方案已定：`settings.toml`（启动参数）+ `secrets.toml`（密钥，0600）。
 - 图标、CI、项目标准化、彩蛋、备份、公开：v1.0 或之后。
 
+### 仓库形态（2026-10-29 定）
+- **单仓多构建单元**：`src/aris/` 后端；`gui/` 桌面 / 前端（独立 `package.json` 与 lock）；`docs/` 文档站（VitePress，独立 lock）；`packaging/` 发行配方。GUI、文档站都不拆仓库。
+- **构建隔离**：普通 `uv sync` 不装 Node、不构建 GUI；仅发版时设 `ARIS_BUILD_GUI=1`，通过构建钩子把 `gui/dist` 打进发行物（参照 AstrBot 的 dashboard）。
+- **发行包**：未来发行包为 `aris`（后端）/ `aris-gui`（桌面壳，依赖 `aris`）；打包后的前端命令是 `paris` / `paris-gui`，入口显式注入 `ARIS_DATA_DIR`（见 `docs/process/v0.4.4.md` D2）。同仓、同 CI、共用 `__version__`。
+- **何时升级 workspace**：GUI 拆成多个 JS 包、或后端确需拆 `core` / `store` 时，改用 uv workspace / pnpm workspace，仍是单仓，不拆多仓。
+- **仓库体积**：大资产（图标源文件、宣传视频、截图）走 release 附件，不进 git；`docs/archive` 按计划取消跟踪。
+
