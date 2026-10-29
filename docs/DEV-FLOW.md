@@ -20,15 +20,13 @@ git switch -c feat/add-knowledge-pdf
 
 ## 2. 写代码
 
-动手前先看 `PROGRESS.md`（当前版本与阻塞）和 `todolist.md`（当前阶段要做什么）。
+动手前可以先看 `PROGRESS.md` 快速了解进度。
 
 标准：
 
 - Python 3.12+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
 - 公开函数 / 类写全类型标注；新代码尽量带类型。
-- 模块之间不直接 import，走 CMCB 总线服务；已登记的例外见 `docs/forAiDoc/CMCB.md`。
 - 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`（迁移完成前为 `.env`），两者都不入 git。
-- 文档跟着代码走：契约变化改 `docs/forAiDoc/` 对应文档；状态变化改 `PROGRESS.md`；阶段计划改 `docs/process/`；面向人的说明放 `docs/`。
 
 ## 3. 本地验证
 
@@ -45,7 +43,7 @@ uv run aris serve --dry-run    # 改启动 / 配置 / 路径时跑
 - 提交前必须过 `scripts/check.sh`；只改了文档可以跳过测试，但要检查命令与链接。
 - 影响运行时的改动必须实际运行验证：改 CLI 跑对应 `-h` 与命令，改 WebUI 起 `aris web` 看页面，改装配 / 配置跑 `serve --dry-run`。
 - 新行为补测试；修 bug 尽量补回归用例。测试在 `tests/`，mock LLM / mock HTTP 在 `tests/support/`。
-- 测试失败不提交，不要用「稍后修」掩盖。
+- 测试失败不提交，请不要用「稍后修」掩盖。
 
 ## 4. 提交
 
@@ -66,7 +64,6 @@ git commit
 标准：
 
 - `type` 只能取：`feat` `fix` `docs` `refactor` `chore` `test` `build` `ci` `perf` `style` `revert`。
-- body 用 `-` 分条，不写成长文；背景与踩坑记进 `PROGRESS.md` 或 AGENTS 的陷阱节。
 - 一次提交只做一件事，代码与文档分开提交；同一文件的改动一次改完。
 - 不提交 `data/`、`.env`、密钥、构建产物。
 - 仓库自带 commit-msg 与 pre-commit 钩子；换机后先跑 `bash scripts/install-git-hooks.sh`。
@@ -86,7 +83,7 @@ git push origin --delete feat/add-knowledge-pdf
 
 - 先验证再合并；合并用 `--no-ff`，保留分支历史。
 - 合并后删本地与远程 feature 分支。
-- 合并冲突不要用「强制覆盖」解决；拿不准就停下来问。
+- 合并冲突尽量不要用「强制覆盖」解决。
 
 ## 6. 发版
 
@@ -105,7 +102,7 @@ git push origin main --tags
 - 渠道：beta（小版本，发 `main`）、正式版（发 `main`）、alpha（只发 `develop`）。
 - 号码全线唯一：同一个 `X.Y.Z` 只能出现一次；beta 与正式共用数字线，另一个渠道要用更高的号。
 - 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- 发版后同步 `README.md` 的公告与 `PROGRESS.md` 的版本状态。
+- 发版后同步 `PROGRESS.md` 的版本状态。
 
 ## 7. 热修
 
@@ -122,6 +119,3 @@ git branch -d fix/crash-on-empty-config
 - 热修也从最新 `develop` 拉，走与普通改动相同的验证与合并流程。
 - 修复后发 patch 版本；不在 `main` 上直接改。
 
----
-
-> 本文件面向人。AI 协作者另见 `AGENTS.md`。
