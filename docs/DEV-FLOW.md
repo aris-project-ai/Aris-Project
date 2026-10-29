@@ -1,95 +1,127 @@
-# 开发流程（人类版）
+# 开发流程
 
-> 给人看的操作顺序；规则权威仍是 `AGENTS.md`（§7 验证、§8 Git、§9 版本号、§10 文档规范）。
-> AI 直接读 AGENTS.md 即可，不需要本文件。
+> 按时间顺序：拉分支 → 写代码 → 本地验证 → 提交 → 合并 → 发版（含热修）。
+> 每一步先写操作，再写这一步的标准。
 
-## 0. 开工前
-
-- 读 `PROGRESS.md`（当前状态）与 `todolist.md`（当前阶段要做什么）。
-- 环境不对时先跑 `uv run aris doctor`。
-
-## 1. 拉分支
+## 1. 创建并切换分支
 
 ```bash
 git switch develop
 git pull --ff-only
-git switch -c feat/<topic>     # 前缀：feat / fix / docs / refactor / chore / perf / test
+git switch -c feat/add-knowledge-pdf
 ```
 
-- 一个分支只做一件事，从最新 `develop` 拉出。
-- 不直接往 `main` 提交；日常也不在 `develop` 上直提。
+标准：
 
-## 2. 写与验
+- 永远从最新 `develop` 拉，一个分支只做一件事。
+- 前缀按改动类型选：`feat/` `fix/` `docs/` `refactor/` `chore/` `test/` `perf/` `style/`。
+- 分支名用英文短横线描述，例如 `feat/webui-settings`、`fix/pg-stale-pidfile`；不写日期、不写版本号。
+- `main` 不做日常开发；`develop` 也不直接提交。
 
-- 代码改动**必须实跑**；纯文档改动不用跑测试。
-- 提交前跑全检：
+## 2. 写代码
+
+动手前先看 `PROGRESS.md`（当前版本与阻塞）和 `todolist.md`（当前阶段要做什么）。
+
+标准：
+
+- Python 3.12+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
+- 公开函数 / 类写全类型标注；新代码尽量带类型。
+- 模块之间不直接 import，走 CMCB 总线服务；已登记的例外见 `docs/forAiDoc/CMCB.md`。
+- 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`（迁移完成前为 `.env`），两者都不入 git。
+- 文档跟着代码走：契约变化改 `docs/forAiDoc/` 对应文档；状态变化改 `PROGRESS.md`；阶段计划改 `docs/process/`；面向人的说明放 `docs/`。
+
+## 3. 本地验证
 
 ```bash
-bash scripts/check.sh          # ruff check + format + mypy + pytest
-uv run aris db start           # 需要真库的用例先起库（否则自动 skip）
+bash scripts/check.sh          # ruff format + ruff check + mypy + pytest
 uv run pytest tests/test_x.py -q
+uv run aris db start           # 依赖真库的用例需要；未启动会自动 skip
+uv run aris doctor             # 环境与装配自检
+uv run aris serve --dry-run    # 改启动 / 配置 / 路径时跑
 ```
 
-- 改了契约就同步对应 `docs/forAiDoc/` 文档；状态变化只改 `PROGRESS.md`。
+标准：
 
-## 3. 提交
+- 提交前必须过 `scripts/check.sh`；只改了文档可以跳过测试，但要检查命令与链接。
+- 影响运行时的改动必须实际运行验证：改 CLI 跑对应 `-h` 与命令，改 WebUI 起 `aris web` 看页面，改装配 / 配置跑 `serve --dry-run`。
+- 新行为补测试；修 bug 尽量补回归用例。测试在 `tests/`，mock LLM / mock HTTP 在 `tests/support/`。
+- 测试失败不提交，不要用「稍后修」掩盖。
 
-格式：`<type>(<scope>): 简短中文描述`，type 取
-`feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
-
-body 空行后用 `-` 分条，每条一两句：
-
-```
-feat(knowledge): 支持 PDF 摄入
-
-- 新增 pdf loader，复用现有分块逻辑
-- 摄入失败逐条降级为 failed，不中断整批
-```
-
-- 代码与文档分开提交；同一文件的改动一次改完。
-- 提交前确认没有把 `data/`、密钥、`.env` 带进去。
-
-## 4. 合并回 develop
+## 4. 提交
 
 ```bash
+git add -A
+git commit
+```
+
+提交信息格式：
+
+```
+<type>(<scope>): 简短中文描述
+
+- 改了什么，一两句一条
+- 为什么改，必要时补一句
+```
+
+标准：
+
+- `type` 只能取：`feat` `fix` `docs` `refactor` `chore` `test` `build` `ci` `perf` `style` `revert`。
+- body 用 `-` 分条，不写成长文；背景与踩坑记进 `PROGRESS.md` 或 AGENTS 的陷阱节。
+- 一次提交只做一件事，代码与文档分开提交；同一文件的改动一次改完。
+- 不提交 `data/`、`.env`、密钥、构建产物。
+- 仓库自带 commit-msg 与 pre-commit 钩子；换机后先跑 `bash scripts/install-git-hooks.sh`。
+
+## 5. 合并回 develop
+
+```bash
+bash scripts/check.sh
 git switch develop
-git merge --no-ff feat/<topic>
-git branch -d feat/<topic>
-git push origin --delete feat/<topic>
+git merge --no-ff feat/add-knowledge-pdf
+git branch -d feat/add-knowledge-pdf
+git push origin develop
+git push origin --delete feat/add-knowledge-pdf
 ```
 
-- 验证通过再合并；`--no-ff` 保留分支历史。
-- 合并后删本地与远程 feature 分支。
+标准：
 
-## 5. 发版
+- 先验证再合并；合并用 `--no-ff`，保留分支历史。
+- 合并后删本地与远程 feature 分支。
+- 合并冲突不要用「强制覆盖」解决；拿不准就停下来问。
+
+## 6. 发版
 
 ```bash
-bash scripts/bump-version.sh 0.4.4     # 或 patch / minor / major；只改文件不提交
-# 提交版本号改动
-bash scripts/release-check.sh          # 必须 PASS
+bash scripts/bump-version.sh 0.4.4      # 或 patch / minor / major；只改文件不提交
+git add -A && git commit -m "chore(release): 版本号 bump 至 0.4.4"
+bash scripts/release-check.sh           # 必须 PASS
 git switch main
 git merge --no-ff develop
-git tag beta-v0.4.4                    # 或 v0.4.4；alpha 只在 develop 发 alpha-vX.Y.Z
+git tag beta-v0.4.4                     # 或 v0.4.4；alpha 只在 develop 发 alpha-vX.Y.Z
 git push origin main --tags
 ```
 
-- 号码全线唯一：同一个 `X.Y.Z` 只能出现一次。
-- beta 与正式版都发在 `main`；alpha 只在 `develop`。
+标准：
 
-## 6. 热修
+- 渠道：beta（小版本，发 `main`）、正式版（发 `main`）、alpha（只发 `develop`）。
+- 号码全线唯一：同一个 `X.Y.Z` 只能出现一次；beta 与正式共用数字线，另一个渠道要用更高的号。
+- 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
+- 发版后同步 `README.md` 的公告与 `PROGRESS.md` 的版本状态。
 
-- 从最新 `develop` 开 `fix/<topic>`，走同样流程，发 patch 版本。
-- 不在 `main` 上直接改。
-
-## 7. 换机
+## 7. 热修
 
 ```bash
-bash scripts/install-git-hooks.sh
-git config blame.ignoreRevsFile .git-blame-ignore-revs
+git switch develop
+git switch -c fix/crash-on-empty-config
+# 修复、验证、提交
+git switch develop && git merge --no-ff fix/crash-on-empty-config
+git branch -d fix/crash-on-empty-config
 ```
 
-## 8. 文档放哪
+标准：
 
-- 人类文档 → `docs/`（如本文件、将来的使用手册）。
-- AI 契约与约束 → `docs/forAiDoc/`；先看 AGENTS.md §10 的文档规范。
-- 历史与作废方案 → `docs/archive/`。
+- 热修也从最新 `develop` 拉，走与普通改动相同的验证与合并流程。
+- 修复后发 patch 版本；不在 `main` 上直接改。
+
+---
+
+> 本文件面向人。AI 协作者另见 `AGENTS.md`。
