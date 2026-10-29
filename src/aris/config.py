@@ -33,6 +33,10 @@ def _load_env_into_environ() -> None:
             os.environ.setdefault(key, value)
 
 
+def _default_data_dir() -> Path:
+    return paths.data_root()
+
+
 class Settings(BaseSettings):
     """Aris 全局配置。"""
 
@@ -44,13 +48,17 @@ class Settings(BaseSettings):
     )
 
     log_level: str = "INFO"
-    data_dir: Path = paths.data_root()
+    data_dir: Path = None  # type: ignore[assignment]
 
     # LLM 连接
     llm_providers_file: Path = Path(__file__).resolve().parents[2] / "config" / "providers.toml"
     llm_fallback_timeout: float = 30.0
     llm_first_token_stall: float = 3.0  # 首字占位：超过该秒数无产出先显示预设提示语
     llm_error_message: str = "Someone tell Morin there's some problem with my AI."
+
+    def model_post_init(self, __context) -> None:  # type: ignore[override]
+        if self.data_dir is None:
+            object.__setattr__(self, "data_dir", paths.data_root())
 
 
 @lru_cache

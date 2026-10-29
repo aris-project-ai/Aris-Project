@@ -50,9 +50,9 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 
     missing = missing_carried(settings.data_dir)
     if missing:
-        logger.info(f"data/ 分层: 缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）")
+        logger.info(f"分层: 缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）")
     else:
-        logger.info(f"data/ 分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
+        logger.info(f"分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
 
     # 模块状态：与 `aris serve` 共用同一份探针（不再各写一套自检）
     from .serve import probe_all
@@ -799,18 +799,34 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
 
 def _cmd_info(args: argparse.Namespace) -> int:
     """显示版本、路径与运行环境信息。"""
+    import os
+
     from . import __version__, paths
     from .config import get_settings
 
     settings = get_settings()
+    if os.environ.get("ARIS_DATA_DIR"):
+        src = "env"
+    elif paths._find_dev_root_via_cwd() is not None or paths._find_dev_root_via_file() is not None:
+        src = "dev"
+    else:
+        src = "install"
     print(f"Aris {__version__}")
     print(f"Python: {sys.version.split()[0]}")
-    print(f"data_root: {paths.data_root()}")
+    print(f"data_root: {paths.data_root()} ({src})")
     print(f"config_dir: {paths.config_dir()}")
     print(f"state_dir: {paths.state_dir()}")
     print(f"logs_dir: {paths.logs_dir()}")
     print(f"cwd: {Path.cwd().resolve()}")
     print(f"llm_providers_file: {settings.llm_providers_file}")
+    try:
+        from .serve import probe_all
+
+        outcomes = probe_all()
+        for o in outcomes:
+            print(f"probe: {o.line}")
+    except (OSError, RuntimeError):
+        pass
     return 0
 
 
