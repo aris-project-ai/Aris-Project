@@ -832,7 +832,9 @@ def _cmd_info(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI 主入口。"""
-    parser = argparse.ArgumentParser(prog="aris", description="拟人 AI Aris —— 社会学意义上的人")
+    parser = argparse.ArgumentParser(
+        prog="aris", description="Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体"
+    )
     parser.add_argument("--version", action="version", version=f"Aris {__version__}")
     parser.add_argument(
         "--verbose",
@@ -863,7 +865,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_test.add_argument("--message", default="用一句话介绍你自己。", help="要发送的用户消息")
     p_test.add_argument(
-        "--system", default="你是 Aris，一个拟人 AI，说话简洁自然。", help="系统提示词"
+        "--system",
+        default="你是 Aris，一个基于大语言模型、类似 Neuro-sama 的赛博生命体，说话简洁自然。",
+        help="系统提示词",
     )
     p_test.set_defaults(func=_cmd_llm_test)
 

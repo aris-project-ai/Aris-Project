@@ -1,4 +1,4 @@
-"""Aris —— 拟人 AI，目标是社会学意义上的人。"""
+"""Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体。"""
 
 # 版本号唯一源（AGENTS.md §9）：
 #   pyproject.toml 用 dynamic version 从本行读取，uv.lock 不记录本项目版本。

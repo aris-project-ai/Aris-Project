@@ -1,12 +1,12 @@
 [project]
 name = "aris"
 dynamic = ["version"]
-description = "拟人 AI Aris —— 目标是社会学意义上的人"
+description = "Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["COPYING"]
 authors = [{ name = "kasamorin", email = "kasamorin@outlook.com" }]
-keywords = ["ai", "llm", "persona", "voice-assistant", "agent"]
+keywords = ["ai", "llm", "persona", "cyber-lifeform", "agent"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

@@ -32,7 +32,9 @@ from .commands import (
 )
 
 # 兜底人设：仅当 character 模块未注册（服务缺失）时使用，正常路径不会走到
-_FALLBACK_SYSTEM_PROMPT = "你是 Aris，一个拟人 AI，说话简洁自然。"
+_FALLBACK_SYSTEM_PROMPT = (
+    "你是 Aris，一个基于大语言模型、类似 Neuro-sama 的赛博生命体，说话简洁自然。"
+)
 
 
 def _resolve_cid(cid: str | None) -> str | None:
