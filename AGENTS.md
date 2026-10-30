@@ -269,6 +269,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **大版本代号**：v1.0.0 = **「跨越」（Cross）**。代号只写在本节与发版说明里，不散落到文档各处。
 - 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
   号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
+- **变更记录**：每次发版必须写 `changelogs/<版本>.md`（面向使用者，格式见 `changelogs/README.md`）；
+  未发布改动先进 `changelogs/unreleased.md`。tag / release 的描述直接取自该文件，
+  **没有变更记录不得发版**（`release-check.sh` 会检查文件存在且非空）。
 - 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
 - 历史 tag（如 `v0.4.2-beta`）保留不动；新规则从下一次 bump 起生效。
 
