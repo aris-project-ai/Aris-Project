@@ -22,6 +22,9 @@ cd "$REPO_ROOT"
 PYPROJECT="pyproject.toml"
 VERSION_FILE="src/aris/__init__.py"
 
+# 分发包名：唯一源是 pyproject 的 name（import 包名与命令仍是 aris，不随品牌改名）
+DIST_NAME="$(python3 -c 'import sys,tomllib,pathlib; print(tomllib.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["project"]["name"])' "$PYPROJECT" 2>/dev/null || echo 'aris')"
+
 fail=0
 
 echo "===== 发布检查 ====="
@@ -61,9 +64,9 @@ fi
 # ---- 2. 已安装元数据与源一致（venv 存在时才查）----
 if [ -x ".venv/bin/python" ]; then
     installed="$(.venv/bin/python -c \
-        'import importlib.metadata as m; print(m.version("aris"))' 2>/dev/null || echo '')"
+        "import importlib.metadata as m; print(m.version('$DIST_NAME'))" 2>/dev/null || echo '')"
     if [ "$installed" = "$ver" ]; then
-        echo "[ ok ] 已安装元数据一致: aris==$installed"
+        echo "[ ok ] 已安装元数据一致: $DIST_NAME==$installed"
     else
         echo "[FAIL] 已安装元数据 ($installed) 与 $VERSION_FILE ($ver) 不一致"
         echo "         跑一次 uv sync（或用 scripts/bump-version.sh 改版本）"

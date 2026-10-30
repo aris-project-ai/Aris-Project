@@ -1,5 +1,5 @@
 [project]
-name = "aris"
+name = "aris-project"
 dynamic = ["version"]
 description = "Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体"
 readme = "README.md"

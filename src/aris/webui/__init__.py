@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from ..branding import APP_NAME
 from ..core import provide
 from .auth import AuthMiddleware
 
@@ -25,7 +26,7 @@ def create_app() -> FastAPI:
     （:data:`REQUIRED_SERVICES`），交给 serve 的 `services` 步骤统一校验。
     """
     app = FastAPI(
-        title="Project-Aris WebUI",
+        title=f"{APP_NAME} WebUI",
         docs_url=None,  # 管理后台不暴露 Swagger
         redoc_url=None,
     )
