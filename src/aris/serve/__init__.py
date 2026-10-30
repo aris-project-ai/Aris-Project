@@ -77,7 +77,7 @@ def assemble() -> None:
     import aris.store  # store.*
     import aris.webui  # noqa: F401  —— webui.start / webui.probe
     from aris.behavior.skills import manager as _skills  # noqa: F401
-    from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.retired.*
+    from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.missing.*
     from aris.core.llm import manage as _manage  # noqa: F401  —— llm.providers.*
 
     try:

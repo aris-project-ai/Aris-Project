@@ -1,4 +1,4 @@
-"""提供商管理路由——提供方增删、模型列表、fetch 审核、退休管理。
+"""提供商管理路由——提供方增删、模型列表、fetch 审核、缺失记录（只读）。
 
 跨模块能力一律经 `core.call` 从总线获取（llm.* 服务注册在
 core/llm/manage.py 与 core/llm/fetch.py），不直接 import core.llm。
@@ -31,7 +31,7 @@ async def providers_page(
 ) -> HTMLResponse:
     """提供商管理页面。"""
     providers = _load_providers()
-    retired = _load_retired()
+    missing = _load_missing()
     return render(
         request,
         "providers.html",
@@ -40,7 +40,7 @@ async def providers_page(
             "providers": providers,
             "selected": selected,
             "tab": tab,
-            "retired": retired,
+            "missing": missing,
         },
     )
 
@@ -95,13 +95,6 @@ async def provider_delete_model(
     return RedirectResponse(url=f"/providers?selected={quote(pid)}", status_code=303)
 
 
-@router.post("/providers/retired/{model}/delete", response_model=None)
-async def retired_delete(model: str) -> RedirectResponse:
-    """删除退休模型记录。"""
-    call("llm.retired.delete", model)
-    return RedirectResponse(url="/providers?tab=retired", status_code=303)
-
-
 @router.get("/providers/{pid}/fetch", response_class=HTMLResponse)
 async def provider_fetch_page(
     request: Request,
@@ -131,8 +124,6 @@ async def provider_fetch_page(
             "added": result["added"],
             "kept": result["kept"],
             "missing": result["missing"],
-            "restored": result["restored"],
-            "retired_now": result["retired_now"],
         },
     )
 
@@ -193,12 +184,9 @@ def _load_providers() -> list[dict]:
     return result
 
 
-def _load_retired() -> list[dict]:
-    """加载退休模型列表。"""
-    entries = call("llm.retired.list")
+def _load_missing() -> list[dict]:
+    """加载缺失模型记录（只读；无此服务时返回空列表）。"""
+    entries = call("llm.missing.list")
     if entries is None:
         return []
-    return [
-        {"model": e.model, "provider": e.provider, "first_missing": e.first_missing}
-        for e in entries
-    ]
+    return [{"model": e.model, "provider": e.provider, "last_seen": e.last_seen} for e in entries]

@@ -59,9 +59,9 @@
                    class="px-4 py-2 text-sm {% if tab == 'models' %}border-b-2 border-blue-600 text-blue-600{% else %}text-gray-500{% endif %}">
                     模型列表
                 </a>
-                <a href="/providers?selected={{ provider.id }}&tab=retired"
-                   class="px-4 py-2 text-sm {% if tab == 'retired' %}border-b-2 border-blue-600 text-blue-600{% else %}text-gray-500{% endif %}">
-                    退休管理
+                <a href="/providers?selected={{ provider.id }}&tab=missing"
+                   class="px-4 py-2 text-sm {% if tab == 'missing' %}border-b-2 border-blue-600 text-blue-600{% else %}text-gray-500{% endif %}">
+                    缺失记录
                 </a>
             </div>
 
@@ -114,35 +114,34 @@
                 {% endif %}
             </div>
             {% else %}
-            <!-- 退休管理 -->
+            <!-- 缺失记录（只读） -->
             <div class="p-4">
-                <h4 class="font-medium mb-3">退休模型</h4>
-                {% if retired %}
+                <h4 class="font-medium mb-3">缺失记录（只读）</h4>
+                <p class="text-sm text-gray-500 mb-3">
+                    同步 /models 后从端点消失、并从配置移除的模型；无宽限期、不自动恢复。
+                    模型回到端点后重新同步即可加回。
+                </p>
+                {% if missing %}
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-3 py-2 text-left">模型</th>
                             <th class="px-3 py-2 text-left">提供方</th>
                             <th class="px-3 py-2 text-left">首次缺失</th>
-                            <th class="px-3 py-2 text-left">操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for r in retired %}
+                        {% for r in missing %}
                         <tr class="border-t border-gray-100">
                             <td class="px-3 py-2 font-mono text-xs">{{ r.model }}</td>
                             <td class="px-3 py-2">{{ r.provider }}</td>
-                            <td class="px-3 py-2 text-xs">{{ r.first_missing }}</td>
-                            <td class="px-3 py-2">
-                                <button onclick="deleteRetired('{{ r.model }}')"
-                                        class="text-red-500 hover:text-red-700 text-xs">删除</button>
-                            </td>
+                            <td class="px-3 py-2 text-xs">{{ r.last_seen }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <p class="text-gray-400 text-sm">暂无退休模型</p>
+                <p class="text-gray-400 text-sm">暂无缺失记录</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -253,12 +252,6 @@ function deleteModel(pid, mid) {
         form.appendChild(input);
         document.body.appendChild(form);
         form.submit();
-    }
-}
-function deleteRetired(model) {
-    if (confirm('确定要删除退休记录 "' + model + '" 吗？')) {
-        fetch('/providers/retired/' + encodeURIComponent(model) + '/delete', { method: 'POST' })
-            .then(() => window.location.href = '/providers?tab=retired');
     }
 }
 </script>

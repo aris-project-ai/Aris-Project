@@ -49,45 +49,25 @@
     </div>
     {% endif %}
 
-    <!-- 缺失（退休候选） -->
+    <!-- 缺失（只读记录） -->
     {% if missing %}
     <div class="bg-white rounded-lg shadow p-4 mb-4">
         <h3 class="font-medium mb-3 text-yellow-700">⚠️ 本地有端点无（{{ missing | length }}）</h3>
-        <p class="text-sm text-gray-500">这些模型将从配置移除并进入退休列表：</p>
+        <p class="text-sm text-gray-500">
+            这些模型将从配置移除，并写入 data/state/llm-list-missing.json（只读留档，无宽限期、不自动恢复）。
+        </p>
         <div class="mt-2 text-sm font-mono text-gray-600">
             {{ missing | join(", ") }}
         </div>
     </div>
     {% endif %}
 
-    <!-- 回归恢复 -->
-    {% if restored %}
-    <div class="bg-white rounded-lg shadow p-4 mb-4">
-        <h3 class="font-medium mb-3 text-green-700">🔄 回归恢复（{{ restored | length }}）</h3>
-        <p class="text-sm text-gray-500">这些模型重新出现在端点，将从退休列表恢复：</p>
-        <div class="mt-2 text-sm font-mono text-gray-600">
-            {{ restored | join(", ") }}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- 新退休 -->
-    {% if retired_now %}
-    <div class="bg-white rounded-lg shadow p-4 mb-4">
-        <h3 class="font-medium mb-3 text-orange-700">🚫 新退休（{{ retired_now | length }}）</h3>
-        <p class="text-sm text-gray-500">这些模型将进入退休宽限期（30 天）：</p>
-        <div class="mt-2 text-sm font-mono text-gray-600">
-            {{ retired_now | join(", ") }}
-        </div>
-    </div>
-    {% endif %}
-
     <!-- 操作按钮 -->
     <div class="flex gap-2">
-        {% if added or restored %}
+        {% if added %}
         <button type="submit"
                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
-            应用变更（{{ added | length + restored | length }} 个模型）
+            应用变更（{{ added | length }} 个模型）
         </button>
         {% endif %}
         <a href="/providers?selected={{ pid }}"

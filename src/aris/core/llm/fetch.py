@@ -1,4 +1,4 @@
-"""/models 同步核心逻辑：拉取 + 对比 + models.dev enrichment + 写回 + 退休巡检。
+"""/models 同步核心逻辑：拉取 + 对比 + models.dev enrichment + 写回 + 缺失记录。
 
 设计见 `docs/forAiDoc/LLM-PROVIDER-MGMT.md` 阶段二。本模块保持纯逻辑
 （不依赖 prompt_toolkit），交互勾选 UI 在 cli.py 组装。
@@ -6,8 +6,8 @@
 同步规则（白名单语义）：
 - 云有本地无 → 添加候选（默认不自动加，由用户勾选；非 TTY --write 全加）
 - 两边都有 → 保留
-- 本地有云无 → 移入退休文件（data/config/retired_models.toml），从配置移除
-- 退休巡检：回归端点 → 自动恢复；超宽限期（默认 30 天）→ 永久删除
+- 本地有云无 → 从配置移除，并写入 `data/state/llm-list-missing.json`
+  （只读留档：无宽限期、无自动恢复）
 """
 
 from __future__ import annotations
@@ -16,8 +16,7 @@ import datetime as _dt
 import json
 import os
 import shutil
-import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
@@ -30,12 +29,11 @@ from .config import LLMModel, LLMProvider, ProviderConfig, load_providers
 from .errors import AuthError, LLMError
 from .message import ApiFormat
 
+MISSING_FILE_NAME = "llm-list-missing.json"
+
 # models.dev 数据源与缓存策略
 MODELSDEV_URL = "https://models.dev/api.json"
 MODELSDEV_CACHE_TTL = 7 * 24 * 3600  # 秒
-
-# 退休宽限期：超过该天数未恢复且未手动删除则永久删除
-RETIRED_GRACE_DAYS = 30
 
 
 # ---------- 拉取 /models ----------
@@ -147,11 +145,11 @@ class SyncDiff:
 
     added: list[str]  # 云有本地无（添加候选）
     kept: list[str]  # 两边都有
-    missing: list[str]  # 本地有云无（退休候选）
+    missing: list[str]  # 本地有云无（移除并记入缺失文件）
 
 
 def compute_diff(provider: LLMProvider, endpoint_ids: list[str]) -> SyncDiff:
-    """按白名单语义对比：仅端点新模型进入候选，缺失模型进入退休候选。"""
+    """按白名单语义对比：仅端点新模型进入候选，缺失模型从配置移除。"""
     local = {m.id for m in provider.models}
     ep = set(endpoint_ids)
     return SyncDiff(
@@ -161,106 +159,84 @@ def compute_diff(provider: LLMProvider, endpoint_ids: list[str]) -> SyncDiff:
     )
 
 
-# ---------- 退休机制 ----------
+# ---------- 缺失记录（只读留档） ----------
 
 
-@dataclass
-class RetiredEntry:
-    """一条退休记录：模型曾配置但已从端点失联，进入宽限期。"""
+@dataclass(frozen=True)
+class MissingEntry:
+    """一条缺失记录：模型曾配置但已从端点消失。"""
 
     provider: str
     model: str
-    first_missing: str  # ISO 日期，宽限期起算
+    last_seen: str  # ISO 日期：首次确认它已从端点消失的同步日
 
 
-def retired_file_path() -> Path:
-    """退休文件位置（data/state/retired_models.toml，机器维护）。"""
-    return paths.state_dir() / "retired_models.toml"
+def missing_file_path() -> Path:
+    """缺失记录位置（data/state/llm-list-missing.json，机器维护、只读查看）。"""
+    return paths.state_dir() / MISSING_FILE_NAME
 
 
-def load_retired(path: Path | None = None) -> list[RetiredEntry]:
-    """读取退休记录；文件缺失返回空列表。"""
-    p = path or retired_file_path()
+def load_missing(path: Path | None = None) -> list[MissingEntry]:
+    """读取缺失记录（JSON 数组）；文件缺失或损坏时返回空列表并记 warning。"""
+    p = path or missing_file_path()
     if not p.exists():
         return []
     try:
-        with p.open("rb") as f:
-            data = tomllib.load(f)
-    except (tomllib.TOMLDecodeError, OSError) as e:
-        logger.warning(f"退休文件解析失败（{e}），按空处理")
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        logger.warning(f"缺失记录读取失败（{e}），按空处理")
         return []
-    return [
-        RetiredEntry(
-            provider=e.get("provider", ""),
-            model=e["model"],
-            first_missing=str(e.get("first_missing", "")),
+    if not isinstance(data, list):
+        logger.warning(f"缺失记录格式不是数组（{type(data).__name__}），按空处理")
+        return []
+    entries = [
+        MissingEntry(
+            provider=str(item.get("provider", "")),
+            model=str(item["model"]),
+            last_seen=str(item.get("last_seen", "")),
         )
-        for e in data.get("retired", [])
+        for item in data
+        if isinstance(item, dict) and item.get("model") and item.get("provider")
     ]
+    return sorted(entries, key=lambda e: (e.provider, e.model))
 
 
-def save_retired(entries: list[RetiredEntry], path: Path | None = None) -> None:
-    """写退休记录（按 provider+model 排序，保证幂等）。"""
-    p = path or retired_file_path()
-    data = {"retired": [asdict(e) for e in sorted(entries, key=lambda e: (e.provider, e.model))]}
+def save_missing(entries: list[MissingEntry], path: Path | None = None) -> None:
+    """写缺失记录（按 provider + model 排序，保证重复同步后文件稳定）。"""
+    p = path or missing_file_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("wb") as f:
-        tomli_w.dump(data, f)
-
-
-@dataclass
-class RetireResult:
-    """退休巡检结果。"""
-
-    restored: list[str]  # 回归端点（从退休移除，自动恢复）
-    expired: list[RetiredEntry]  # 超宽限期（永久删除）
-    active: list[RetiredEntry]  # 宽限期内（保留待下次）
-    retired_now: list[RetiredEntry]  # 本次新退休（缺失 → 退休文件）
-
-
-def reconcile_retired(
-    provider: LLMProvider,
-    endpoint_ids: list[str],
-    retired: list[RetiredEntry],
-    *,
-    today: _dt.date | None = None,
-    grace_days: int = RETIRED_GRACE_DAYS,
-) -> RetireResult:
-    """对单个提供方的退休记录巡检：回归恢复 / 超期删除 / 新退休入列。"""
-    today = today or _dt.date.today()
-    ep = set(endpoint_ids)
-    local = {m.id for m in provider.models}
-    restored: list[str] = []
-    expired: list[RetiredEntry] = []
-    active: list[RetiredEntry] = []
-    for e in retired:
-        if e.provider != provider.id:
-            active.append(e)  # 其他提供方的退休项不动
-            continue
-        if e.model in ep:
-            restored.append(e.model)  # 回归端点，自动恢复
-            continue
-        try:
-            missing_since = _dt.date.fromisoformat(e.first_missing)
-        except ValueError:
-            missing_since = today
-        if (today - missing_since).days > grace_days:
-            expired.append(e)
-        else:
-            active.append(e)
-    # 本地有云无 → 新退休（避免与已退休重复）
-    retired_ids = {e.model for e in active}
-    retired_now = [
-        RetiredEntry(provider=provider.id, model=mid, first_missing=today.isoformat())
-        for mid in sorted(local - ep)
-        if mid not in retired_ids
+    data = [
+        {"provider": e.provider, "model": e.model, "last_seen": e.last_seen}
+        for e in sorted(entries, key=lambda e: (e.provider, e.model))
     ]
-    return RetireResult(
-        restored=sorted(restored),
-        expired=expired,
-        active=active,
-        retired_now=retired_now,
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def update_missing(
+    provider_id: str,
+    endpoint_ids: list[str],
+    missing_ids: list[str],
+    *,
+    path: Path | None = None,
+    today: _dt.date | None = None,
+) -> list[MissingEntry]:
+    """同步后更新缺失记录（幂等、跨提供方合并）。
+
+    - 本次「本地有云无」的模型写入；已有条目保留首次记录的 ``last_seen``
+    - 已回归端点的同提供方条目删除（不做自动恢复，模型回到端点即可重新添加）
+    - 其他提供方的条目原样保留，重复同步不丢条目
+    """
+    today = today or _dt.date.today()
+    endpoint = set(endpoint_ids)
+    kept = [e for e in load_missing(path) if e.provider != provider_id or e.model not in endpoint]
+    known = {(e.provider, e.model) for e in kept}
+    kept.extend(
+        MissingEntry(provider=provider_id, model=model, last_seen=today.isoformat())
+        for model in sorted(set(missing_ids))
+        if (provider_id, model) not in known
     )
+    save_missing(kept, path=path)
+    return load_missing(path)
 
 
 # ---------- 同步计划与落盘 ----------
@@ -273,31 +249,14 @@ class SyncPlan:
     provider: LLMProvider
     endpoint_ids: list[str]
     diff: SyncDiff
-    retire: RetireResult
-    candidates: list[LLMModel]  # 添加候选 = 纯新增 + 回归恢复，带 enrichment 元数据
+    candidates: list[LLMModel]  # 添加候选 = 端点新增，带 enrichment 元数据
 
 
-def plan_sync(
-    provider: LLMProvider,
-    endpoint_ids: list[str],
-    retired: list[RetiredEntry],
-    modelsdev: dict,
-    *,
-    today: _dt.date | None = None,
-    grace_days: int = RETIRED_GRACE_DAYS,
-) -> SyncPlan:
-    """生成同步计划：对比 + 退休巡检 + 候选 enrichment。"""
+def plan_sync(provider: LLMProvider, endpoint_ids: list[str], modelsdev: dict) -> SyncPlan:
+    """生成同步计划：对比 + 候选 enrichment。"""
     diff = compute_diff(provider, endpoint_ids)
-    retire = reconcile_retired(provider, endpoint_ids, retired, today=today, grace_days=grace_days)
-    to_enrich = sorted(set(diff.added) | set(retire.restored))
-    candidates = [enrich_model(provider.id, mid, modelsdev) for mid in to_enrich]
-    return SyncPlan(
-        provider=provider,
-        endpoint_ids=endpoint_ids,
-        diff=diff,
-        retire=retire,
-        candidates=candidates,
-    )
+    candidates = [enrich_model(provider.id, mid, modelsdev) for mid in sorted(diff.added)]
+    return SyncPlan(provider=provider, endpoint_ids=endpoint_ids, diff=diff, candidates=candidates)
 
 
 def config_to_dict(cfg: ProviderConfig) -> dict:
@@ -355,50 +314,54 @@ def apply_sync(
     *,
     cfg: ProviderConfig,
     providers_path: str | Path,
-    retired: list[RetiredEntry],
     keep: list[str] | None = None,
-    retired_path: Path | None = None,
-) -> None:
-    """把勾选结果落盘：改 providers.toml + 更新退休文件。
+    missing_path: Path | None = None,
+    today: _dt.date | None = None,
+) -> list[MissingEntry]:
+    """把勾选结果落盘：改 providers.toml + 更新缺失记录，返回当前缺失记录。
 
-    selected：勾选的候选模型 id（含回归恢复）。
-    keep：本地有云无但用户要求保留的模型 id（不退休）。
+    selected：勾选的候选模型 id。
+    keep：本地有云无但用户要求保留的模型 id（不移除、不记缺失）。
     """
     provider = plan.provider
-    keep = keep or []
+    keep_ids = set(keep or [])
 
-    # 1. 移除缺失模型（除 keep 外 → 退休）
-    provider.models = [m for m in provider.models if m.id not in plan.diff.missing or m.id in keep]
+    # 1. 移除缺失模型（keep 的除外）
+    provider.models = [
+        m for m in provider.models if m.id not in plan.diff.missing or m.id in keep_ids
+    ]
 
-    # 2. 添加勾选候选（含回归恢复；已存在则跳过）
+    # 2. 添加勾选候选（已存在则跳过）
     selected_set = set(selected)
     for m in plan.candidates:
         if m.id in selected_set and provider.get_model(m.id) is None:
             provider.models.append(m)
 
-    # 3. 新退休记录 + 保留未到期项（回归与过期项已从结果中排除；
-    #    keep 的模型不进退休列表）
-    keep_ids = set(keep)
-    new_entries = list(plan.retire.active) + [
-        e for e in plan.retire.retired_now if e.model not in keep_ids
-    ]
-    save_retired(new_entries, path=retired_path)
+    # 3. 缺失记录（不含 keep）
+    recorded = update_missing(
+        provider.id,
+        plan.endpoint_ids,
+        [mid for mid in plan.diff.missing if mid not in keep_ids],
+        path=missing_path,
+        today=today,
+    )
 
     # 4. 写回 providers.toml（含备份）
     write_providers(providers_path, cfg)
+    return recorded
 
 
-# ---------- 总线服务（供 WebUI 常驻服务调用的 /models 同步 + 退休管理）----------
+# ---------- 总线服务（供 WebUI 常驻服务调用的 /models 同步 + 缺失查看）----------
 #
-# 命名 `llm.fetch.*` / `llm.retired.*`，与 /models 同步的核心逻辑一一对应；
+# 命名 `llm.fetch.*` / `llm.missing.*`，与 /models 同步的核心逻辑一一对应；
 # 只暴露数据操作与只读查询，交互勾选 UI 由调用方（WebUI/CLI）负责。
 
 
 def fetch_plan(pid: str) -> dict:
     """执行 fetch 审核全流程，返回可展示的同步计划摘要。
 
-    流程：加载配置 → 定位提供方 → 拉 /models → 退休巡检 + models.dev
-    enrichment → 生成计划。pid 不存在返回 {"error": ...}。
+    流程：加载配置 → 定位提供方 → 拉 /models → models.dev enrichment → 生成计划。
+    pid 不存在返回 {"error": ...}。
     """
     from aris.config import get_settings
 
@@ -407,9 +370,8 @@ def fetch_plan(pid: str) -> dict:
     if provider is None:
         return {"error": f"提供方 {pid} 不存在"}
     endpoint_ids = fetch_provider_models(provider)
-    retired = load_retired()
     modelsdev = modelsdev_load(get_settings().data_dir)
-    plan = plan_sync(provider, endpoint_ids, retired, modelsdev)
+    plan = plan_sync(provider, endpoint_ids, modelsdev)
 
     def _ctx(match: LLMModel) -> dict:
         """模型计划条目的展示上下文。"""
@@ -424,13 +386,11 @@ def fetch_plan(pid: str) -> dict:
         "added": [_ctx(c) for c in plan.candidates],
         "kept": plan.diff.kept,
         "missing": plan.diff.missing,
-        "restored": plan.retire.restored,
-        "retired_now": [e.model for e in plan.retire.retired_now],
     }
 
 
 def fetch_apply(pid: str, selected: list[str]) -> None:
-    """应用 fetch 结果：勾选候选写回 providers.toml + 更新退休文件。
+    """应用 fetch 结果：勾选候选写回 providers.toml + 更新缺失记录。
 
     基于执行时刻的最新状态重新拉取（与 CLI 行为一致），确保 apply 幂等。
     """
@@ -442,27 +402,19 @@ def fetch_apply(pid: str, selected: list[str]) -> None:
     if provider is None:
         return
     endpoint_ids = fetch_provider_models(provider)
-    retired = load_retired()
     modelsdev = modelsdev_load(settings.data_dir)
-    plan = plan_sync(provider, endpoint_ids, retired, modelsdev)
+    plan = plan_sync(provider, endpoint_ids, modelsdev)
     apply_sync(
         plan,
         selected,
         cfg=cfg,
         providers_path=settings.llm_providers_file,
-        retired=retired,
-        retired_path=retired_file_path(),
     )
 
 
-def retired_list() -> list[RetiredEntry]:
-    """列出当前退休模型记录。"""
-    return load_retired()
-
-
-def retired_delete(model_id: str) -> None:
-    """删除一条退休模型记录（模型回归端点后自动恢复）。"""
-    save_retired([e for e in load_retired() if e.model != model_id])
+def missing_list() -> list[MissingEntry]:
+    """列出当前缺失模型记录（只读）。"""
+    return load_missing()
 
 
 def _register_bus_services() -> None:
@@ -471,8 +423,7 @@ def _register_bus_services() -> None:
 
     provide("llm.fetch.plan", fetch_plan)
     provide("llm.fetch.apply", fetch_apply)
-    provide("llm.retired.list", retired_list)
-    provide("llm.retired.delete", retired_delete)
+    provide("llm.missing.list", missing_list)
 
 
 _register_bus_services()

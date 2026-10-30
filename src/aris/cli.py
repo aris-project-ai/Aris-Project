@@ -172,7 +172,7 @@ def _cmd_llm_test(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# aris llm fetch / aris llm retired
+# aris llm fetch / aris llm missing list
 # ---------------------------------------------------------------------------
 
 
@@ -301,7 +301,7 @@ def _run_candidate_picker(title: str, candidates: list[LLMModel]) -> set[str] | 
 
 
 def _cmd_llm_fetch(args: argparse.Namespace) -> int:
-    """/models 同步：拉取 → 对比 → 勾选/对齐 → 退休巡检 → 写回。
+    """/models 同步：拉取 → 对比 → 勾选/对齐 → 写回（缺失模型记入只读记录）。
 
     默认 dry-run（只打印 diff 不落盘）；--write 才应用变更。
     """
@@ -311,10 +311,9 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     from aris.core.llm.fetch import (
         apply_sync,
         fetch_provider_models,
-        load_retired,
+        missing_file_path,
         modelsdev_load,
         plan_sync,
-        retired_file_path,
     )
 
     settings = get_settings()
@@ -337,26 +336,19 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     print(f"  端点共 {len(endpoint_ids)} 个模型")
 
     modelsdev = modelsdev_load(settings.data_dir, refresh=args.refresh)
-    retired = load_retired()
-    plan = plan_sync(provider, endpoint_ids, retired, modelsdev)
+    plan = plan_sync(provider, endpoint_ids, modelsdev)
 
     # ---- 打印 diff ----
-    d, r = plan.diff, plan.retire
+    d = plan.diff
     print(f"\n对比 {provider.id}（本地 {len(provider.models)} 个）:")
     print(f"  云有本地无（添加候选）: {len(d.added)} 个")
     for mid in d.added:
         print(f"    + {mid}")
     print(f"  两边都有（保留）: {len(d.kept)} 个")
     if d.missing:
-        print(f"  本地有云无（→退休）: {len(d.missing)} 个")
+        print(f"  本地有云无（→ 移除并记入缺失文件）: {len(d.missing)} 个")
         for mid in d.missing:
             print(f"    - {mid}")
-    if r.restored:
-        print(f"  退休回归（自动恢复）: {r.restored}")
-    if r.expired:
-        print(f"  退休超期（永久删除）: {[e.model for e in r.expired]}")
-    if r.retired_now:
-        print(f"  新退休（进入宽限期）: {[e.model for e in r.retired_now]}")
 
     if not args.write:
         print("\n（dry-run，未写入任何文件；确认后加 --write 应用变更）")
@@ -385,113 +377,36 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     keep = set(args.keep.split(",")) if args.keep else set()
 
     # ---- 应用 ----
-    apply_sync(
+    recorded = apply_sync(
         plan,
         sorted(selected),
         cfg=providers,
         providers_path=settings.llm_providers_file,
-        retired=retired,
         keep=sorted(keep),
-        retired_path=retired_file_path(),
     )
     print(f"\n已写入 {settings.llm_providers_file}")
     print(f"  新增: {sorted(selected)}")
-    print(f"  移除(退休): {sorted(set(d.missing) - keep)}")
+    print(f"  移除(记入缺失): {sorted(set(d.missing) - keep)}")
     print(f"  保留(keep): {sorted(keep)}")
     print(f"  备份: {settings.llm_providers_file}.bak")
+    print(f"  缺失记录: {missing_file_path()}（共 {len(recorded)} 条，只读查看）")
     return 0
 
 
-def _cmd_llm_retired(args: argparse.Namespace) -> int:
-    """退休模型管理：列出 + 手动删除（交互勾选或 --delete 指定）。"""
-    from aris.core.llm.fetch import load_retired, save_retired
+def _cmd_llm_missing(args: argparse.Namespace) -> int:
+    """缺失模型记录：只读列出同步后从端点消失的模型。"""
+    from aris.core.llm.fetch import load_missing, missing_file_path
 
-    entries = load_retired()
+    entries = load_missing()
+    path = missing_file_path()
     if not entries:
-        print("退休列表为空。")
+        print(f"缺失记录为空（{path}）。")
         return 0
 
-    print(f"退休模型共 {len(entries)} 个：")
+    print(f"缺失模型共 {len(entries)} 个（{path}）：")
     for e in entries:
-        print(f"  [{e.provider}] {e.model}  (自 {e.first_missing})")
-
-    if args.delete:
-        wanted = set(args.delete.split(","))
-        kept = [e for e in entries if e.model not in wanted]
-        save_retired(kept)
-        print(f"已删除退休记录: {sorted(wanted)}")
-        return 0
-
-    if not sys.stdin.isatty():
-        print("\n（非终端；可用 --delete id,... 删除）")
-        return 0
-
-    from prompt_toolkit.application import Application
-    from prompt_toolkit.formatted_text import HTML
-    from prompt_toolkit.key_binding import KeyBindings
-    from prompt_toolkit.layout.containers import HSplit, Window
-    from prompt_toolkit.layout.controls import FormattedTextControl
-    from prompt_toolkit.layout.layout import Layout
-
-    row = 0
-    selected: set[int] = set()
-    confirmed = False
-
-    def build_text() -> str:
-        lines = ["# 选择要永久删除的退休模型（回车确认删除）", ""]
-        for i, e in enumerate(entries):
-            mark = "[x]" if i in selected else "[ ]"
-            cursor = ">" if i == row else " "
-            lines.append(f" {cursor}{mark} {e.model:<30} 自 {e.first_missing}")
-        lines += ["", " ↑/↓ 或 j/k 移动   空格 选择   回车 确认删除   q/ESC 放弃"]
-        return "\n".join(lines)
-
-    text_control = FormattedTextControl(HTML)
-    text_control.text = build_text()
-
-    def set_content() -> None:
-        text_control.text = build_text()
-
-    kb = KeyBindings()
-
-    @kb.add("up", "k")
-    def _(event):
-        nonlocal row
-        row = (row - 1) % len(entries)
-        set_content()
-
-    @kb.add("down", "j")
-    def _(event):
-        nonlocal row
-        row = (row + 1) % len(entries)
-        set_content()
-
-    @kb.add(" ")
-    def _(event):
-        selected.symmetric_difference_update({row})
-        set_content()
-
-    @kb.add("enter")
-    def _(event):
-        nonlocal confirmed
-        confirmed = True
-        event.app.exit()
-
-    @kb.add("q", "c-q", "escape")
-    def _(event):
-        event.app.exit()
-
-    Application(
-        layout=Layout(HSplit([Window(text_control)])),
-        key_bindings=kb,
-        full_screen=True,
-    ).run()
-
-    if confirmed and selected:
-        targets = {entries[i].model for i in selected}
-        kept = [e for e in entries if e.model not in targets]
-        save_retired(kept)
-        print(f"已删除退休记录: {sorted(targets)}")
+        print(f"  [{e.provider}] {e.model}  (自 {e.last_seen})")
+    print("\n只读记录：无宽限期、不自动恢复；模型回到端点后重新同步即可加回。")
     return 0
 
 
@@ -879,7 +794,7 @@ def main(argv: list[str] | None = None) -> int:
     p_test.set_defaults(func=_cmd_llm_test)
 
     p_fetch = p_llm_test.add_parser(
-        "fetch", help="与 /models 端点同步模型列表（对比/勾选/退休巡检）"
+        "fetch", help="与 /models 端点同步模型列表（对比/勾选/写回/缺失记录）"
     )
     p_fetch.add_argument(
         "provider_id", nargs="?", default=None, help="目标提供方（默认取 default_model 所在）"
@@ -890,18 +805,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_fetch.add_argument("--add", default=None, help="只添加指定模型（逗号分隔，跳过勾选）")
     p_fetch.add_argument(
-        "--keep", default=None, help="保留这些模型不移除（逗号分隔，即使云端已消失）"
+        "--keep", default=None, help="保留这些模型不移除、不记缺失（逗号分隔，即使云端已消失）"
     )
     p_fetch.add_argument("--delete", default=None, help="从不添加候选的模型中排除（逗号分隔）")
     p_fetch.set_defaults(func=_cmd_llm_fetch)
 
-    p_retired = p_llm_test.add_parser(
-        "retired", help="退休模型管理（列出 / 交互删除 / --delete 指定）"
-    )
-    p_retired.add_argument(
-        "--delete", default=None, help="直接删除指定退休模型（逗号分隔，非交互）"
-    )
-    p_retired.set_defaults(func=_cmd_llm_retired)
+    p_missing = p_llm_test.add_parser("missing", help="缺失模型记录（同步后从端点消失，只读）")
+    p_missing_sub = p_missing.add_subparsers(dest="missing_command")
+    p_missing_list = p_missing_sub.add_parser("list", help="列出缺失模型记录")
+    p_missing_list.set_defaults(func=_cmd_llm_missing)
+
+    p_retired = p_llm_test.add_parser("retired", help="[已退役] 旧命令别名，请改用 missing list")
+    p_retired.set_defaults(func=_cmd_llm_missing)
 
     p_chat = sub.add_parser("chat", help="文字对话（交互循环或单次问答）")
     p_chat.add_argument("message", nargs="?", help="要发送的消息；不提供则进入交互对话循环")
