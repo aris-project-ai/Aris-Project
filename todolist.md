@@ -87,3 +87,32 @@
 - W1–W6 已全部完成（分支 `feat/config-toml`，尚未合回 develop）；验收：`bash scripts/check.sh` 全绿。
 - 待办：阶段验收（DoD 见 `docs/process/v0.4.4.md` §6）→ 合回 develop → `bump-version.sh 0.4.4` → `release-check.sh` → 合并 main → tag `v0.4.4`。
 - 技术债（建议项，本阶段未做）：`cli.py` 拆包；模块开关测试的总线快照隔离（3.5）。
+
+## v0.4.5 标准化（v1.0 开发正式启动前必须完成）
+
+> 目标：让项目看起来与维护方式符合「标准开源项目」。CI/CD 与 i18n 不在本阶段（v1 期间做）。
+
+### A. 提交记录（head / body / footer）
+- [x] 规则写清：AGENTS.md §8、CONTRIBUTING.md、docs/DEV-FLOW.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
+- [ ] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
+- [ ] 新提交一律带 footer（有可关联 issue/PR 时）；合并时保留分支内多条 commit
+
+### B. 文档
+- [x] CONTRIBUTING.md / SECURITY.md / changelogs（README + 0.4.4 + unreleased）
+- [ ] 用户文档体系：docs/zh（与 docs/en）分语言，先补「安装 / 配置 / 使用 / FAQ」四类
+- [ ] README 升级：简介、截图、快速开始、文档索引、许可证与徽章
+- [ ] forAiDoc 清理：skills-backup、discuss-2026-09-28.md、历史实现细节迁 docs/archive
+
+### C. 项目结构
+- [x] datadir.py 并入 paths.py（数据目录只有一处来源）
+- [ ] 顶层基础设施收进 src/aris/infra/（paths / config / cfgtoml / modules / logging / branding）——**待开发者确认**
+- [ ] tests/ 按模块分组或加 README；测试支持代码收口到 tests/support
+- [ ] docs/ 目录整理（forAiDoc / process / referenceDocumentation / archive 的边界与命名）
+
+### D. CI/CD（v1 期间）
+- [ ] 打包（wheel + 可选 GUI）后加 CI：lint / test / build / release 产物
+- [ ] CD：tag 触发构建与发布（等发行包形态稳定）
+
+### E. i18n（v1 期间）
+- [ ] 用户可见文案集中到常量 / 资源（先做后端，不引框架）
+- [ ] 至少支持中 / 英；后续再评估其它语言

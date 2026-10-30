@@ -236,7 +236,11 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
 - **body**：空行后**用 `-` 分条**列出改了什么，每条一两句，必要时简述原因；
   不要写成技术文档长文（踩坑与背景记进本文件陷阱节或 `PROGRESS.md`）。
+- **footer**：可选，body 后空一行写 `Refs: #123` / `Closes #123` /
+  `BREAKING CHANGE: ...` / `Co-authored-by: ...`；没有可关联内容不写，不硬凑。
 - **一次提交只做一件事**（代码与文档分开）；同一文件的改动一次改完。
+- **Fork + PR 模式**：上游 `aris-project-ai/Aris-Project`，日常推到 fork
+  `kasamorin/Aris-Project` 的 `develop`；攒够后向上游 `develop` 提 PR，不直接推上游。
 - 版本号攒到**阶段性发布**再 bump，不要为了「有进展」频繁 bump。
 - 仓库自带 commit-msg 与 pre-commit hook（提交格式 + 分支保护 + staged Python 的 ruff 检查），
   换机后先跑 `bash scripts/install-git-hooks.sh`。

@@ -59,11 +59,15 @@ git commit
 
 - 改了什么，一两句一条
 - 为什么改，必要时补一句
+
+Refs: #123
 ```
 
 标准：
 
 - `type` 只能取：`feat` `fix` `docs` `refactor` `chore` `test` `build` `ci` `perf` `style` `revert`。
+- **footer 可选**：body 后空一行，写 `Refs: #123`（关联）/ `Closes #123`（关闭）/
+  `BREAKING CHANGE: ...`（不兼容）/ `Co-authored-by: ...`；没有可关联内容就不写。
 - 一次提交只做一件事，代码与文档分开提交；同一文件的改动一次改完。
 - 不提交 `data/`、`.env`、密钥、构建产物。
 - 仓库自带 commit-msg 与 pre-commit 钩子；换机后先跑 `bash scripts/install-git-hooks.sh`。
@@ -84,6 +88,8 @@ git push origin --delete feat/add-knowledge-pdf
 - 先验证再合并；合并用 `--no-ff`，保留分支历史。
 - 合并后删本地与远程 feature 分支。
 - 合并冲突尽量不要用「强制覆盖」解决。
+- **推送到 fork**（`kasamorin/Aris-Project`），不要直接推上游；攒够一批再向上游
+  `aris-project-ai/Aris-Project` 的 `develop` 提 PR。
 
 ## 6. 发版
 
@@ -102,7 +108,8 @@ git push origin main --tags
 - 渠道：beta（小版本，发 `main`）、正式版（发 `main`）、alpha（只发 `develop`）。
 - 号码全线唯一：同一个 `X.Y.Z` 只能出现一次；beta 与正式共用数字线，另一个渠道要用更高的号。
 - 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- 发版后同步 `PROGRESS.md` 的版本状态。
+- 发版后同步 `PROGRESS.md` 的版本状态，并把 `changelogs/unreleased.md` 的内容
+  移到 `changelogs/<版本>.md`（面向使用者，格式见 `changelogs/README.md`）。
 
 ## 7. 热修
 
