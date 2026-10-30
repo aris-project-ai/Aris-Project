@@ -51,7 +51,7 @@
 | `uv run aris web` | 只起 WebUI |
 | `uv run aris db init\|start\|stop\|status\|migrate\|psql` | 便携库管理；`psql` 直接进库看数据 |
 | `uv run aris knowledge add\|list\|remove\|search\|reindex` | 知识库摄入与检索 |
-| `uv run aris llm list\|check\|test\|fetch\|retired` | 提供方与模型管理 |
+| `uv run aris llm list\|check\|test\|fetch\|missing` | 提供方与模型管理 / 缺失记录（只读） |
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |

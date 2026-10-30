@@ -137,7 +137,7 @@ summary = query_summary()            # 聚合统计
 | `llm.providers.add/delete` | `core/llm/manage.py` 模块级 | 增删提供商（结构化写回 toml） | `webui` 提供商页 |
 | `llm.providers.model_add/model_delete` | `core/llm/manage.py` 模块级 | 增删模型 | `webui` 提供商页 |
 | `llm.fetch.plan/apply` | `core/llm/fetch.py` 模块级 | /models 同步：生成计划 / 应用计划 | `webui` 提供商页 |
-| `llm.retired.list/delete` | `core/llm/fetch.py` 模块级 | 退休模型：列表 / 手动删除 | `webui` 提供商页 |
+| `llm.missing.list` | `core/llm/fetch.py` 模块级 | 缺失模型记录（只读）：同步后从端点消失的模型 | `webui` 提供商页 |
 | `skills.list/detail` | `behavior/skills/manager.py` 模块级 | 技能清单 / 详情 | `webui` 技能页 |
 | `skills.create/save/delete` | `behavior/skills/manager.py` 模块级 | 技能增改删 | `webui` 技能页 |
 | `knowledge.ai_tools` | `knowledge/__init__.py` 模块级 | agent 工具声明（`list[ToolSpec]`，契约 `core/tools.py`；`.ai_tools` 后缀由 behavior 探询） | behavior 装配（`register_declared_tools`） |
@@ -195,8 +195,9 @@ summary = query_summary()            # 聚合统计
 - 背景：WebUI 属管理层 UI，此前若直接跨模块 import 会违反总线规则。
 - 服务落位：
   - `core/llm/manage.py`（新建）、`core/llm/fetch.py`（追加）：注册全部
-    `llm.providers.*` / `llm.fetch.*` / `llm.retired.*` 服务，接管提供商/
-    模型/退役管理，写回统一走 `fetch.write_providers`（tomli-w 结构化防注入）。
+    `llm.providers.*` / `llm.fetch.*` 服务，接管提供商/模型管理，写回统一走
+    `fetch.write_providers`（tomli-w 结构化防注入）；原 `llm.retired.*` 已在 v0.4.4 W5
+    退役，改为只读的 `llm.missing.list`（`data/state/llm-list-missing.json`）。
   - `behavior/skills/manager.py`（追加）：注册 `skills.*` CRUD 服务，
     技能目录用包内绝对路径 `SKILLS_DIR`，与运行时同源、与 CWD 解耦。
   - `core/bus.py`（追加）：注册 `audit.recent` / `audit.summary`（内部封

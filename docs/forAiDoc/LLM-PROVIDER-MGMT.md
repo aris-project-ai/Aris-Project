@@ -2,7 +2,7 @@
 
 > 2026-08-14 定案。对应待办清单第 1 项「完善提供商和可用模型管理」。
 > 本文档是 provider/model 管理功能的**唯一权威说明**，分两阶段落地：
-> 阶段一（管理基础）与阶段二（/models 同步 + 退休机制）。
+> 阶段一（管理基础）与阶段二（/models 同步 + 缺失记录）。
 
 ## 背景与痛点
 
@@ -107,19 +107,19 @@ aris llm check   # 配置体检，有错误时非零退出
 
 ---
 
-## 阶段二：/models 同步 + 退休机制
+## 阶段二：/models 同步 + 缺失记录
 
 ### 2.1 命令形态（一体式 fetch）
 
 ```
-aris llm fetch [provider_id] [--refresh] [--dry-run] [--write]
+aris llm fetch [provider_id] [--refresh] [--write]
              [--add id,...] [--keep id,...] [--delete id,...]
-aris llm retired              # 退休模型管理 TUI（手动删除）
+aris llm missing list         # 缺失模型记录（只读；旧 retired 保留一版别名）
 ```
 
 - 默认 provider = `default_model` 所在提供方（或 order 第一个）。
 - `--refresh`：强制重新下载 models.dev 缓存。
-- `--dry-run`（默认）：只打印完整 diff（含退休巡检结果），不落盘。
+- `--dry-run`（默认）：只打印完整 diff，不落盘。
 - `--write`：应用变更（勾选结果 / 或非 TTY 全量对齐）。
 - `--add/--keep/--delete`：非 TTY 下细粒度覆盖（白名单语义）。
 
@@ -131,12 +131,11 @@ GET {base_url}/models（httpx，复用 key；无 key 匿名尝试，401 明确�
 三方对比（vs providers.toml 活跃模型）：
   云有本地无  → 添加候选（元数据 enrichment 后进勾选 UI）
   两边都有    → 保留
-  本地有云无  → 移入退休文件 + 从可选列表移除 + 提示
-退休文件巡检（data/config/retired_models.toml）：
-  回归端点    → 自动恢复进 providers.toml，清退休记录
-  未回归      → 保留，等待下次
-  超 30 天    → 自动永久删除（记日志 + 提示）
+  本地有云无  → 从配置移除 + 写入 data/state/llm-list-missing.json（只读留档）
 ```
+
+缺失记录**没有**宽限期、没有自动恢复：模型回到端点后重新同步即可重新添加；
+记录文件只用于事后查看「哪些模型什么时候消失」。
 
 ### 2.3 添加候选勾选 UI（按系列分组）
 
@@ -144,7 +143,7 @@ GET {base_url}/models（httpx，复用 key；无 key 匿名尝试，401 明确�
   空格勾选/取消，`p`/`n` 翻页，回车确认。
 - 每条展示 models.dev 元数据（name / context / tools / reasoning / vision），
   同系列一眼挑中需要的那个（白名单语义，替代 --filter 粗筛）。
-- 已退休模型不在此列表出现。
+- 只列端点新增；本地有云无的模型走「缺失」分支，不出现在这里。
 
 ### 2.4 models.dev enrichment
 
@@ -163,24 +162,24 @@ GET {base_url}/models（httpx，复用 key；无 key 匿名尝试，401 明确�
 
 - 未收录（如 zen 免费模型）→ 标「models.dev 未收录」，字段留空手动补。
 
-### 2.5 退休机制（data/config/retired_models.toml）
+### 2.5 缺失记录（data/state/llm-list-missing.json）
 
-```toml
-[[retired]]
-provider = "opencode"
-model = "ling-3.0-tiny-free"
-first_missing = "2026-08-14"   # 首次失联日期，宽限期起算
+```json
+[
+  {"provider": "opencode", "model": "ling-3.0-tiny-free", "last_seen": "2026-08-14"}
+]
 ```
 
-- 文件**机器维护**，不手工编辑；放 config/ 与 providers.toml 同目录。
-- 每次 fetch 巡检：回归 → 恢复并清记录；`first_missing` 距今 >30 天 → 永久删除。
-- `aris llm retired`：TUI 列出退休模型，空格选中 + 回车删除。
-- 幂等：重复 fetch 不产生重复条目。
+- 文件**机器维护**、只读查看（`aris llm missing list` / WebUI 提供商页「缺失记录」tab）；
+  放 `data/state/`（可重建目录），不进 git。
+- `last_seen`：首次确认该模型已从端点消失的同步日期；之后重复同步不更新，不丢条目。
+- 同名模型回归端点 → 自动从记录中移除（仅清理记录，**不**自动写回 providers.toml）。
+- 记录按 provider + model 排序，重复同步幂等；其他提供方的条目不受影响。
 
 ### 2.6 非 TTY 语义
 
-- `--dry-run`：打印完整 diff（新增/保留/退休/回归/过期）。
-- `--write`：全量对齐（新增全加、缺失全退休）；`--add/--keep/--delete` 覆盖。
+- `--dry-run`：打印完整 diff（新增/保留/缺失）。
+- `--write`：全量对齐（新增全加、缺失全移除并记缺失）；`--add/--keep/--delete` 覆盖。
 - 写回前备份 `providers.toml` → `providers.toml.bak`。
 
 ---
@@ -191,11 +190,11 @@ first_missing = "2026-08-14"   # 首次失联日期，宽限期起算
 |---|---|
 | `src/aris/core/llm/config.py` | schema 扩展 + 加载校验（阶段一） |
 | `src/aris/core/llm/engine.py` | thinking 默认值按模型配置解析（阶段一） |
-| `src/aris/core/llm/fetch.py` | 拉取/对比/enrichment/写回/退休巡检（阶段二，新） |
-| `src/aris/cli.py` | `llm list` / `llm check` / `llm fetch` / `llm retired` + doctor 摘要 |
+| `src/aris/core/llm/fetch.py` | 拉取/对比/enrichment/写回/缺失记录（阶段二，新） |
+| `src/aris/cli.py` | `llm list` / `llm check` / `llm fetch` / `llm missing list` + doctor 摘要 |
 | `src/aris/chat/session.py` | `/model` 标 `[默认]` |
 | `data/config/providers.toml` / `providers.example.toml` | `default_model` + 模型元数据 |
-| `data/config/retired_models.toml` | 退休记录（阶段二，机器维护，新） |
+| `data/state/llm-list-missing.json` | 缺失记录（阶段二，机器维护、只读，新） |
 
 依赖：httpx / prompt_toolkit / tomllib / tomli-w（tomli-w 新增，写回用）。
 
@@ -203,5 +202,6 @@ first_missing = "2026-08-14"   # 首次失联日期，宽限期起算
 
 - 阶段一：`aris llm list` / `aris llm check`（构造重复 id、缺 key 场景）/ 
   `aris llm test`（观察 dsv4ff 首字延迟）/ `aris chat` 切换模型。
-- 阶段二：`aris llm fetch --dry-run`（对比真实端点）/ 勾选写回 / 退休模拟
-  （手工造一个本地有云无的模型，验证移入退休、恢复、30 天过期）/ 幂等重复 fetch。
+- 阶段二：`aris llm fetch --dry-run`（对比真实端点）/ 勾选写回 / 缺失模拟
+  （手工造一个本地有云无的模型，验证移除 + 写入缺失记录、回归后条目清理）/ 幂等重复 fetch；
+  `aris llm missing list`（含旧 `retired` 别名）。

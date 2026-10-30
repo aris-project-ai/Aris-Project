@@ -17,7 +17,7 @@
 | W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
 | W3 CLI 事实入口（`info` / `config` / `modules`） | 待做 |
 | W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
-| W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 待做 |
+| W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 完成 |
 | W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 待做 |
 
 ## 模块状态
@@ -48,6 +48,9 @@
   `behavior/runtime.py`，删除 `serve/assembly.py`；`chat` / `cli` / serve 步骤改为依赖 behavior。
   装配失败经 `assembly_error()` 在启动清单与 `aris doctor` 如实报错；新增
   `tests/test_import_boundary.py`（AST 扫描，除 `serve/` 与 `cli.py` 外禁止 import serve）。
+- **W5**：退休 / 宽限期 / 自动恢复机制删除；同步后消失的模型只写入
+  `data/state/llm-list-missing.json`（`{provider, model, last_seen}`，幂等合并、跨提供方保留）；
+  `aris llm missing list`（旧 `retired` 留一版别名）与 WebUI「缺失记录」tab 均只读。
 
 ## 阻塞 / 待决
 
@@ -58,5 +61,5 @@
 
 ## 下一步
 
-1. W5（退休退役）→ W6（工程小件）→ W3（CLI + 模块开关，最大）。
+1. W6（工程小件）→ W3（CLI + 模块开关，最大）。
 2. 每项收工用 `date` 记录实际工时，回填 `docs/process/v0.4.4.md` §4。
