@@ -81,4 +81,4 @@ bash scripts/check.sh        # ruff format --check + ruff check + mypy + pytest
 
 - 每个版本在 `changelogs/<版本>.md` 写一条面向用户的变更记录（格式见
   `changelogs/README.md`）；未发布的改动先写进 `changelogs/unreleased.md`。
-- 发版流程见 `docs/DEV-FLOW.md` 第 6 节；版本号规则见 AGENTS.md §9。
+- 发版流程见 `docs/dev-flow.md` 第 6 节；版本号规则见 AGENTS.md §9。

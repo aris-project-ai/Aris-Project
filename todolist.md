@@ -59,7 +59,7 @@
 3. **W3 CLI 事实入口**：`aris info` / `aris config path|list|show|validate`（只读，不写配置）/ `aris modules list|status|enable|disable`；模块开关 7 个（store / knowledge / mcp / behavior / webui / character / voice），`modules.toml` 统一，`knowledge.toml.enabled` 并入；关闭时日志报错、不退出程序。
 4. **W4 架构原则落地**：`serve` 只做组装与启动，**任何模块不得 import serve**；`get_runtime` 等运行时对象移到 `behavior/runtime.py`；加守卫测试。
 5. **W5 LLM 退休机制退役**：`fetch` 只把同步后消失的模型写入 `data/state/llm-list-missing.json`，`aris llm missing list` 与 WebUI 只读查看。
-6. **W6 工程小件**：AGPL-3.0-or-later、alpha 渠道（占号）、`git rm -r --cached docs/archive`、`docs/DEV-FLOW.md`（人类文档）、`CLAUDE.md -> AGENTS.md` 软链。
+6. **W6 工程小件**：AGPL-3.0-or-later、alpha 渠道（占号）、`git rm -r --cached docs/archive`、`docs/dev-flow.md`（人类文档）、`CLAUDE.md -> AGENTS.md` 软链。
 
 ### 已消歧
 - 模块开关按模块粒度；工具开关 v1.0 再做（`ToolSpec.enabled` / `owner` 地基已存在）。
@@ -93,7 +93,7 @@
 > 目标：让项目看起来与维护方式符合「标准开源项目」。CI/CD 与 i18n 不在本阶段（v1 期间做）。
 
 ### A. 提交记录（head / body / footer）
-- [x] 规则写清：AGENTS.md §8、CONTRIBUTING.md、docs/DEV-FLOW.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
+- [x] 规则写清：AGENTS.md §8、CONTRIBUTING.md、docs/dev-flow.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
 - [ ] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
 - [ ] 新提交一律带 footer（有可关联 issue/PR 时）；合并时保留分支内多条 commit
 

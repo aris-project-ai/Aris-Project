@@ -298,7 +298,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 ### 文档规范（`docs/forAiDoc/`）
 
 **分层**：AGENTS 是规则与唯一索引；`docs/forAiDoc/` 只收**契约与约束**（边界、接口、为什么这么设计、坑、未决）；
-`docs/` 放人类文档（如 `DEV-FLOW.md`）；`docs/process/` 放阶段施工文档（过程性，阶段结束后移入 archive）；
+`docs/` 放人类文档（如 `dev-flow.md`）；`docs/process/` 放阶段施工文档（过程性，阶段结束后移入 archive）；
 `docs/archive/` 只读。**状态进 `PROGRESS.md`，待办进 `todolist.md`，过程进 archive。**
 本规范只适用于AI， `docs/forAiDoc` 从目录名也可以看出只适用于AI，对于人，文档现阶段放在 `docs/` 根目录。
 人类开发者不受本文档以及其他针对AI的文档的约束。对于人，规范将在后续完善。
