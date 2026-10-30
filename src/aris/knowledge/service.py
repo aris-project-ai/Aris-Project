@@ -19,7 +19,7 @@ from typing import Any
 from loguru import logger
 
 from ..core import call
-from ..modules import module_enabled
+from ..infra.modules import module_enabled
 from .chunking import chunk_document
 from .conf import KnowledgeConfig, get_knowledge_config
 from .loaders import SUPPORTED_SUFFIXES, LoadError, iter_files, load_document
@@ -224,7 +224,7 @@ class KnowledgeService:
         """上传文件的落盘目录（配置为空时用 ``<data_dir>/knowledge``）。"""
         if self._config.upload_dir:
             return Path(self._config.upload_dir).expanduser().resolve()
-        from ..config import get_settings
+        from ..infra.settings import get_settings
 
         return Path(get_settings().data_dir).resolve() / "knowledge"
 

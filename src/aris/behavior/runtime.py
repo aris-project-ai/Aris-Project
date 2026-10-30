@@ -90,8 +90,8 @@ _assembly_error: str | None = None
 
 def build_engine() -> LLMEngine:
     """按 data/config（settings.toml / providers.toml）建 LLM engine。"""
-    from ..config import get_settings
     from ..core.llm import load_providers
+    from ..infra.settings import get_settings
 
     settings = get_settings()
     providers = load_providers(settings.llm_providers_file)
@@ -112,7 +112,7 @@ def get_runtime(*, rebuild: bool = False) -> BehaviorRuntime:
     """
     global _runtime, _assembly_error
     if _runtime is None or rebuild:
-        from ..modules import module_enabled
+        from ..infra.modules import module_enabled
 
         if not module_enabled("behavior"):
             raise RuntimeError("behavior 模块已关闭（data/config/modules.toml）")

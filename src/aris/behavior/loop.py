@@ -21,10 +21,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 
-from aris.cfgtoml import load_config
 from aris.core.bus import provide
 from aris.core.llm.engine import LLMEngine
 from aris.core.llm.message import ChatRequest, FinishReason, Message, MessageRole
+from aris.infra.toml import load_config
 
 from .registry import ToolRegistry
 

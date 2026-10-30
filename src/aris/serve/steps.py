@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..behavior.runtime import assembly_error, get_runtime, peek_runtime
-from ..config import get_settings
 from ..core import call, has_service
+from ..infra.settings import get_settings
 from .conf import ServeConfig
 
 
@@ -45,7 +45,7 @@ def _probe_services() -> str:
     核验——原实现散在 `webui.create_app()` 里，只有 WebUI 那条路径会被检查。
     模块开关关闭后，该模块声明的依赖不再核验（它本来就不会装配）。
     """
-    from ..modules import module_enabled
+    from ..infra.modules import module_enabled
 
     required: tuple[str, ...] = ()
     if module_enabled("webui"):
@@ -125,7 +125,7 @@ def _start_behavior() -> str:
 
 def _probe_data() -> str:
     """探针：``data/`` 分层完整性（可迁移性 D14；只读，缺失只提示）。"""
-    from ..paths import missing_carried
+    from ..infra.paths import missing_carried
 
     data_dir = get_settings().data_dir
     missing = missing_carried(data_dir)
@@ -136,7 +136,7 @@ def _probe_data() -> str:
 
 def _start_data() -> str:
     """启动动作：幂等创建 ``data/`` 下必须带的目录（换机后拷过来就能起）。"""
-    from ..paths import ensure_dirs
+    from ..infra.paths import ensure_dirs
 
     created = ensure_dirs(get_settings().data_dir)
     return f"新建 {', '.join(created)}" if created else "目录已齐备，无新建"

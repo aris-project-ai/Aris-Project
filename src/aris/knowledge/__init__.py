@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..core import provide
-from ..modules import module_enabled
+from ..infra.modules import module_enabled
 from . import migrations  # noqa: F401  —— import 即登记建表迁移
 from .conf import KnowledgeConfig, get_knowledge_config
 from .service import KnowledgeError, KnowledgeService, get_service

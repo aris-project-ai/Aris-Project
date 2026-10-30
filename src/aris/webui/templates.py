@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader
 
-from ..branding import APP_NAME, GITHUB_URL
+from ..infra.branding import APP_NAME, GITHUB_URL
 
 # 模板目录
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -29,7 +29,7 @@ def render(
 
     统一注入 ``auth_disabled``：无密码模式（见 auth.py）下模板据此隐藏登录/退出入口。
     品牌文案 ``app_name`` / ``github_url`` 也在这里注入：模板不再硬编码项目名，
-    改名只动 ``aris.branding``（AGENTS.md §5「用户可见文案不硬编码」）。
+    改名只动 ``aris.infra.branding``（AGENTS.md §5「用户可见文案不硬编码」）。
     """
     from .auth import is_password_configured
 

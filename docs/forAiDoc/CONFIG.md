@@ -1,11 +1,11 @@
 # 配置体系（CONFIG.md）
 
-> 状态：契约 | 代码入口：`src/aris/config.py`、`src/aris/cfgtoml.py`、`src/aris/paths.py`、`src/aris/modules.py`
+> 状态：契约 | 代码入口：`src/aris/infra/`（`settings.py` / `toml.py` / `paths.py` / `modules.py`）
 > 事实查看：`aris config path|list|show|validate|env`、`aris modules list|status`、`aris info`
 
 ## 一处来源
 
-配置只有一处：**`data/config/`**（路径由 `src/aris/paths.py` 决定，随 `ARIS_DATA_DIR` 变化）。
+配置只有一处：**`data/config/`**（路径由 `src/aris/infra/paths.py` 决定，随 `ARIS_DATA_DIR` 变化）。
 目录内文件缺失时回落到**随包种子模板** `src/aris/seed/config/`；首次启动把模板幂等播种到
 `data/config/`（只补缺失、不覆盖用户改动，`secrets.toml` 播种时置 0600）。
 
@@ -34,7 +34,7 @@
 ```python
 from dataclasses import dataclass
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 
 @dataclass

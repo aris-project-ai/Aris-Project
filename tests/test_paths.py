@@ -1,7 +1,7 @@
 import importlib
 from pathlib import Path
 
-from aris import paths
+from aris.infra import paths
 
 
 def test_data_root_dev_tree(tmp_path, monkeypatch):

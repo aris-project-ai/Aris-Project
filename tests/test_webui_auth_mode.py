@@ -16,7 +16,7 @@ def anon_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """不带密码的 WebUI 客户端（免鉴权模式）。"""
     monkeypatch.delenv("ARIS_WEBUI_PASSWORD", raising=False)
 
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     monkeypatch.setattr(get_settings(), "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ def test_password_still_required_when_configured(monkeypatch, tmp_path: Path) ->
     """配置了密码则维持原行为：未登录重定向到 /login。"""
     monkeypatch.setenv("ARIS_WEBUI_PASSWORD", "test-pass")
 
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     monkeypatch.setattr(get_settings(), "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)

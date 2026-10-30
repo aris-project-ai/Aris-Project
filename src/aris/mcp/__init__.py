@@ -26,8 +26,8 @@ from typing import Any
 
 from loguru import logger
 
-from ..config import get_settings
 from ..core import provide
+from ..infra.settings import get_settings
 from .conf import McpConfig, McpServerConfig, get_mcp_config
 from .runtime import McpRuntime, MCPToolError
 

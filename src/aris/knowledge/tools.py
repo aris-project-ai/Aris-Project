@@ -18,7 +18,7 @@ import json
 from loguru import logger
 
 from ..core.tools import ToolSpec
-from ..modules import module_enabled
+from ..infra.modules import module_enabled
 from .service import get_service
 
 # 单块内容截断上限：与分块上限（data/config/knowledge.toml: max_chars）同量级，

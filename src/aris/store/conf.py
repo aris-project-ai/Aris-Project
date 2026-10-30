@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-from ..cfgtoml import load_config
+from ..infra.toml import load_config
 
 
 @dataclass

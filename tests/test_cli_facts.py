@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 
 from aris.cli import _cmd_config, _cmd_info, _cmd_modules
-from aris.modules import load_modules
+from aris.infra.modules import load_modules
 
 
 def _ns(**kwargs) -> argparse.Namespace:
@@ -44,7 +44,7 @@ def test_config_list_shows_sources(capsys) -> None:
 
 
 def test_config_show_masks_secrets(tmp_path: Path, monkeypatch, capsys) -> None:
-    from aris import paths
+    from aris.infra import paths
 
     (tmp_path / "secrets.toml").write_text(
         'DEEPSEEK_API_KEY = "sk-real-secret"\nWEBUI_PASSWORD = "pw"\n', encoding="utf-8"
@@ -83,7 +83,7 @@ def test_modules_status_reports_enabled(capsys) -> None:
 
 
 def test_modules_enable_disable_roundtrip(tmp_path: Path, monkeypatch) -> None:
-    from aris import modules as modules_module
+    from aris.infra import modules as modules_module
 
     path = tmp_path / "modules.toml"
     path.write_text("[modules]\n", encoding="utf-8")

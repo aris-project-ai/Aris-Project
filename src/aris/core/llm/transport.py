@@ -73,7 +73,7 @@ def _api_key(provider: LLMProvider) -> str:
     若当前进程未注入（如被直接 import 使用而非走 CLI 入口），
     先把 data/config 的配置同步进 os.environ 再读取。
     """
-    from aris.config import ensure_config_loaded
+    from aris.infra.settings import ensure_config_loaded
 
     ensure_config_loaded()
     key = os.environ.get(provider.api_key_env)

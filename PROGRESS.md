@@ -40,7 +40,7 @@
 
 ## 已落地（v0.4.4）
 
-- **W1**：`src/aris/paths.py` 是路径唯一来源（`ARIS_DATA_DIR` > 开发树 `./data` > `~/.project-aris`）；
+- **W1**：`src/aris/infra/paths.py` 是路径唯一来源（`ARIS_DATA_DIR` > 开发树 `./data` > `~/.project-aris`）；
   `aris info` 打印解析结果与来源。
 - **W2**：配置统一在 `data/config/`（`settings.toml` / `secrets.toml`(0600) / `providers.toml` /
   各模块 toml），种子模板随包在 `src/aris/seed/config/` 并在 `serve.assemble()` 前幂等播种；
@@ -55,7 +55,7 @@
 - **W6**：许可证换 AGPL-3.0-or-later（`COPYING` + pyproject + README/AGENTS 口径）；
   版本脚本支持 `alpha-vX.Y.Z`（只在 develop、占号，含测试）；`docs/archive` 取消跟踪
   （本机保留、`.gitignore` 排除）；新增 `CLAUDE.md -> AGENTS.md` 软链。
-- **W3**：新增 `src/aris/modules.py`（7 个模块开关 + 依赖级联 + modules.toml 读写）；
+- **W3**：新增 `src/aris/infra/modules.py`（7 个模块开关 + 依赖级联 + modules.toml 读写）；
   `serve.assemble()` 先读开关再 import，关闭模块的启动步骤标 skipped、依赖方记 error 不退出；
   CLI 新增 `aris info` / `aris config path|list|show|validate|env` / `aris modules list|status|enable|disable`；
   `knowledge.toml` 的 `enabled` 并入 modules.toml。

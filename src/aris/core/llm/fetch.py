@@ -23,7 +23,7 @@ import httpx
 import tomli_w
 from loguru import logger
 
-from aris import paths
+from aris.infra import paths
 
 from .config import LLMModel, LLMProvider, ProviderConfig, load_providers
 from .errors import AuthError, LLMError
@@ -363,7 +363,7 @@ def fetch_plan(pid: str) -> dict:
     流程：加载配置 → 定位提供方 → 拉 /models → models.dev enrichment → 生成计划。
     pid 不存在返回 {"error": ...}。
     """
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     cfg = load_providers(get_settings().llm_providers_file)
     provider = next((p for p in cfg.providers if p.id == pid), None)
@@ -394,7 +394,7 @@ def fetch_apply(pid: str, selected: list[str]) -> None:
 
     基于执行时刻的最新状态重新拉取（与 CLI 行为一致），确保 apply 幂等。
     """
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     settings = get_settings()
     cfg = load_providers(settings.llm_providers_file)

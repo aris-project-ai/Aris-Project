@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 from aris.behavior.registry import ToolRegistry
-from aris.config import get_settings
+from aris.infra.settings import get_settings
 
 # 标题路径安全化：去掉路径分隔符等危险字符
 _SAFE_TITLE = re.compile(r"[^\w\-. ]", flags=re.UNICODE)

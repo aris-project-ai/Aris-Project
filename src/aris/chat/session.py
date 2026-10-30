@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 from ..behavior import BehaviorRuntime, LoopEventType
 from ..behavior.runtime import get_runtime
@@ -147,7 +147,7 @@ class ChatSession:
             raise ValueError("engine 与 runtime 指向不同的 LLM 引擎，二者只能给一个")
 
         if data_dir is None:
-            from ..config import get_settings
+            from ..infra.settings import get_settings
 
             data_dir = get_settings().data_dir
         if system_prompt is None:

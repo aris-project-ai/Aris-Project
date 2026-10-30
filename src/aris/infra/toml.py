@@ -4,8 +4,8 @@
 **代码内 dataclass 默认值 < data/config/<name>.toml**。用户文件缺失时退回随包
 种子模板（src/aris/seed/config/）读默认值；缺键一律用代码默认。
 
-边界：启动级参数与密钥见 aris.config（settings.toml / secrets.toml）；本模块只管
-模块可调参数。配置目录由 aris.paths.config_dir() 决定，与运行 cwd 无关。
+边界：启动级参数与密钥见 aris.infra.settings（settings.toml / secrets.toml）；本模块只管
+模块可调参数。配置目录由 aris.infra.paths.config_dir() 决定，与运行 cwd 无关。
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from . import paths
 
 
 def config_dir() -> Path:
-    """配置目录（= aris.paths.config_dir()，历史调用点保留这个入口）。"""
+    """配置目录（= aris.infra.paths.config_dir()，历史调用点保留这个入口）。"""
     return paths.config_dir()
 
 

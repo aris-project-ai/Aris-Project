@@ -176,7 +176,7 @@ serve 只管「启不启」。
 
 - **唯一组装根（已落地）**：`serve.assemble()` 是唯一一份「import 哪些所有者模块」
   的清单；服务自检由 `services` 步骤统一做。**v0.4.4 W3 起该清单来自
-  `data/config/modules.toml`（`src/aris/modules.py`）**：关闭的模块不 import，
+  `data/config/modules.toml`（`src/aris/infra/modules.py`）**：关闭的模块不 import，
   依赖被关的模块级联关闭（记 error、步骤标 skipped、不退出）；`aris modules enable|disable`
   只写文件、下一次启动生效。`aris serve` / `aris web` 都走它，
   测试在 `tests/conftest.py` 里调它，`webui.create_app()` 只搭 HTTP 层、不再自己

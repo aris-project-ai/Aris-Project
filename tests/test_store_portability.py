@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from aris.paths import CARRIED_PATHS, ensure_dirs, missing_carried
+from aris.infra.paths import CARRIED_PATHS, ensure_dirs, missing_carried
 from aris.store import pgenv
 from aris.store.bootstrap import choose_port, probe_runnable
 from aris.store.pgenv import (

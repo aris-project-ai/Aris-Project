@@ -1,6 +1,6 @@
 """全局配置（启动级参数与密钥）。
 
-两个来源，都落在 data/config/（路径见 aris.paths），缺失时回落到随包种子模板：
+两个来源，都落在 data/config/（路径见 aris.infra.paths），缺失时回落到随包种子模板：
 
 - settings.toml：[settings] 表里的**非密钥**启动参数，键名映射成 ARIS_<KEY> 环境变量
   （例如 log_level → ARIS_LOG_LEVEL）；data_dir 不在这里配，只认进程环境

@@ -48,7 +48,7 @@ def _service(tmp_path: Path):
 @pytest.fixture
 def upload_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """把 data_dir 指到 tmp，上传落到 tmp/data/knowledge（不污染真实仓库）。"""
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     monkeypatch.setattr(get_settings(), "data_dir", tmp_path / "data")
     return _service(tmp_path)
@@ -116,7 +116,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
     monkeypatch.setattr(rate_limit.login_limiter, "_attempts", {})
 
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
     from aris.store import detect
 
     # data_dir 只隔离知识库文件；数据库仍连当前真实实例（否则会退回默认角色 aris）
@@ -196,7 +196,7 @@ def test_webui_upload_ingest_search_remove(client, monkeypatch) -> None:
     assert job_url.startswith("/knowledge?job=")
     job_id = job_url.split("job=", 1)[1]
 
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     saved = (Path(get_settings().data_dir) / "knowledge" / "kb-webui.md").resolve()
     try:
@@ -233,7 +233,7 @@ def test_uploaded_doc_is_retrievable_by_agent(client, llm_server, monkeypatch) -
 
     from aris.behavior import AgentLoop, LoopEventType
     from aris.behavior.registry import ToolRegistry
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
     from aris.knowledge.tools import tool_specs
     from support.helpers import build_engine, events_of, user_messages
     from support.mock_llm_server import Scenario, tool_call_chunk

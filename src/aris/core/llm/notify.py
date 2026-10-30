@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from loguru import logger
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 # 广播处理器：title, message -> None。可通过 register_push 注册手机推送等。
 PushHandler = Callable[[str, str], None]
