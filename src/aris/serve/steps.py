@@ -125,7 +125,7 @@ def _start_behavior() -> str:
 
 def _probe_data() -> str:
     """探针：``data/`` 分层完整性（可迁移性 D14；只读，缺失只提示）。"""
-    from ..datadir import missing_carried
+    from ..paths import missing_carried
 
     data_dir = get_settings().data_dir
     missing = missing_carried(data_dir)
@@ -136,7 +136,7 @@ def _probe_data() -> str:
 
 def _start_data() -> str:
     """启动动作：幂等创建 ``data/`` 下必须带的目录（换机后拷过来就能起）。"""
-    from ..datadir import ensure_dirs
+    from ..paths import ensure_dirs
 
     created = ensure_dirs(get_settings().data_dir)
     return f"新建 {', '.join(created)}" if created else "目录已齐备，无新建"

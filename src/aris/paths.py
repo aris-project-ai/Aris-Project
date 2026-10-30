@@ -145,3 +145,46 @@ def seed_config() -> list[str]:
                 logger.warning(f"secrets.toml 权限设置失败：{exc}")
         created.append(template.name)
     return created
+
+
+# ---------- data/ 分层（可迁移性 D14） ----------
+#
+# 换机 = 新机 git clone → 把原机 data/ 全量拷过来 → uv run aris serve 直接起。
+# 为了让「拷过来就能起」成立：必须带的目录启动时幂等创建；可重建的东西丢了自动重获取。
+
+# 启动时幂等创建的目录（相对 data_dir）；其余由各模块首次使用时自建
+REQUIRED_DIRS: tuple[str, ...] = ("characters", "skills", "autorun")
+
+# 必须随 data/ 一起搬走的项（缺失只提示，不代为创建）
+CARRIED_PATHS: tuple[str, ...] = (
+    "pgdata",
+    "knowledge",
+    "characters",
+    "skills",
+    "autorun",
+    "config",
+)
+
+# 可重建的项（不必带；换机后自动获取 / 重算）
+REBUILDABLE_PATHS: tuple[str, ...] = ("pg", "bin", "models", "logs", "state")
+
+
+def ensure_dirs(data_dir: Path | str) -> list[str]:
+    """幂等创建必须的目录，返回**本次真正新建**的相对路径（供日志）。"""
+    created: list[str] = []
+    for rel in REQUIRED_DIRS:
+        target = Path(data_dir) / rel
+        if not target.exists():
+            target.mkdir(parents=True, exist_ok=True)
+            created.append(rel)
+    return created
+
+
+def missing_carried(data_dir: Path | str) -> list[str]:
+    """列出「必须带但当前不存在」的项（空列表 = 分层完整）。
+
+    ``pgdata`` / ``knowledge`` 首次运行时本来就不存在，故调用方（serve 探针 /
+    ``aris doctor``）应把结果当作**提示**而不是错误。
+    """
+    root = Path(data_dir)
+    return [rel for rel in CARRIED_PATHS if not (root / rel).exists()]
