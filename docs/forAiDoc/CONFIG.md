@@ -1,73 +1,66 @@
-# 配置文件体系（CONFIG.md）
+# 配置体系（CONFIG.md）
 
-> 2026-08-12 定案。本文档是 Aris 配置体系的**唯一权威说明**，
-> 新增/修改配置时须同步本文件与 `config/*.toml` 对应条目。
+> 状态：契约 | 代码入口：`src/aris/config.py`、`src/aris/cfgtoml.py`、`src/aris/paths.py`
 
-## 三个配置源（各管一摊，勿混）
+## 一处来源
 
-| 配置源 | 管什么 | 示例 |
+配置只有一处：**`data/config/`**（路径由 `src/aris/paths.py` 决定，随 `ARIS_DATA_DIR` 变化）。
+目录内文件缺失时回落到**随包种子模板** `src/aris/seed/config/`；首次启动把模板幂等播种到
+`data/config/`（只补缺失、不覆盖用户改动，`secrets.toml` 播种时置 0600）。
+
+| 文件 | 管什么 | 读取方式 |
 |---|---|---|
-| `.env`（`ARIS_` 前缀，pydantic-settings） | 启动级参数、密钥、`data_dir`、`llm_providers_file` | `ARIS_LOG_LEVEL`、`DEEPSEEK_API_KEY` |
-| `config/providers.toml` | LLM 提供方（base_url / key env 名 / 超时 / transport / 模型） | 每提供方一个 `[[providers.provider]]` 条目 |
-| `config/*.toml`（模块级，tomllib 加载） | 功能可调参数：chat / search / logging / audit / notify | `config/chat.toml` 的 `max_rounds` |
+| `settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>` 后由 pydantic-settings 读（`config.py`） |
+| `secrets.toml` | 密钥，键名**就是**环境变量名 | `setdefault` 进 `os.environ`（`config.py`） |
+| `providers.toml` | LLM 提供方（base_url / key 环境变量名 / 超时 / transport / 模型） | `core/llm/config.py`；`ARIS_LLM_PROVIDERS_FILE` 可覆盖路径 |
+| `<module>.toml` | 模块可调参数（chat / search / logging / audit / notify / serve / knowledge / store / webui / mcp） | `cfgtoml.load_config`（tomllib） |
+| `modules.toml` | 模块开关（`[modules]`） | serve 装配 / `aris modules` |
 
-**优先级**：代码内 dataclass 默认值 < `config/*.toml`（缺文件/缺键静默用默认）。
-**密钥永远只在 `.env`**，任何 toml 不进真实 key（providers.toml 的
-`api_key_env` 只是引用 env 变量名）。
+## 优先级
 
-## 加载机制（aris/cfgtoml.py）
+```
+代码内 dataclass 默认值  <  随包种子模板  <  data/config/*.toml  <  进程环境变量
+```
+
+- 缺文件、缺键、解析失败：**静默用默认值**并记 warning，不抛异常。
+- `data_dir` 不写进 TOML：只认进程环境变量 `ARIS_DATA_DIR`（否则鸡生蛋）。
+- 提供方的 `api_key_env` 直读 `os.environ`，所以 `secrets.toml` 会被 setdefault 进环境变量；
+  进程环境变量优先，可临时覆盖：`DEEPSEEK_API_KEY=... uv run aris serve`。
+- **不再有 `.env`**（v0.4.4 起）：配置一律 TOML，密钥只进 `secrets.toml`。
+
+## 模块级加载（`cfgtoml.py`）
 
 ```python
-from aris.cfgtoml import load_config
 from dataclasses import dataclass
+
+from aris.cfgtoml import load_config
+
 
 @dataclass
 class SearchConfig:
-    timeout_seconds: float = 15.0   # 代码内默认值兜底
+    timeout_seconds: float = 15.0  # 代码内默认值兜底
     results_count: int = 5
+
 
 _search_config = load_config(SearchConfig(), "search.toml")
 ```
 
-- 文件路径：`<项目根>/config/<filename>`（基于 `__file__` 解析，与运行 cwd 无关）。
-- 覆盖规则：与 dataclass 字段**同名**的 toml 键覆盖默认值；文件缺失、
-  解析失败、键不存在均静默用默认（配置缺失不致命）。
-- 类型不校验（toml 解析器保证基本类型；复杂校验由调用方按需做）。
+- `config_path(filename)`：用户文件优先，缺失时退回种子模板，两者都没有返回 `None`。
+- 覆盖规则：与 dataclass 字段**同名**的顶层键覆盖默认值；不做类型校验。
+- 模块级单例在 import 时读，因此 `serve.assemble()` 先播种配置、再 import 各模块。
 
-## config/ 目录内容
+## 收口原则（2026-08-12 定案，2026-10 沿用）
 
-| 文件 | 模块 | 字段 |
-|---|---|---|
-| `providers.toml` | core/llm | 提供方定义（模板 `config/providers.example.toml`，**该文件不进 git**） |
-| `chat.toml` | chat + behavior/loop | `max_rounds`、`log_rotation_bytes`、`tool_result_preview_len` |
-| `search.toml` | behavior/tools/web_search | `timeout_seconds`、`results_count`、`snippet_max_len` |
-| `logging.toml` | aris/logging | `file_rotation`、`retention` |
-| `audit.toml` | core/audit | `max_records`、`recent_default_limit` |
-| `notify.toml` | core/llm/notify | `timeout_seconds` |
-| `knowledge.toml` | knowledge | `enabled`、分块、检索与索引参数、WebUI 上传目录 |
-| `store.toml` | store | embedding 提供方 / 本地模型 / batch / 截断维度 |
-| `serve.toml` | serve | 步骤与预热开关（`skip` / `web_enabled` / `preload_embedding` 等） |
-| `mcp.toml` | mcp | server 表 `[servers.*]` + 三组超时 + 断线退避 + 防抖（详见 `MCP.md`） |
+- **枚举 → 代码内 `StrEnum`**（逻辑类型，不进配置）：`MessageRole` / `LoopEventType` /
+  `TransportKind` / `ApiFormat` / `FinishReason` / `WebSearchResultType` / `AuditKind`。
+- **实现细节 → 模块顶部常量**（无人会调）。
+- **真正可调参数 → `data/config/<module>.toml`**；新增时先在模块加 dataclass 字段，
+  再把默认模板放进 `src/aris/seed/config/`，不新增环境变量入口。
+- **密钥永远只在 `data/config/secrets.toml`**；其他 toml 只写 key 的环境变量名。
 
-## 收口原则（2026-08-12 定案）
+## 新增配置的步骤
 
-- **枚举 → 代码内 `StrEnum`**（逻辑类型，不进配置）：
-  `MessageRole` / `LoopEventType` / `TransportKind` / `ApiFormat` /
-  `FinishReason` / `WebSearchResultType` / `AuditKind`。
-- **实现细节 → 模块顶部带注释常量**（无人会调）：stdin 清缓冲 `65536`、
-  audit 毫秒换算、TUI 细节（`_ESC_DOUBLE_GAP` / `_SPINNER_INTERVAL` /
-  `_INPUT_MAX_HEIGHT`）、`thinking` 关闭体、模糊匹配参数等。
-- **真正可调参数 → `config/*.toml`**（新需求可调时，先在模块加 dataclass
-  字段再进 toml，不新增 env 入口）。
-
-## 路径约定
-
-- `data_dir` 单一来源：`config.py` 的 `Settings.data_dir`（默认 `data/`），
-  各模块通过 `get_settings()` 获取，**不在模块里重复定义默认路径**。
-- `XDG_RUNTIME_DIR`：notify 自动探测（`/run/user/<uid>`），不硬编码。
-
-## 常见操作
-
-- 新增可调参数：模块加 `@dataclass` 字段（带默认值）→ `load_config(...)`
-  模块级单例 → 对应 `config/*.toml` 补键（可省，默认值兜底）。
-- 加新 toml 文件：`config/` 下新建 → 本文件登记一行 → AGENTS.md 若涉及改表。
+1. 模块加 `@dataclass` 字段（带默认值）+ `load_config(...)` 模块级单例。
+2. `src/aris/seed/config/<module>.toml` 补键（可省，代码默认值兜底）。
+3. 本文件登记该文件与字段含义。
+4. 打包无需改动：`seed/config/*.toml` 已进 `package-data`。

@@ -37,6 +37,8 @@
 - [] 模块开关&工具开关
 - [] 取消models.dev获取元信息，直接从提供商获取（以及参考astrbot）
 - [] 买域名，将文档站提上议程
+- [] 将项目名正式修改为Aris Project(与Project AIRI作出区别),并将项目移入Github组织
+- [] 定v1大版本开发代号为"跨越"("Cross")
 
 
 ---
@@ -74,4 +76,10 @@
 - **发行包**：未来发行包为 `aris`（后端）/ `aris-gui`（桌面壳，依赖 `aris`）；打包后的前端命令是 `paris` / `paris-gui`，入口显式注入 `ARIS_DATA_DIR`（见 `docs/process/v0.4.4.md` D2）。同仓、同 CI、共用 `__version__`。
 - **何时升级 workspace**：GUI 拆成多个 JS 包、或后端确需拆 `core` / `store` 时，改用 uv workspace / pnpm workspace，仍是单仓，不拆多仓。
 - **仓库体积**：大资产（图标源文件、宣传视频、截图）走 release 附件，不进 git；`docs/archive` 按计划取消跟踪。
+
+### 安装态数据目录（2026-10-30 记录，待定）
+- 现状用 `~/.project-aris`（W1 定的），**尚未决定**是否改 XDG（`~/.local/share/aris`）。
+- 参考：AstrBot 桌面包用 `~/.astrbot`；AIRI 用 Electron 的 `app.getPath('userData')`（Linux 即 XDG config）。
+- **本项目不上 Flatpak**（开发者 2026-10-30 明确），所以 XDG 的沙箱优势不成立，主要看备份与习惯。
+- 决定后只需改 `paths.py` 一处 + `tests/test_paths.py` + 施工文档。
 

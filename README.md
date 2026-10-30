@@ -1,8 +1,8 @@
-# Project-Aris
+# Aris-Project
 
 > ## 隆重发布 beta v0.4.3
 >
-> uv sync && cp .env.example .env && uv run aris serve : 一键启动
+> uv sync && uv run aris serve : 一键启动
 > 工具系统重构: 声明式工具收编 + 通用 MCP 客户端，任意 MCP server 即插即用
 > 联网搜索兜底: 引擎池 Bing / Tavily(免 key 可用) / Exa，限流自动冷却换引擎
 
@@ -15,7 +15,7 @@
 
 ### 启动
 ``` bash
-uv sync && cp .env.example .env && uv run aris serve
+uv sync && uv run aris serve
 ```
 
 `aris serve` 会自动下载便携版PostgreSQL与embedding模型并启动，首次启动会较慢。
@@ -47,14 +47,17 @@ aris web # 仅启动 WebUI
 其他用法见 `aris -h` 与 `aris {doctor,llm,web...} -h`
 
 # 数据相关
-- 运行时数据与日志均位于data/
-- 数据库本体与数据也位于data/
-- 密钥位于.env
-- 配置文件位于config/
+
+一切运行时数据都在 `data/`（不进 git，首次启动自动创建）：
+
+- `data/config/` —— 配置与密钥（`secrets.toml` 权限 0600）；缺失时自动从随包模板播种
+- `data/pgdata/` `data/pg/` —— 便携 PostgreSQL 与其数据
+- `data/models/` —— 本地 embedding 模型
+- `data/logs/` `data/state/` —— 日志与运行时状态
 
 # 备份与迁移
 
-通常情况下，只需在其他位置 git clone 本项目后将旧的 data/ 复制到新位置即可，如需迁移密钥与配置，请将 .env 与 config/ 也一并迁移
+只需把 `data/` 整个拷到新位置（配置、密钥、数据库、模型都在里面）；新机 `git clone` 后覆盖 `data/` 再 `uv run aris serve` 即可。
 
 > 本项目的代码均由 AI 生成
 

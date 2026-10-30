@@ -9,16 +9,16 @@
 
 ## 当前阶段
 
-**v0.4.4 规划完成，尚未开工。** 施工文档：`docs/process/v0.4.4.md`；范围与决策见 `todolist.md` 末尾「备注（2026-10-28 定）」：
+**v0.4.4 进行中**（施工文档：`docs/process/v0.4.4.md`；范围见 `todolist.md` 末尾备注）。
 
-- **W1** 统一数据目录（新增 `paths.py`，清硬编码）
-- **W2** 配置收口（`data/config/`；`.env` 转 TOML 迁入；拆 `settings.toml` + `secrets.toml`）
-- **W3** CLI 事实入口（`info` / `config` 只读 / `modules` 开关）
-- **W4** serve 不被模块依赖（运行时对象移到 `behavior/runtime.py`）
-- **W5** LLM 退休机制退役（只留 `data/state/llm-list-missing.json`）
-- **W6** 工程小件（AGPL、alpha 渠道、archive 取消跟踪、`DEV-FLOW.md`、`CLAUDE.md` 软链）
-
-建议顺序：W1 → W2 → W3；W4 / W5 / W6 可并行。
+| 工作包 | 状态 |
+|---|---|
+| W1 统一数据目录（`paths.py`） | 完成 |
+| W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
+| W3 CLI 事实入口（`info` / `config` / `modules`） | 待做 |
+| W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 待做 |
+| W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 待做 |
+| W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 待做 |
 
 ## 模块状态
 
@@ -37,22 +37,22 @@
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
-## 已定但未实现
+## 已落地（v0.4.4）
 
-- 配置全部收进 `data/config/`；`.env` 改为 TOML，拆 `settings.toml` + `secrets.toml`（后者 0600）。
-- 模块开关按模块粒度（store / knowledge / mcp / behavior / webui / character / voice）；工具开关留 v1.0。
-- CLI 功能必须 ≥ WebUI；`serve` 不得被任何模块 import。
-- alpha 渠道只在 `develop` 发布并占用数字线。
-- 旧配置 / 旧数据迁移与兼容性：v1.0 之前不承诺。
+- **W1**：`src/aris/paths.py` 是路径唯一来源（`ARIS_DATA_DIR` > 开发树 `./data` > `~/.project-aris`）；
+  `aris info` 打印解析结果与来源。
+- **W2**：配置统一在 `data/config/`（`settings.toml` / `secrets.toml`(0600) / `providers.toml` /
+  各模块 toml），种子模板随包在 `src/aris/seed/config/` 并在 `serve.assemble()` 前幂等播种；
+  `.env` 机制移除（配置一律 TOML，环境变量优先）。
 
 ## 阻塞 / 待决
 
+- **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
 - **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 
 ## 下一步
 
-1. 开 `feat/paths`，做 W1（统一数据目录 + 守卫测试 + `aris info`）。
-2. W1 合并后接 W2（配置 TOML 收口）。
-3. 每项收工用 `date` 记录实际工时，回填估算。
+1. W4（运行时边界）→ W5（退休退役）→ W6（工程小件）→ W3（CLI + 模块开关，最大） 。
+2. 每项收工用 `date` 记录实际工时，回填 `docs/process/v0.4.4.md` §4。
