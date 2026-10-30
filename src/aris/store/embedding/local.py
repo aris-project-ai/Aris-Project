@@ -157,13 +157,13 @@ class LocalBekkoProvider:
 
 def _data_dir() -> Path:
     """取全局配置里的数据目录（延迟 import，避免配置层反向依赖本模块）。"""
-    from ...config import get_settings
+    from ...infra.settings import get_settings
 
     return Path(get_settings().data_dir)
 
 
 def provider_from_config() -> LocalBekkoProvider:
-    """按 `config/store.toml` 建本地提供方实例。"""
+    """按 `data/config/store.toml` 建本地提供方实例。"""
     cfg = get_store_config()
     return LocalBekkoProvider(
         cfg.local_model,

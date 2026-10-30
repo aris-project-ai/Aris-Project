@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from ..core import provide
+from ..infra.branding import APP_NAME
 from .auth import AuthMiddleware
 
 
@@ -25,7 +26,7 @@ def create_app() -> FastAPI:
     （:data:`REQUIRED_SERVICES`），交给 serve 的 `services` 步骤统一校验。
     """
     app = FastAPI(
-        title="Project-Aris WebUI",
+        title=f"{APP_NAME} WebUI",
         docs_url=None,  # 管理后台不暴露 Swagger
         redoc_url=None,
     )
@@ -80,8 +81,7 @@ REQUIRED_SERVICES = (
     "llm.providers.model_delete",
     "llm.fetch.plan",
     "llm.fetch.apply",
-    "llm.retired.list",
-    "llm.retired.delete",
+    "llm.missing.list",
     "skills.list",
     "skills.detail",
     "skills.create",
@@ -112,10 +112,10 @@ def port_in_use(host: str, port: int) -> bool:
 
 
 def _resolve_bind(host: str | None = None, port: int | None = None) -> tuple[str, int, str]:
-    """解析监听地址：`config/webui.toml` → 免鉴权护栏；返回 (host, port, 警告文案)。"""
+    """解析监听地址：`data/config/webui.toml` → 免鉴权护栏；返回 (host, port, 警告文案)。"""
     from dataclasses import dataclass
 
-    from aris.cfgtoml import load_config
+    from aris.infra.toml import load_config
 
     @dataclass
     class WebUIConfig:

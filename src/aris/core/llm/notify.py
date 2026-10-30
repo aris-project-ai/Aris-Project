@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from loguru import logger
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 # 广播处理器：title, message -> None。可通过 register_push 注册手机推送等。
 PushHandler = Callable[[str, str], None]
@@ -27,7 +27,7 @@ _DEFAULT_XDG_RUNTIME_DIR = f"/run/user/{os.getuid()}" if hasattr(os, "getuid") e
 
 @dataclass
 class NotifyConfig:
-    """桌面通知可调参数（config/notify.toml）。"""
+    """桌面通知可调参数（data/config/notify.toml）。"""
 
     timeout_seconds: float = 5.0
 

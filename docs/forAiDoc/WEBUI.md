@@ -9,7 +9,7 @@
 给运维者用的控制面板：查看与操作 Aris 内部模块。读操作为主，部分写操作
 （提供商增删、fetch 写回、技能增删改、配置保存）。
 
-**做**：审计流水 / 提供商与模型管理（增删+fetch审核+退休） / 技能管理（增删改） /
+**做**：审计流水 / 提供商与模型管理（增删+fetch审核+缺失只读） / 技能管理（增删改） /
 配置管理 / 日志查看 / 系统状态 / 对话历史查看。
 
 **不做**：网页对话。STT/TTS 管理、输出审核、插件管理——随对应模块落地。
@@ -52,7 +52,7 @@ src/aris/webui/
 │   ├── auth.py        # 登录/登出
 │   ├── dashboard.py   # 仪表盘（聚合统计 + 快捷入口）
 │   ├── audit.py       # 审计流水（查询/筛选/分页 + SSE 实时流）
-│   ├── providers.py   # 提供商管理（增删 + fetch 审核 + 退休管理）
+│   ├── providers.py   # 提供商管理（增删 + fetch 审核 + 缺失记录）
 │   ├── skills.py      # 技能管理（增删改 SKILL.md）
 │   ├── config.py      # 配置管理（查看/编辑 config/*.toml + 备份）
 │   ├── logs.py        # 日志查看（历史日志/分页 + SSE 实时日志流）
@@ -76,7 +76,7 @@ src/aris/webui/
 ```
 
 CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
-`config/webui.toml`（cfgtoml 加载）。
+`data/config/webui.toml`（cfgtoml 加载）。
 
 ## 页面清单（MVP，7 页）
 
@@ -84,7 +84,7 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
 |---|---|---|---|
 | 仪表盘 | `/` | 审计聚合统计 + 系统状态 + 各模块快捷入口卡片 | 按需刷新 |
 | 审计流水 | `/audit` | 查询/筛选审计记录（按时间/模块/操作）、分页 | **部分实时**（SSE 日志流） |
-| 提供商管理 | `/providers` | 提供方增删、模型列表、fetch 对比勾选写回、退休管理 | 按需刷新 |
+| 提供商管理 | `/providers` | 提供方增删、模型列表、fetch 对比勾选写回、缺失记录（只读） | 按需刷新 |
 | 技能管理 | `/skills` | 技能卡片列表、创建/编辑/删除 SKILL.md、查看全文（Markdown 渲染） | 按需刷新 |
 | 知识库 | `/knowledge` | 上传资料（后台摄入 + 轮询进度）、文档列表与移除、检索试验、重建索引 | **部分实时**（轮询任务进度） |
 | 配置管理 | `/config` | 查看/编辑 config/*.toml（表单）、.env 状态（只读） | 按需刷新 |
@@ -115,8 +115,8 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
   - **模型列表**：表格（id / name / context / capabilities / thinking_default），支持排序
   - **添加提供方**：弹窗表单（id / name / base_url / api_key_env）
   - **删除提供方**：二次确认后删除
-  - **fetch 审核**：点击「同步模型」→ 显示 dry-run diff（新增/保留/退休列表）→ 勾选确认 → 写回
-  - **退休管理**：独立 tab，列出退休模型（provider / model / first_missing / 宽限期剩余天数），支持手动删除
+  - **fetch 审核**：点击「同步模型」→ 显示 dry-run diff（新增/保留/缺失）→ 勾选确认 → 写回
+  - **缺失记录**：独立 tab，只读列出同步后从端点消失的模型（provider / model / last_seen），不支持删除或修复
 
 ### 技能管理 `/skills`
 
@@ -137,7 +137,7 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
 - **文档列表**：来源路径 / 标题 / 块数 / 大小 / 摄入时间 + 移除（软删）
 - **检索试验**：页面内直接检索，显示来源路径、标题层级与**距离**（用于判断质量）
 - **重建索引**：`knowledge.reindex`（HNSW，幂等）
-- 限额与目录由 `config/knowledge.toml` 控制（`max_file_bytes` / `max_files_per_upload`
+- 限额与目录由 `data/config/knowledge.toml` 控制（`max_file_bytes` / `max_files_per_upload`
   / `upload_dir`）；文件名只取 basename + 后缀白名单 + 落盘前再校验父目录（防穿越）
 - 检索路由刻意用**同步 def**：首次检索要加载本地模型（约 20s），走线程池避免阻塞
   单 worker 的事件循环（否则 SSE 日志流与整站都会被卡住）
@@ -195,10 +195,10 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
 
 ## 逻辑复用（定案）
 
-cli.py 里 `_cmd_llm_list / _cmd_llm_check / _cmd_llm_fetch / _cmd_llm_retired`
+cli.py 里 `_cmd_llm_list / _cmd_llm_check / _cmd_llm_fetch / _cmd_llm_missing`
 的逻辑嵌在 argparse + print + prompt_toolkit 里。**不拆 CLI**（能跑不动），
 webui 直接调用底层模块（`load_providers`、`fetch.plan_sync / apply_sync /
-load_retired`、`audit.query_recent / query_summary` 等），勾选 / 确认 / 渲染
+load_missing`、`audit.query_recent / query_summary` 等），勾选 / 确认 / 渲染
 换成页面交互。两套 UI 共享同一批底层函数，行为天然一致。
 
 - 只读（list / check / audit / skills / config / logs / history）：先做。
@@ -206,7 +206,7 @@ load_retired`、`audit.query_recent / query_summary` 等），勾选 / 确认 / 
 
 ## 配置
 
-`config/webui.toml`（cfgtoml）：
+`data/config/webui.toml`（cfgtoml）：
 
 ```toml
 host = "0.0.0.0"

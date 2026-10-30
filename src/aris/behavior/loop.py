@@ -21,10 +21,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 
-from aris.cfgtoml import load_config
 from aris.core.bus import provide
 from aris.core.llm.engine import LLMEngine
 from aris.core.llm.message import ChatRequest, FinishReason, Message, MessageRole
+from aris.infra.toml import load_config
 
 from .registry import ToolRegistry
 
@@ -48,7 +48,7 @@ class LoopEventType(StrEnum):
 
 @dataclass
 class LoopConfig:
-    """agent loop 可调参数（config/chat.toml）。"""
+    """agent loop 可调参数（data/config/chat.toml）。"""
 
     max_rounds: int = 8
 
@@ -84,8 +84,8 @@ class AgentLoop:
         *,
         registry: ToolRegistry,
         max_rounds: int | None = None,
-        temperature: float | None = None,  # 采样温度（config/chat.toml）
-        top_p: float | None = None,  # 核采样概率质量（config/chat.toml）
+        temperature: float | None = None,  # 采样温度（data/config/chat.toml）
+        top_p: float | None = None,  # 核采样概率质量（data/config/chat.toml）
     ) -> None:
         """建 loop。
 

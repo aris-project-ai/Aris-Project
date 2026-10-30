@@ -5,20 +5,21 @@
 
 ## 当前版本
 
-`0.4.3`（tag `beta-v0.4.3`）。下一阶段的目标是**正式 v0.4.4（地基版）**。
+`0.4.4`（tag `v0.4.4`，正式版，2026-10-30 发布）。下一阶段：**标准化 + v1.0 开发准备**。
 
 ## 当前阶段
 
-**v0.4.4 规划完成，尚未开工。** 施工文档：`docs/process/v0.4.4.md`；范围与决策见 `todolist.md` 末尾「备注（2026-10-28 定）」：
+**v0.4.4 已完成并发布**（施工文档已归档至 `docs/archive/v0.4.4.md`）。
+当前进入 **v1.0 前的标准化**（提交规范 / 文档 / 项目结构；CI 与 i18n 留到 v1 期间）。
 
-- **W1** 统一数据目录（新增 `paths.py`，清硬编码）
-- **W2** 配置收口（`data/config/`；`.env` 转 TOML 迁入；拆 `settings.toml` + `secrets.toml`）
-- **W3** CLI 事实入口（`info` / `config` 只读 / `modules` 开关）
-- **W4** serve 不被模块依赖（运行时对象移到 `behavior/runtime.py`）
-- **W5** LLM 退休机制退役（只留 `data/state/llm-list-missing.json`）
-- **W6** 工程小件（AGPL、alpha 渠道、archive 取消跟踪、`DEV-FLOW.md`、`CLAUDE.md` 软链）
-
-建议顺序：W1 → W2 → W3；W4 / W5 / W6 可并行。
+| 工作包 | 状态 |
+|---|---|
+| W1 统一数据目录（`paths.py`） | 完成 |
+| W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
+| W3 CLI 事实入口（`info` / `config` / `modules`） | 完成 |
+| W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
+| W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 完成 |
+| W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 完成 |
 
 ## 模块状态
 
@@ -37,22 +38,37 @@
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
-## 已定但未实现
+## 已落地（v0.4.4）
 
-- 配置全部收进 `data/config/`；`.env` 改为 TOML，拆 `settings.toml` + `secrets.toml`（后者 0600）。
-- 模块开关按模块粒度（store / knowledge / mcp / behavior / webui / character / voice）；工具开关留 v1.0。
-- CLI 功能必须 ≥ WebUI；`serve` 不得被任何模块 import。
-- alpha 渠道只在 `develop` 发布并占用数字线。
-- 旧配置 / 旧数据迁移与兼容性：v1.0 之前不承诺。
+- **W1**：`src/aris/infra/paths.py` 是路径唯一来源（`ARIS_DATA_DIR` > 开发树 `./data` > `~/.project-aris`）；
+  `aris info` 打印解析结果与来源。
+- **W2**：配置统一在 `data/config/`（`settings.toml` / `secrets.toml`(0600) / `providers.toml` /
+  各模块 toml），种子模板随包在 `src/aris/seed/config/` 并在 `serve.assemble()` 前幂等播种；
+  `.env` 机制移除（配置一律 TOML，环境变量优先）。
+- **W4**：运行期单例（`build_engine` / `get_runtime` / `peek_runtime` / `reset_runtime`）归
+  `behavior/runtime.py`，删除 `serve/assembly.py`；`chat` / `cli` / serve 步骤改为依赖 behavior。
+  装配失败经 `assembly_error()` 在启动清单与 `aris doctor` 如实报错；新增
+  `tests/test_import_boundary.py`（AST 扫描，除 `serve/` 与 `cli.py` 外禁止 import serve）。
+- **W5**：退休 / 宽限期 / 自动恢复机制删除；同步后消失的模型只写入
+  `data/state/llm-list-missing.json`（`{provider, model, last_seen}`，幂等合并、跨提供方保留）；
+  `aris llm missing list`（旧 `retired` 留一版别名）与 WebUI「缺失记录」tab 均只读。
+- **W6**：许可证换 AGPL-3.0-or-later（`COPYING` + pyproject + README/AGENTS 口径）；
+  版本脚本支持 `alpha-vX.Y.Z`（只在 develop、占号，含测试）；`docs/archive` 取消跟踪
+  （本机保留、`.gitignore` 排除）；新增 `CLAUDE.md -> AGENTS.md` 软链。
+- **W3**：新增 `src/aris/infra/modules.py`（7 个模块开关 + 依赖级联 + modules.toml 读写）；
+  `serve.assemble()` 先读开关再 import，关闭模块的启动步骤标 skipped、依赖方记 error 不退出；
+  CLI 新增 `aris info` / `aris config path|list|show|validate|env` / `aris modules list|status|enable|disable`；
+  `knowledge.toml` 的 `enabled` 并入 modules.toml。
 
 ## 阻塞 / 待决
 
+- **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
 - **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 
 ## 下一步
 
-1. 开 `feat/paths`，做 W1（统一数据目录 + 守卫测试 + `aris info`）。
-2. W1 合并后接 W2（配置 TOML 收口）。
-3. 每项收工用 `date` 记录实际工时，回填估算。
+1. 阶段收官：`bump-version.sh 0.4.4` → `release-check.sh` → 合并 main → tag `v0.4.4`。
+2. 可选技术债：`cli.py` 拆包（W3 建议项，未做）、模块开关测试的总线快照隔离（3.5 建议项）。
+

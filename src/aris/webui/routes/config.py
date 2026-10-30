@@ -1,4 +1,4 @@
-"""配置管理路由——查看/编辑 config/*.toml，.env 状态只读。"""
+"""配置管理路由——查看/编辑 data/config/*.toml；密钥只读展示是否已配置。"""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def _check_env_vars() -> list[dict]:
 
 def _load_module_fields(module: str) -> list[dict]:
     """从 toml 文件加载模块配置字段。"""
-    from ...cfgtoml import config_dir
+    from ...infra.toml import config_dir
 
     toml_path = config_dir() / f"{module}.toml"
     values = {}
@@ -141,8 +141,8 @@ def _load_module_fields(module: str) -> list[dict]:
 
 def _backup_config(module: str) -> None:
     """备份配置文件到 data/backup/config/。"""
-    from ...cfgtoml import config_dir
-    from ...config import get_settings
+    from ...infra.settings import get_settings
+    from ...infra.toml import config_dir
 
     settings = get_settings()
     src = config_dir() / f"{module}.toml"
@@ -157,7 +157,7 @@ def _backup_config(module: str) -> None:
 
 def _save_module_config(module: str, form_data: dict) -> None:
     """把表单数据写回 toml 文件（键白名单：只接受该模块声明的字段）。"""
-    from ...cfgtoml import config_dir
+    from ...infra.toml import config_dir
 
     toml_path = config_dir() / f"{module}.toml"
     allowed_keys = {f["key"] for f in _MODULE_FIELDS.get(module, [])}

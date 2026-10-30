@@ -5,14 +5,15 @@
 # 渠道只由 tag 表达：
 #   beta（小版本更新）  beta-vX.Y.Z
 #   正式版              vX.Y.Z
-# 号码全线唯一：同一个 X.Y.Z 只能有一个 tag（两种形态合计，含历史 vX.Y.Z-beta）。
-# 两个渠道都发布在 main；alpha 渠道尚未实现，届时再定义它是否占用号码。
+#   alpha（预发布）     alpha-vX.Y.Z（只在 develop；同样占用号码）
+# 号码全线唯一：同一个 X.Y.Z 只能有一个 tag（各形态合计，含历史 vX.Y.Z-beta）。
+# beta / 正式发布在 main；alpha 只在 develop 预发布。
 
 # 某号码的全部候选 tag（含历史旧形态）；参数是纯数字版本串。
 # 命中则打印第一个已存在的 tag 并返回 0；未命中返回 1。
 version_existing_tag() {
     local tags
-    tags="$(git tag -l "beta-v$1" "v$1" "v$1-beta")"
+    tags="$(git tag -l "beta-v$1" "v$1" "alpha-v$1" "v$1-beta")"
     [ -n "$tags" ] || return 1
     printf '%s\n' "${tags%%$'\n'*}"
 }
@@ -20,8 +21,9 @@ version_existing_tag() {
 # 已发布的最大号码；没有可用 tag 时输出空串并返回 0。
 version_last_number() {
     local tag ver last=""
-    for tag in $(git tag -l 'v*' 'beta-v*'); do
+    for tag in $(git tag -l 'v*' 'beta-v*' 'alpha-v*'); do
         ver="${tag#beta-v}"
+        ver="${ver#alpha-v}"
         ver="${ver#v}"
         ver="${ver%-beta}"
         [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || continue

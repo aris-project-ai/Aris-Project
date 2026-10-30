@@ -71,15 +71,15 @@ def _api_key(provider: LLMProvider) -> str:
     """从环境变量读取该提供方的 API key。
 
     若当前进程未注入（如被直接 import 使用而非走 CLI 入口），
-    先尝试把 .env 同步进 os.environ 再读取。
+    先把 data/config 的配置同步进 os.environ 再读取。
     """
-    from aris.config import _load_env_into_environ
+    from aris.infra.settings import ensure_config_loaded
 
-    _load_env_into_environ()
+    ensure_config_loaded()
     key = os.environ.get(provider.api_key_env)
     if not key:
         raise AuthError(
-            f"未找到 API key，请在 .env 设置 {provider.api_key_env}",
+            f"未找到 API key，请在 data/config/secrets.toml 设置 {provider.api_key_env}",
             provider_id=provider.id,
         )
     return key

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Project-Aris WebUI{% endblock %}</title>
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
     <script src="/static/uno.js"></script>
     {% block head %}{% endblock %}
 </head>
@@ -12,8 +12,8 @@
         <!-- 左侧导航栏 -->
         <nav class="w-56 bg-white border-r border-gray-200 flex flex-col fixed h-full">
             <div class="p-4 border-b border-gray-200">
-                <h1 class="text-lg font-semibold text-gray-800">Project-Aris</h1>
-                <a href="https://github.com/kasamorin/Project-Aris" target="_blank"
+                <h1 class="text-lg font-semibold text-gray-800">{{ app_name }}</h1>
+                <a href="{{ github_url }}" target="_blank"
                    class="text-xs text-gray-400 hover:text-gray-600">
                     GitHub ↗
                 </a>
