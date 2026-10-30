@@ -537,8 +537,9 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     v1.0 M1：引擎 / 工具注册表 / agent loop 不再在这里自建，走组装根
     `serve.assemble()` 建好的**进程级运行时**（会话与它共享一份）。
     """
+    from aris.behavior.runtime import get_runtime
     from aris.chat import ChatSession
-    from aris.serve import assemble, get_runtime
+    from aris.serve import assemble
 
     settings = get_settings()
     assemble()  # 幂等；顺带注册 character / skills 等模块级服务
@@ -754,7 +755,8 @@ def _cmd_store(args: argparse.Namespace) -> int:
 
 def _cmd_tools(args: argparse.Namespace) -> int:
     """tools 命令：list —— agent 工具面清单（registry 全量 + 声明探询失败）。"""
-    from aris.serve import assemble, get_runtime
+    from aris.behavior.runtime import get_runtime
+    from aris.serve import assemble
 
     assemble()
     try:

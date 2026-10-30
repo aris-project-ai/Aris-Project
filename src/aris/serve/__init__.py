@@ -24,9 +24,9 @@ from dataclasses import dataclass
 from loguru import logger
 
 from .. import __version__
+from ..behavior.runtime import get_runtime
 from ..config import get_settings
 from ..core import call, services
-from .assembly import get_runtime, peek_runtime, reset_runtime
 from .conf import ServeConfig, get_serve_config
 from .steps import ServeStep, build_steps
 
@@ -57,8 +57,8 @@ def assemble() -> None:
 
     v1.0 M1：`tools.execute` / `loop.run` / `skills.menu` / 引擎的 `llm.deltas`
     都是**单槽**总线服务，原来由每个 `ChatSession` 构造时自建并 provide，
-    多开一段对话就互相顶掉；现在在这里建一次进程级 `BehaviorRuntime`
-    （见 `serve/assembly.py`）并由本模块持有。
+    多开一段对话就互相顶掉；现在建一次进程级 `BehaviorRuntime`——单例归
+    `behavior/runtime.py`（v0.4.4 W4），serve 只转调、不持有。
     LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
     真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
@@ -263,10 +263,7 @@ def serve(
 __all__ = [
     "StepOutcome",
     "assemble",
-    "get_runtime",
-    "peek_runtime",
     "probe_all",
-    "reset_runtime",
     "run_plan",
     "select_steps",
     "serve",

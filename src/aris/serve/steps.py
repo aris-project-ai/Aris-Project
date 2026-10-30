@@ -19,6 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ..behavior.runtime import assembly_error, get_runtime, peek_runtime
 from ..config import get_settings
 from ..core import call, has_service
 from .conf import ServeConfig
@@ -92,12 +93,15 @@ def _probe_behavior() -> str:
     """探针：技能服务已注册 + 进程级运行时是否已装配（v1.0 M1 上收）。
 
     工具注册表（``tools.execute``）、agent loop（``loop.run``）、``skills.menu``
-    原先由会话对象自建，现已由组装根建一份进程级运行时持有（`serve/assembly.py`）。
+    原先由会话对象自建，现由一份进程级运行时持有，单例归 `behavior/runtime.py`（v0.4.4 W4）；
+    装配失败的原因在这里如实报错，而不是只留一条 assemble 的 warning。
     探针**只读**：用 `peek_runtime()` 看状态，不触发构建。
     """
     if not has_service("skills.list"):
         raise RuntimeError("skills.list 未注册")
-    from .assembly import peek_runtime
+    error = assembly_error()
+    if error:
+        raise RuntimeError(f"behavior 运行时未装配：{error}")
 
     runtime = peek_runtime()
     if runtime is None:
@@ -108,8 +112,6 @@ def _probe_behavior() -> str:
 
 def _start_behavior() -> str:
     """启动动作：装配进程级 behavior 运行时（幂等；LLM 配置不可用时抛错按档位降级）。"""
-    from .assembly import get_runtime
-
     runtime = get_runtime()
     return f"{runtime.tool_count()} 个工具已就绪"
 
