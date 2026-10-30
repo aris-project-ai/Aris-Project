@@ -10,7 +10,6 @@ def test_no_hardcoded_data_paths():
     root = Path("src/aris")
     whitelist_names = {
         "paths.py",
-        "datadir.py",
         "service.py",
         "steps.py",
         "runtime.py",

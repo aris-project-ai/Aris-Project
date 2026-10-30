@@ -99,7 +99,7 @@ aris serve v1.0.0  data=…/data  pid=12345
 | ② | 集群**角色名**是 initdb 时写下的（旧主机用户名） | 新建集群统一 `initdb -U aris`（与主机无关）；老集群用 `align_user()` 实连候选角色：本机用户名 / `aris` / 从 `pg_authid` **离线扫出**的角色名 / `pgdata` 属主 / `postgres`，命中即写 `pgdata/aris-role`（随数据一起搬走） | 全不通 → 提示用 `ARIS_PG_USER` 指定 |
 | ③ | 固定端口可能被占 | `choose_port()` 启动前探测，被占则向内核要一个空闲端口；端口**不写任何配置**，运行中实例的端口留在 socket 文件名（`.s.PGSQL.<port>`）里，`aris db status/psql` 等独立进程据此反推 | —— |
 
-另外两处启动幂等：`data/` 分层由步骤 `data` 负责（`datadir.ensure_dirs()`），
+另外两处启动幂等：`data/` 分层由步骤 `data` 负责（`paths.ensure_dirs()`），
 崩溃残留的 `postmaster.pid` 与 `.s.PGSQL.*`（含 `.lock`）由 `_clear_stale_runtime()`
 在启动前清掉（只清第一次也是唯一一次：`is_running()` 已确认服务不在）。
 

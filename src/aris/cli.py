@@ -52,7 +52,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     logger.info(f"数据目录: {settings.data_dir}")
 
     # data/ 分层（可迁移性 D14）：必须带的项缺了只提示——首次运行本来就没有
-    from .datadir import CARRIED_PATHS, missing_carried
+    from .paths import CARRIED_PATHS, missing_carried
 
     missing = missing_carried(settings.data_dir)
     if missing:
