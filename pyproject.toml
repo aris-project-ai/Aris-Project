@@ -3,7 +3,7 @@ name = "aris-project"
 dynamic = ["version"]
 description = "Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体"
 readme = "README.md"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 license-files = ["COPYING"]
 authors = [{ name = "kasamorin", email = "kasamorin@outlook.com" }]
 keywords = ["ai", "llm", "persona", "cyber-lifeform", "agent"]
