@@ -16,7 +16,7 @@
 | W1 统一数据目录（`paths.py`） | 完成 |
 | W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
 | W3 CLI 事实入口（`info` / `config` / `modules`） | 待做 |
-| W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 待做 |
+| W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
 | W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 待做 |
 | W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 待做 |
 
@@ -44,6 +44,10 @@
 - **W2**：配置统一在 `data/config/`（`settings.toml` / `secrets.toml`(0600) / `providers.toml` /
   各模块 toml），种子模板随包在 `src/aris/seed/config/` 并在 `serve.assemble()` 前幂等播种；
   `.env` 机制移除（配置一律 TOML，环境变量优先）。
+- **W4**：运行期单例（`build_engine` / `get_runtime` / `peek_runtime` / `reset_runtime`）归
+  `behavior/runtime.py`，删除 `serve/assembly.py`；`chat` / `cli` / serve 步骤改为依赖 behavior。
+  装配失败经 `assembly_error()` 在启动清单与 `aris doctor` 如实报错；新增
+  `tests/test_import_boundary.py`（AST 扫描，除 `serve/` 与 `cli.py` 外禁止 import serve）。
 
 ## 阻塞 / 待决
 
@@ -54,5 +58,5 @@
 
 ## 下一步
 
-1. W4（运行时边界）→ W5（退休退役）→ W6（工程小件）→ W3（CLI + 模块开关，最大） 。
+1. W5（退休退役）→ W6（工程小件）→ W3（CLI + 模块开关，最大）。
 2. 每项收工用 `date` 记录实际工时，回填 `docs/process/v0.4.4.md` §4。

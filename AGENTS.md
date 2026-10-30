@@ -209,7 +209,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 新的数据库表 | `store/migrate.py` 的 `register([Migration(...)])`：owner 内 version 递增，历史迁移不许改写 |
 | 新的可调参数 | 模块 dataclass 默认值 + `data/config/<module>.toml`（模板进 `src/aris/seed/config/`）+ `CONFIG.md`；密钥不进来 |
 | 新的 CLI 子命令 | `cli.py` 的 subparsers（含 `-h` 文案） |
-| 新的模块 | `serve/assembly.py` 加 import + `serve/steps.py` 加步骤 + 声明 `REQUIRED_SERVICES` |
+| 新的模块 | `serve/__init__.py` 的 `assemble()` 加 import + `serve/steps.py` 加步骤 + 声明 `REQUIRED_SERVICES` |
 | WebUI 页面 | `webui/routes/` + `webui/templates/` + `webui/static/`；路由一律走 `core.call` |
 
 ## 7. 验证

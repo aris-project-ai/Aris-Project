@@ -229,8 +229,10 @@ serve 只管「启不启」。
 已知缺口（下一步）：
 
 已完成（v1.0 M1，2026-10-07）：**工具注册表 / agent loop / LLM engine / `skills.menu` 已上收**——
-`serve/assembly.py` 只装配一份**进程级运行时**（`behavior/runtime.py` 的 `BehaviorRuntime`：
-engine + registry + skills + loop），`ChatSession` 接受注入、缺省懒取 `get_runtime()`；
+一份**进程级运行时**（`BehaviorRuntime`：engine + registry + skills + loop），`ChatSession`
+接受注入、缺省取 `get_runtime()`。**v0.4.4 W4 起运行期单例归 `behavior/runtime.py`**：serve
+只转调、不持有（`serve/assembly.py` 已删）；任何模块不得 import `serve`，守卫见
+`tests/test_import_boundary.py`；装配失败由 behavior 步骤探针如实报错（不再只 warning）。
 `behavior` 步骤由此有了真实启动动作与「运行时已装配」探针。按 `cid` / `session_id` 分的资源
 map 留给 M3（D15 单一会话下暂不需要，运行时 docstring 已留接缝）。
 
