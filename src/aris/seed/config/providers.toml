@@ -1,5 +1,5 @@
-# Aris LLM 提供方配置示例
-# 复制为 providers.toml 后按需填写（providers.toml 不进 git，避免提交你的账号信息）
+# Aris LLM 提供方配置模板（首次启动播种到 data/config/providers.toml；该文件不进 git）
+# 密钥不写在这里：只写 api_key_env（环境变量名），真实值放 data/config/secrets.toml
 
 # 默认尝试顺序：写在此列表里的提供方优先，未写到的按文件出现顺序补齐
 default_provider_order = ["deepseek"]

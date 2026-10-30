@@ -62,6 +62,13 @@ def assemble() -> None:
     LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
     真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
+    from .. import paths
+
+    # 首次运行播种 data/config/：必须早于各模块 import（模块级 load_config 在 import 时读配置）
+    seeded = paths.seed_config()
+    if seeded:
+        logger.info(f"已播种默认配置：{', '.join(seeded)}")
+
     import aris.behavior  # loop.run / tools.execute / skills.*
     import aris.character  # character.system_prompt
     import aris.core.llm  # llm.stream / llm.race / llm.deltas

@@ -102,6 +102,7 @@ where = ["src"]
 aris = [
     "py.typed",
     "csrc/demo.c",
+    "seed/config/*.toml",
     "webui/templates/*.html",
     "webui/static/*",
 ]

@@ -22,7 +22,16 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 # HMAC 签名密钥：从环境变量取，不存在时用随机值（每次重启失效——合理，运维场景）
-_SECRET = os.environ.get("ARIS_WEBUI_HMAC_SECRET", secrets.token_hex(32))
+_SECRET: str | None = None  # 惰性读取，避免 import 时依赖环境变量
+
+
+def _get_secret() -> str:
+    global _SECRET
+    if _SECRET is None:
+        _SECRET = os.environ.get("ARIS_WEBUI_HMAC_SECRET", secrets.token_hex(32))
+    return _SECRET
+
+
 _COOKIE_NAME = "aris_session"
 _DEFAULT_MAX_AGE = 7 * 24 * 3600  # 7 天
 
@@ -42,7 +51,7 @@ def _is_public(path: str) -> bool:
 
 def _sign(payload: str) -> str:
     """HMAC-SHA256 签名。"""
-    return hmac.new(_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_get_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def create_session_cookie(max_age: int = _DEFAULT_MAX_AGE) -> tuple[str, int]:

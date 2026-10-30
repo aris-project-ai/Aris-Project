@@ -21,7 +21,7 @@ from .logging import setup_logging
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    """环境自检：Python 版本、C 扩展可用性、.env 是否存在。"""
+    """环境自检：Python 版本、C 扩展可用性、配置与数据目录。"""
     ok = True
 
     logger.info(f"Aris {__version__}")
@@ -37,10 +37,15 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     except ImportError as e:  # 防御：csrc 模块本身异常时降级
         logger.warning(f"C 扩展: 模块异常（{e}），已降级")
 
-    if Path(".env").exists():
-        logger.info(".env: 存在")
+    from . import paths
+
+    seeded = paths.seed_config()
+    if seeded:
+        logger.info(f"配置: 首次播种 {', '.join(seeded)} → {paths.config_dir()}")
     else:
-        logger.info(".env: 不存在（可复制 .env.example，非必需）")
+        logger.info(f"配置目录: {paths.config_dir()}")
+    if not paths.secrets_file().exists():
+        logger.warning("密钥: secrets.toml 缺失（需要 LLM key 时填 data/config/secrets.toml）")
 
     settings = get_settings()
     logger.info(f"数据目录: {settings.data_dir}")

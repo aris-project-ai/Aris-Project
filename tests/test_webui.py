@@ -42,12 +42,10 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(cfgtoml, "config_dir", lambda: cfg_dir)
 
     import aris.core.llm.manage as manage
+    from aris import paths
 
     providers_file = tmp_path / "providers.toml"
-    shutil.copy(
-        Path(__file__).resolve().parent.parent / "config" / "providers.toml",
-        providers_file,
-    )
+    shutil.copy(paths.seed_config_file("providers.toml"), providers_file)
     monkeypatch.setattr(manage, "_providers_path", lambda: str(providers_file))
 
     import aris.behavior.skills.manager as skills_mgr
