@@ -80,6 +80,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 | 路径 | 职责 |
 |---|---|
+| `src/aris/infra/` | 项目基础设施：`paths` 数据目录 / `settings` 启动配置 / `toml` 模块配置 / `modules` 模块开关 / `logging` / `branding`；不 import 业务模块 |
 | `src/aris/core/` | CMCB 总线（服务注册 + 事件 + 审计）、LLM 提供方抽象（fallback / 流式 / 工具调用） |
 | `src/aris/store/` | 存储基础设施：便携 PG + pgvector、embedding 抽象、迁移机制、向量检索 helper；不认识业务语义 |
 | `src/aris/knowledge/` | 知识库：外部资料的 RAG（摄入 / 分块 / 检索），384 维本地 embedding；不做 skill，只经总线暴露；摄入走 CLI，agent 只给检索工具 |
@@ -118,7 +119,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   pydantic-settings 配配置；loguru 记日志；pytest 写测试；ruff + mypy 做静态检查。
 - **加依赖**：用 `uv add`；重依赖进 dependency-group `embedding`（默认安装，
   `uv sync --no-default-groups` 可要轻量环境）。
-- **对外文案**：项目显示名与仓库地址只在 `src/aris/branding.py` 定义（模板经渲染上下文取
+- **对外文案**：项目显示名与仓库地址只在 `src/aris/infra/branding.py` 定义（模板经渲染上下文取
   `app_name` / `github_url`），新增用户可见文案同样收成常量。**代码标识不随品牌改名**：
   `import aris`、命令 `aris`、`ARIS_` 前缀、数据目录名保持稳定。
 
@@ -162,15 +163,15 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 ### 配置
 
-配置只有一处：`data/config/`（路径由 `src/aris/paths.py` 决定）。缺失时回落到随包种子模板
+配置只有一处：`data/config/`（路径由 `src/aris/infra/paths.py` 决定）。缺失时回落到随包种子模板
 `src/aris/seed/config/`——首次启动幂等播种（只补缺失、不覆盖用户改动；secrets 置 0600）。
 
 | 文件 | 管什么 | 读取方式 |
 |---|---|---|
-| `data/config/settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>`，再由 pydantic-settings 读（`src/aris/config.py`） |
-| `data/config/secrets.toml` | 密钥：键名就是环境变量名（`DEEPSEEK_API_KEY` 等） | `setdefault` 进 `os.environ`（`src/aris/config.py`） |
+| `data/config/settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>`，再由 pydantic-settings 读（`src/aris/infra/settings.py`） |
+| `data/config/secrets.toml` | 密钥：键名就是环境变量名（`DEEPSEEK_API_KEY` 等） | `setdefault` 进 `os.environ`（`src/aris/infra/settings.py`） |
 | `data/config/providers.toml` | LLM 提供方：base_url、key 环境变量名、超时、transport、模型 | `src/aris/core/llm/config.py`；`ARIS_LLM_PROVIDERS_FILE` 可覆盖路径 |
-| `data/config/<module>.toml` | 各模块可调参数（chat / search / logging / serve / knowledge / mcp / store / webui / audit / notify） | `src/aris/cfgtoml.py` |
+| `data/config/<module>.toml` | 各模块可调参数（chat / search / logging / serve / knowledge / mcp / store / webui / audit / notify） | `src/aris/infra/toml.py` |
 | `data/config/modules.toml` | 模块开关（`[modules]`） | `aris modules` / serve 装配 |
 
 - 优先级：代码内 dataclass 默认值 < 种子模板 < `data/config/*.toml` < 进程环境变量。

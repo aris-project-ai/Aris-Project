@@ -209,8 +209,8 @@ summary = query_summary()            # 聚合统计
   组装根 `serve.assemble()`（2026-09-19，见 `docs/forAiDoc/SERVE.md` 第 7 节），
   避免同一份「需要哪些服务」的清单散在多处漂移。
 - **基础设施例外（可直连，不算模块间通讯）**：
-  - `aris.config.get_settings()`（`.env` / `data_dir` 等启动级配置）。
-  - `aris.cfgtoml`（模块级 toml 读取/写回，配置页用）。
+  - `aris.infra.settings.get_settings()`（`data_dir` 等启动级配置）。
+  - `aris.infra.toml`（模块级 toml 读取/写回，配置页用）。
   - 除此之外 webui 与任何模块的数据交换一律经总线。
 
 ### 明确不走总线（设计边界）
@@ -232,7 +232,7 @@ summary = query_summary()            # 聚合统计
 |---|---|---|
 | `knowledge/migrations.py` → `store.migrate` | 迁移以「注册函数」形式在 import 时登记（`Migration` 含建表函数），总线只承载可调用服务，不适合承载迁移注册 | 只允许 `knowledge → store`；禁止反向 |
 | `chat/session.py` → `behavior`（`BehaviorRuntime` / `LoopEventType`） | 会话经构造注入拿运行时，属对象构造 / 依赖注入 + 纯类型引用 | 只取类型与注入实例，不在 chat 内直接调 behavior 内部函数 |
-| `aris.config.get_settings()` / `aris.cfgtoml` | 配置是基础设施，三层三源本身即一层，不是模块间业务通讯（WebUI 配置页同） | 只读写配置；不要借此绕过业务服务 |
+| `aris.infra.settings.get_settings()` / `aris.infra.toml` | 配置是基础设施，三层三源本身即一层，不是模块间业务通讯（WebUI 配置页同） | 只读写配置；不要借此绕过业务服务 |
 | `serve/__init__.py`（`assemble()`）→ 各所有者模块 | 组装根是唯一 import 触发点；serve 只被入口与测试使用，**不被任何模块 import** | serve 不对外提供查询服务 |
 | `tests/conftest.py` → `serve.assemble()` | 测试也是宿主，需注册全部服务再建 app | 仅测试 |
 

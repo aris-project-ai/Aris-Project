@@ -106,7 +106,7 @@
 
 ### C. 项目结构
 - [x] datadir.py 并入 paths.py（数据目录只有一处来源）
-- [ ] 顶层基础设施收进 src/aris/infra/（paths / config / cfgtoml / modules / logging / branding）——**待开发者确认**
+- [x] 顶层基础设施收进 `src/aris/infra/`：paths / settings（原 config）/ toml（原 cfgtoml）/ modules / logging / branding
 - [ ] tests/ 按模块分组或加 README；测试支持代码收口到 tests/support
 - [x] docs/ 目录边界：`forAiDoc`（AI 契约）/ `process`（阶段过程）/ `archive`（本机存档，不随仓库）；
       用户/开发文档语言结构随 v1 文档站一起规范（docs/zh、docs/en）
