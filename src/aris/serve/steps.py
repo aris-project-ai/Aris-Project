@@ -57,7 +57,7 @@ def _probe_llm() -> str:
 
     config = load_providers(get_settings().llm_providers_file)
     if not config.providers:
-        raise RuntimeError("providers.toml 里没有可用提供方，请检查 config/providers.toml")
+        raise RuntimeError("providers.toml 里没有可用提供方，请检查 data/config/providers.toml")
     models = sum(len(p.models) for p in config.providers)
     default = config.default_model or "未设"
     missing = [s for s in ("audit.recent", "audit.summary", "http.request") if not has_service(s)]
@@ -206,7 +206,7 @@ def _probe_knowledge() -> str:
     if not info:
         raise RuntimeError("knowledge.status 未注册")
     if not info.get("enabled", True):
-        return "已关闭（config/knowledge.toml: enabled=false）"
+        return "已关闭（data/config/knowledge.toml: enabled=false）"
     db: dict[str, Any] = call("store.db_status") or {}
     if not db.get("running"):
         return "待数据库启动后建表（PG 未运行）"
@@ -221,7 +221,7 @@ def _start_knowledge() -> str:
     if not info:
         raise RuntimeError("knowledge.start 未注册")
     if not info.get("enabled", True):
-        return "已关闭（config/knowledge.toml: enabled=false）"
+        return "已关闭（data/config/knowledge.toml: enabled=false）"
     return f"{info.get('docs', 0)} 文档 / {info.get('chunks', 0)} 块，索引已就绪"
 
 
@@ -232,7 +232,7 @@ def _probe_mcp() -> str:
         raise RuntimeError("mcp.status 未注册")
     servers: dict[str, Any] = info.get("servers") or {}
     if not servers:
-        return "未配置 server（config/mcp.toml 无 [servers.*]）"
+        return "未配置 server（data/config/mcp.toml 无 [servers.*]）"
     connected = sum(1 for s in servers.values() if s.get("status") == "已连接")
     tools = sum(s.get("tools") or 0 for s in servers.values())
     bad = [

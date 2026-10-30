@@ -1,4 +1,4 @@
-"""knowledge 模块的可调参数（优先级：代码内默认值 < `config/knowledge.toml`）。
+"""knowledge 模块的可调参数（优先级：代码内默认值 < `data/config/knowledge.toml`）。
 
 只放**真正可调**的参数（分块尺寸、检索条数、索引参数）；模块开关也在此
 （`enabled`，用户要求"留一个开关决定知识库是否启动"）。

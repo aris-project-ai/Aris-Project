@@ -20,7 +20,7 @@
   - 解析：BeautifulSoup 定位 `li.b_algo`，标题 `h2 a`、摘要 `p`。
   - 稳定性实测：带 cookie 会话后 6/6 稳定返回高质量结果（知乎/腾讯云 + python 文档）。
 - **Tavily 兜底**：`TAVILY_API_KEY` 走 `.env`，Bing 失败（限流/断连/无结果）时自动降级。
-- **引擎顺序**：`config/search.toml` 的 `prefer_engine`（默认 `"bing"`；可切
+- **引擎顺序**：`data/config/search.toml` 的 `prefer_engine`（默认 `"bing"`；可切
   `"tavily"`，或 `"auto"` 按查询语言分流——含中文走 Tavily）。Bing 失败时
   自动降级 Tavily，成功引擎如实写入返回 JSON 的 `engine` 字段。
 - **摘要清洗**：`_clean_snippet` 对摘要做 HTML 实体解码 + 折叠空白 + 取最长文本块，
@@ -38,7 +38,7 @@
 
 - 失败降级：id 不在最近结果 / 抓取失败 / 正文提取为空（动态渲染页面）→
   `{"type": "web_open_error", "id": ..., "error": "..."}`（如知乎等反爬站）。
-- 正文长度截断（默认 4000 字符）与抓取超时（默认 20s）在 `config/search.toml`
+- 正文长度截断（默认 4000 字符）与抓取超时（默认 20s）在 `data/config/search.toml`
   （`webopen_timeout_seconds`、`webopen_max_chars`）。
 - 注意：`web_open` 只能点开**最近一次** `web_search` 的结果，搜索新关键词后
   旧 id 失效（覆盖式缓存）。agent 可自主多轮换搜索词（试错）。
@@ -62,7 +62,7 @@
 - **Tavily keyless 模式**：无 `TAVILY_API_KEY` 时改发
   `X-Tavily-Access-Mode: keyless` 头走免费通道；有 key 行为不变。
 - **Exa 引擎**：经第二程 `mcp` 模块接 `mcp.exa.ai`（免 key），server 名固定
-  `exa`（`config/mcp.toml` 的 `[servers.exa]`），工具 `web_search_exa`，
+  `exa`（`data/config/mcp.toml` 的 `[servers.exa]`），工具 `web_search_exa`，
   markdown 回包正则解析成 Result；server 未配置/未连接时引擎缺席。
 - **429 冷却**：HTTP 429 时解析 `retry-after`（秒数或 HTTP 日期），
   冷却中的引擎跳过（缺席原因给模型可见，`prior_failures` / `failed` 字段）；

@@ -21,7 +21,7 @@ from ..core.tools import ToolSpec
 from .conf import get_knowledge_config
 from .service import get_service
 
-# 单块内容截断上限：与分块上限（config/knowledge.toml: max_chars）同量级，
+# 单块内容截断上限：与分块上限（data/config/knowledge.toml: max_chars）同量级，
 # 防止一次检索把上下文吃光
 MAX_CONTENT_CHARS = 800
 
@@ -79,7 +79,7 @@ def _do_search(query: str, top_k: int | None = None) -> str:
 
     results = list(payload.get("results", []))
     if not payload.get("enabled", True):
-        body = "（知识库当前已关闭：config/knowledge.toml 的 enabled = false）"
+        body = "（知识库当前已关闭：data/config/knowledge.toml 的 enabled = false）"
     elif not results:
         body = "（知识库中没有找到相关内容）"
     else:

@@ -1,10 +1,10 @@
-"""mcp 模块的可调参数（优先级：代码内默认值 < `config/mcp.toml`）。
+"""mcp 模块的可调参数（优先级：代码内默认值 < `data/config/mcp.toml`）。
 
 server 配置是**结构化嵌套表**（`[servers.<名>]`），与普通扁平字段混在同一个
 toml：`load_config` 会把 `servers` 整表读进 dataclass 字段，再在这里规范化
 （名字校验 / 字段校验 / 非法条目丢弃记 warning，宽容降级）。
 
-命名约束（`config/mcp.toml` 里的 `[servers.<name>]`）：`[a-z0-9_-]{1,32}`。
+命名约束（`data/config/mcp.toml` 里的 `[servers.<name>]`）：`[a-z0-9_-]{1,32}`。
 server 名会进入工具名（`mcp_<server>_<tool>`），约束是为了防撞、防注入
 （AGENTS.md §6：调用方拿到 `None` 不能直接属性访问，这里同样在源头拒绝脏名字）。
 
@@ -32,7 +32,7 @@ TRANSPORTS = ("stdio", "http")
 
 @dataclass
 class McpServerConfig:
-    """一个 MCP server 的接入配置（`config/mcp.toml` 的 `[servers.<name>]`）。
+    """一个 MCP server 的接入配置（`data/config/mcp.toml` 的 `[servers.<name>]`）。
 
     stdio：`command` + `args` 启动子进程（`env_names` 转发 `.env` 里的凭据）；
     http：`url` 指向 MCP streamable-http 端点（`bearer_env` 可选，做 Bearer 头）。

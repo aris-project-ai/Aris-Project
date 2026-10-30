@@ -5,7 +5,7 @@
 - 官方 ``mcp`` SDK（v2）是 asyncio，Aris 总线是同步——SDK 跑在**专属 owner
   线程**的事件循环里，对外只给同步入口（AstrBot owner-task 模式搬线程）：
   `catalog_specs` / `call_tool_sync` / `status_snapshot`；
-- 一个客户端接所有 server：transport 由 `config/mcp.toml` 驱动（stdio / http），
+- 一个客户端接所有 server：transport 由 `data/config/mcp.toml` 驱动（stdio / http），
   不为单个 MCP 端点写适配；
 - 工具列表动态：`tools/list_changed` → 防抖 → 重拉目录 → 经总线服务
   ``tools.sync_generation`` 做「旧代↔新代」两相式换装 → ``emit("mcp.tools_changed")``；
@@ -353,7 +353,7 @@ class McpRuntime:
         async def _run() -> str:
             st = self._states.get(server)
             if st is None:
-                raise MCPToolError(f"mcp: server {server} 未在 config/mcp.toml 配置")
+                raise MCPToolError(f"mcp: server {server} 未在 data/config/mcp.toml 配置")
             try:
                 await asyncio.wait_for(st.connected.wait(), self._config.catalog_timeout)
             except TimeoutError as exc:

@@ -14,7 +14,7 @@ stop_db_on_exit = true
 # 启动时后台预热本地 embedding（懒加载会让首个工具调用顶穿 timeout）
 preload_embedding = true
 
-# 是否把 WebUI 一并拉起（host / port 仍归 config/webui.toml）
+# 是否把 WebUI 一并拉起（host / port 仍归 data/config/webui.toml）
 web_enabled = true
 
 # 默认跳过的步骤（可选值：services / data / core / character / behavior / store.db /

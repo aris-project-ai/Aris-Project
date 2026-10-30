@@ -8,7 +8,7 @@
 - `settings.data_dir`（get_settings 为 lru_cache 单例）+ `cfgtoml.config_dir`
   落到 tmp 目录，config 页写回与日志读目录不污染真实仓库。
 - `core.llm.manage._providers_path` 指向 tmp providers.toml，提供商服务写回
-  不碰真实 config/providers.toml。
+  不碰真实 data/config/providers.toml。
 - `behavior.skills.manager.SKILLS_DIR` 指向 tmp 技能目录（函数体内按模块全局
   名查找，patch 后 skills.* 服务即落到临时目录）。
 """

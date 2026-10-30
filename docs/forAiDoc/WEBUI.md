@@ -76,7 +76,7 @@ src/aris/webui/
 ```
 
 CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
-`config/webui.toml`（cfgtoml 加载）。
+`data/config/webui.toml`（cfgtoml 加载）。
 
 ## 页面清单（MVP，7 页）
 
@@ -137,7 +137,7 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
 - **文档列表**：来源路径 / 标题 / 块数 / 大小 / 摄入时间 + 移除（软删）
 - **检索试验**：页面内直接检索，显示来源路径、标题层级与**距离**（用于判断质量）
 - **重建索引**：`knowledge.reindex`（HNSW，幂等）
-- 限额与目录由 `config/knowledge.toml` 控制（`max_file_bytes` / `max_files_per_upload`
+- 限额与目录由 `data/config/knowledge.toml` 控制（`max_file_bytes` / `max_files_per_upload`
   / `upload_dir`）；文件名只取 basename + 后缀白名单 + 落盘前再校验父目录（防穿越）
 - 检索路由刻意用**同步 def**：首次检索要加载本地模型（约 20s），走线程池避免阻塞
   单 worker 的事件循环（否则 SSE 日志流与整站都会被卡住）
@@ -206,7 +206,7 @@ load_retired`、`audit.query_recent / query_summary` 等），勾选 / 确认 / 
 
 ## 配置
 
-`config/webui.toml`（cfgtoml）：
+`data/config/webui.toml`（cfgtoml）：
 
 ```toml
 host = "0.0.0.0"

@@ -12,7 +12,7 @@
 - ``knowledge.reindex`` —— 建 HNSW 索引（幂等）
 - ``knowledge.ai_tools`` —— agent 工具声明（壳在 `tools.py`，契约见 AGENTS.md §6）
 
-启用开关：`config/knowledge.toml` 的 ``enabled``。
+启用开关：`data/config/knowledge.toml` 的 ``enabled``。
 """
 
 from __future__ import annotations

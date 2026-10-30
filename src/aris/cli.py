@@ -866,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
     p_test.add_argument(
         "--model",
         default=None,
-        help="统一模型 id（默认取 config/providers.toml 的 default_model）",
+        help="统一模型 id（默认取 data/config/providers.toml 的 default_model）",
     )
     p_test.add_argument("--message", default="用一句话介绍你自己。", help="要发送的用户消息")
     p_test.add_argument(
@@ -906,7 +906,7 @@ def main(argv: list[str] | None = None) -> int:
     p_chat.add_argument(
         "--model",
         default=None,
-        help="统一模型 id（默认取 config/providers.toml 的 default_model）",
+        help="统一模型 id（默认取 data/config/providers.toml 的 default_model）",
     )
     p_chat.add_argument(
         "--system",

@@ -6,7 +6,7 @@
 
 ## 背景与痛点
 
-- 模型列表纯手写 `config/providers.toml`：新增提供方要手工抄模型名，易错、易过时。
+- 模型列表纯手写 `data/config/providers.toml`：新增提供方要手工抄模型名，易错、易过时。
   实测 OpenCode Zen `/models` 返回 62 个模型，而现有配置里的
   `ling-3.0-tiny-free`、`longcat-2.0-free`、`north-mini-code-free` 已不在端点，
   端点新增了 `hy3-free`、`nemotron-3.5-lightning-free` 等。
@@ -21,7 +21,7 @@
 - 数据模型在 `src/aris/core/llm/config.py`：`LLMModel`（id/name/request_name/formats）、
   `LLMProvider`（id/name/base_url/api_key_env/timeout/transport/models）、
   `ProviderConfig`（order 决定 fallback 顺序，`candidates_for`/`all_model_ids`）。
-- 配置：`config/providers.toml`（不进 git）+ `providers.example.toml` 模板。
+- 配置：`data/config/providers.toml`（不进 git）+ `providers.example.toml` 模板。
 - fallback：`LLMEngine` 按统一模型 id 找候选提供方，报错切下家 + 总体超时预算。
 - 已注册服务：`llm.stream` / `llm.deltas`（engine 自注册）。
 
@@ -132,7 +132,7 @@ GET {base_url}/models（httpx，复用 key；无 key 匿名尝试，401 明确�
   云有本地无  → 添加候选（元数据 enrichment 后进勾选 UI）
   两边都有    → 保留
   本地有云无  → 移入退休文件 + 从可选列表移除 + 提示
-退休文件巡检（config/retired_models.toml）：
+退休文件巡检（data/config/retired_models.toml）：
   回归端点    → 自动恢复进 providers.toml，清退休记录
   未回归      → 保留，等待下次
   超 30 天    → 自动永久删除（记日志 + 提示）
@@ -163,7 +163,7 @@ GET {base_url}/models（httpx，复用 key；无 key 匿名尝试，401 明确�
 
 - 未收录（如 zen 免费模型）→ 标「models.dev 未收录」，字段留空手动补。
 
-### 2.5 退休机制（config/retired_models.toml）
+### 2.5 退休机制（data/config/retired_models.toml）
 
 ```toml
 [[retired]]
@@ -194,8 +194,8 @@ first_missing = "2026-08-14"   # 首次失联日期，宽限期起算
 | `src/aris/core/llm/fetch.py` | 拉取/对比/enrichment/写回/退休巡检（阶段二，新） |
 | `src/aris/cli.py` | `llm list` / `llm check` / `llm fetch` / `llm retired` + doctor 摘要 |
 | `src/aris/chat/session.py` | `/model` 标 `[默认]` |
-| `config/providers.toml` / `providers.example.toml` | `default_model` + 模型元数据 |
-| `config/retired_models.toml` | 退休记录（阶段二，机器维护，新） |
+| `data/config/providers.toml` / `providers.example.toml` | `default_model` + 模型元数据 |
+| `data/config/retired_models.toml` | 退休记录（阶段二，机器维护，新） |
 
 依赖：httpx / prompt_toolkit / tomllib / tomli-w（tomli-w 新增，写回用）。
 

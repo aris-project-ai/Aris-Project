@@ -20,7 +20,7 @@ _runtime: BehaviorRuntime | None = None
 
 
 def build_engine() -> LLMEngine:
-    """按 `.env` + `config/providers.toml` 建 LLM engine。"""
+    """按 `.env` + `data/config/providers.toml` 建 LLM engine。"""
     settings = get_settings()
     providers = load_providers(settings.llm_providers_file)
     return LLMEngine(

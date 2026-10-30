@@ -44,7 +44,7 @@ class HttpRequestResultType(StrEnum):
 
 @dataclass
 class HttpRequestConfig:
-    """http_request 工具可调参数（config/search.toml）。"""
+    """http_request 工具可调参数（data/config/search.toml）。"""
 
     http_request_max_chars: int = 4000  # 单次返回内容上限（字符）
     http_request_timeout_seconds: float = 20.0

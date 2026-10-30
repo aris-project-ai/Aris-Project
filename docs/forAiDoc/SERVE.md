@@ -158,7 +158,7 @@ CLI（默认全启）：
 优先级：`--only` 先定集合 → `--skip` 再减 → **CLI 覆盖配置**。
 不再加 `--no-db` / `--no-web` 之类的糖（等价于 `--skip db,webui`，KISS）。
 
-`config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
+`data/config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
 
 ```toml
 start_db = true            # 没跑就自启便携 PG
@@ -169,7 +169,7 @@ web_enabled = true         # 是否并入 WebUI
 skip = []                  # 默认跳过的步骤（CLI --skip 追加）
 ```
 
-WebUI 自身的 `host` / `port` / `session_days` 仍归 `config/webui.toml`；
+WebUI 自身的 `host` / `port` / `session_days` 仍归 `data/config/webui.toml`；
 serve 只管「启不启」。
 
 ## 7. 与既有入口 / 模块的关系（定案）
@@ -205,7 +205,7 @@ serve 只管「启不启」。
 
 | # | 内容 | 状态 |
 |---|---|---|
-| 1 | `serve/conf.py` + `config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
+| 1 | `serve/conf.py` + `data/config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
 | 2 | 各模块补启动 hook（`store.start/stop`、`store.embed_preload`、`knowledge.start`、`webui.start/probe`） | ✅ 2026-09-19 |
 | 3 | 端口探测 + 失败分级日志 + `--only/--skip/--dry-run` | ✅ 2026-09-19 |
 | 4 | 上收组装根与依赖清单（`create_app()` 只搭 HTTP 层；`serve.assemble()` 唯一触发点；`services` 步骤统一核验 `REQUIRED_SERVICES`） | ✅ 2026-09-19 |

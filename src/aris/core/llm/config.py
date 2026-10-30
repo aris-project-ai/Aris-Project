@@ -1,6 +1,6 @@
 """LLM 提供方配置：数据模型与 toml 加载。
 
-提供方结构定义在 `config/providers.toml`（模板 `config/providers.example.toml`）：
+提供方结构定义在 `data/config/providers.toml`（模板 `config/providers.example.toml`）：
 每个提供方含名称、id、base_url、密钥环境变量名、超时、传输方式、
 以及模型列表（统一 id / 请求名 / 支持格式）。
 
@@ -88,7 +88,7 @@ class LLMProvider:
 
 
 class ProviderConfigError(FileNotFoundError):
-    """config/providers.toml 缺失或格式错误。"""
+    """data/config/providers.toml 缺失或格式错误。"""
 
 
 @dataclass
@@ -145,7 +145,9 @@ class ProviderConfig:
         first = self.ordered_providers()
         if first and first[0].models:
             return first[0].models[0].id
-        raise ProviderConfigError("没有任何可用模型，请在 config/providers.toml 至少配置一个模型")
+        raise ProviderConfigError(
+            "没有任何可用模型，请在 data/config/providers.toml 至少配置一个模型"
+        )
 
 
 def load_providers(path: str | Path) -> ProviderConfig:
@@ -184,7 +186,7 @@ def load_providers(path: str | Path) -> ProviderConfig:
         try:
             pid = entry["id"]
             if pid in seen_provider_ids:
-                raise ProviderConfigError(f"config/providers.toml 提供方 id 重复: {pid}")
+                raise ProviderConfigError(f"data/config/providers.toml 提供方 id 重复: {pid}")
             seen_provider_ids.add(pid)
 
             models: list[LLMModel] = []
@@ -223,7 +225,9 @@ def load_providers(path: str | Path) -> ProviderConfig:
                 )
             )
         except KeyError as e:
-            raise ProviderConfigError(f"config/providers.toml 提供方条目缺少必需字段: {e}") from e
+            raise ProviderConfigError(
+                f"data/config/providers.toml 提供方条目缺少必需字段: {e}"
+            ) from e
 
     order = list(data.get("default_provider_order", []))
     default_model = data.get("default_model")

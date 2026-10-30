@@ -1,5 +1,9 @@
 import ast
+import re
 from pathlib import Path
+
+# 只把「看起来像纯路径」的字符串算作硬编码：data / data/xxx（不含空格与中文）
+_PATH_RE = re.compile(r"^data(?:/[A-Za-z0-9_.-]+)+/?$")
 
 
 def test_no_hardcoded_data_paths():
@@ -28,8 +32,6 @@ def test_no_hardcoded_data_paths():
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 s = node.value
-                if s == "data" or (
-                    s.startswith("data/") and len(s) > 5 and "/" in s and not s.isidentifier()
-                ):
+                if s == "data" or _PATH_RE.match(s):
                     offenders.append((str(p), s))
     assert offenders == [], f"hardcoded data paths found: {offenders}"

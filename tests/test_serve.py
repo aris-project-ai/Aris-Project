@@ -159,7 +159,7 @@ def test_builtin_steps_shape() -> None:
 def test_probe_db_allows_auto_init(monkeypatch) -> None:
     """便携实例不存在时：允许自动获取 → 提示将自动获取；禁止 → 直接报错。
 
-    这是「clone 下来一条命令起服务」的核心行为（`config/serve.toml: init_db`）。
+    这是「clone 下来一条命令起服务」的核心行为（`data/config/serve.toml: init_db`）。
     """
     import aris.serve.steps as steps
 

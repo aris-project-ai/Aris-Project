@@ -113,7 +113,7 @@ def port_in_use(host: str, port: int) -> bool:
 
 
 def _resolve_bind(host: str | None = None, port: int | None = None) -> tuple[str, int, str]:
-    """解析监听地址：`config/webui.toml` → 免鉴权护栏；返回 (host, port, 警告文案)。"""
+    """解析监听地址：`data/config/webui.toml` → 免鉴权护栏；返回 (host, port, 警告文案)。"""
     from dataclasses import dataclass
 
     from aris.cfgtoml import load_config

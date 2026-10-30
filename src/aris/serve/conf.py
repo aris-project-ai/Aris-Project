@@ -1,4 +1,4 @@
-"""serve 模块的可调参数（优先级：代码内默认值 < `config/serve.toml`）。
+"""serve 模块的可调参数（优先级：代码内默认值 < `data/config/serve.toml`）。
 
 只放**真正可调**的启动编排开关（见 docs/forAiDoc/SERVE.md 第 6 节）；具体步骤的
 行为归各模块自己，这里不重复配置它们的参数。
@@ -24,7 +24,7 @@ class ServeConfig:
     stop_db_on_exit: bool = True
     # 启动时后台预热本地 embedding
     preload_embedding: bool = True
-    # 是否把 WebUI 一并拉起（host / port 仍归 config/webui.toml）
+    # 是否把 WebUI 一并拉起（host / port 仍归 data/config/webui.toml）
     web_enabled: bool = True
     # 默认跳过的步骤名（CLI --skip 追加）
     skip: list[str] = field(default_factory=list)

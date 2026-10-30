@@ -57,7 +57,7 @@ def _default_system_prompt(cid: str | None) -> str:
 
 @dataclass
 class ChatConfig:
-    """chat 模块可调参数（config/chat.toml）。"""
+    """chat 模块可调参数（data/config/chat.toml）。"""
 
     # LLM 采样参数：None = 不传（由提供方决定默认值）
     temperature: float | None = None  # 采样温度，0=确定性，1=随机性较高
@@ -134,7 +134,7 @@ class ChatSession:
         独立运行时时显式传：给 ``engine`` 会用该引擎自建一份运行时（工具面按
         ``tools_enabled`` 决定），给 ``runtime`` 则直接复用。
 
-        ``cid`` 是角色 id（M2）：缺省时按 `config/chat.toml` 的 ``character``、
+        ``cid`` 是角色 id（M2）：缺省时按 `data/config/chat.toml` 的 ``character``、
         再退到 character 模块的默认角色；`system_prompt` 显式给了则不取人设。
         """
         if runtime is None:

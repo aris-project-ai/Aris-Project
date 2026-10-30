@@ -117,7 +117,7 @@ class KnowledgeService:
         """摄入文件或目录（目录递归）；返回每个文件的处理结果。"""
         if not self._config.enabled:
             raise KnowledgeError(
-                "知识库已关闭（config/knowledge.toml 的 enabled=false），摄入被拒绝"
+                "知识库已关闭（data/config/knowledge.toml 的 enabled=false），摄入被拒绝"
             )
         if not targets:
             raise KnowledgeError("至少要给一个文件或目录路径")
@@ -238,7 +238,7 @@ class KnowledgeService:
         """
         if not self._config.enabled:
             raise KnowledgeError(
-                "知识库已关闭（config/knowledge.toml 的 enabled=false），上传被拒绝"
+                "知识库已关闭（data/config/knowledge.toml 的 enabled=false），上传被拒绝"
             )
         if not items:
             raise KnowledgeError("没有收到文件")
