@@ -83,3 +83,7 @@
 - **本项目不上 Flatpak**（开发者 2026-10-30 明确），所以 XDG 的沙箱优势不成立，主要看备份与习惯。
 - 决定后只需改 `paths.py` 一处 + `tests/test_paths.py` + 施工文档。
 
+### v0.4.4 施工进度（2026-10-30 记录）
+- W1–W6 已全部完成（分支 `feat/config-toml`，尚未合回 develop）；验收：`bash scripts/check.sh` 全绿。
+- 待办：阶段验收（DoD 见 `docs/process/v0.4.4.md` §6）→ 合回 develop → `bump-version.sh 0.4.4` → `release-check.sh` → 合并 main → tag `v0.4.4`。
+- 技术债（建议项，本阶段未做）：`cli.py` 拆包；模块开关测试的总线快照隔离（3.5）。
