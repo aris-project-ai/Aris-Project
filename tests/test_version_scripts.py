@@ -93,6 +93,10 @@ def make_release_repo(repo: Path, version: str = "0.5.0") -> Path:
         '[tool.setuptools.dynamic]\nversion = {attr = "aris.__version__"}\n\n'
         '[tool.uv]\ncache-keys = [{ file = "src/aris/__init__.py" }]\n'
     )
+    (repo / "changelogs").mkdir()
+    (repo / "changelogs" / f"{version}.md").write_text(
+        f"# {version}\n\n## 新增\n- 测试用变更记录\n", encoding="utf-8"
+    )
     git(repo, "checkout", "-q", "-B", "develop")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "setup")
@@ -245,6 +249,14 @@ def test_release_check_passes_with_free_number(repo: Path, tmp_path: Path) -> No
     make_release_repo(repo)
     out = release_check(repo, fake_uv(tmp_path))
     assert out.returncode == 0, out.stdout
+
+
+def test_release_check_requires_changelog(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    (repo / "changelogs" / "0.5.0.md").unlink()
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "缺少 changelogs/0.5.0.md" in out.stdout
 
 
 # ---- alpha 渠道（v0.4.4 W6）----

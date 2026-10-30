@@ -111,6 +111,15 @@ else
     fail=1
 fi
 
+# ---- 4.5 变更记录（面向使用者，发版前必须写）----
+CHANGELOG="changelogs/${ver}.md"
+if [ -n "${ver}" ] && [ -s "$CHANGELOG" ]; then
+    echo "[ ok ] 变更记录: $CHANGELOG"
+else
+    echo "[FAIL] 缺少 changelogs/${ver}.md（面向使用者的变更记录，发版前必须写）"
+    fail=1
+fi
+
 # ---- 5. 号码占用 ----
 if [ -n "$ver" ]; then
     if existing="$(version_existing_tag "$ver")"; then
