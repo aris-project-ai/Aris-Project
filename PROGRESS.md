@@ -18,7 +18,7 @@
 | W3 CLI 事实入口（`info` / `config` / `modules`） | 待做 |
 | W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
 | W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 完成 |
-| W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 待做 |
+| W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 完成 |
 
 ## 模块状态
 
@@ -51,6 +51,9 @@
 - **W5**：退休 / 宽限期 / 自动恢复机制删除；同步后消失的模型只写入
   `data/state/llm-list-missing.json`（`{provider, model, last_seen}`，幂等合并、跨提供方保留）；
   `aris llm missing list`（旧 `retired` 留一版别名）与 WebUI「缺失记录」tab 均只读。
+- **W6**：许可证换 AGPL-3.0-or-later（`COPYING` + pyproject + README/AGENTS 口径）；
+  版本脚本支持 `alpha-vX.Y.Z`（只在 develop、占号，含测试）；`docs/archive` 取消跟踪
+  （本机保留、`.gitignore` 排除）；新增 `CLAUDE.md -> AGENTS.md` 软链。
 
 ## 阻塞 / 待决
 
@@ -61,5 +64,5 @@
 
 ## 下一步
 
-1. W6（工程小件）→ W3（CLI + 模块开关，最大）。
+1. W3（CLI + 模块开关，最大）。
 2. 每项收工用 `date` 记录实际工时，回填 `docs/process/v0.4.4.md` §4。

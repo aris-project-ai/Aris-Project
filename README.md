@@ -61,6 +61,10 @@ aris web # 仅启动 WebUI
 
 > 本项目的代码均由 AI 生成
 
+## 许可证
+
+本项目以 **AGPL-3.0-or-later** 发布，全文见 [`COPYING`](COPYING)。
+
 ## 参考项目
 
 - [AstrBot](https://github.com/AstrBotDevs/AstrBot)
