@@ -12,7 +12,7 @@
 - ``knowledge.reindex`` —— 建 HNSW 索引（幂等）
 - ``knowledge.ai_tools`` —— agent 工具声明（壳在 `tools.py`，契约见 AGENTS.md §6）
 
-启用开关：`data/config/knowledge.toml` 的 ``enabled``。
+启用开关：`data/config/modules.toml` 的 ``[modules] knowledge``（v0.4.4 W3 起）。
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..core import provide
+from ..modules import module_enabled
 from . import migrations  # noqa: F401  —— import 即登记建表迁移
 from .conf import KnowledgeConfig, get_knowledge_config
 from .service import KnowledgeError, KnowledgeService, get_service
@@ -44,7 +45,7 @@ def _start() -> dict[str, Any]:
     库不可用时**快速失败**（抛 KnowledgeError）：serve 按 optional 步骤记 warning
     并继续启动其余模块，不静默降级（见 docs/forAiDoc/SERVE.md 第 5 节）。
     """
-    if not get_knowledge_config().enabled:
+    if not module_enabled("knowledge"):
         return {"enabled": False, "docs": 0, "chunks": 0}
     status = _service.status()
     if status.get("error"):

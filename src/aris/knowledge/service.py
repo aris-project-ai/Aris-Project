@@ -19,6 +19,7 @@ from typing import Any
 from loguru import logger
 
 from ..core import call
+from ..modules import module_enabled
 from .chunking import chunk_document
 from .conf import KnowledgeConfig, get_knowledge_config
 from .loaders import SUPPORTED_SUFFIXES, LoadError, iter_files, load_document
@@ -115,10 +116,8 @@ class KnowledgeService:
 
     def ingest(self, targets: list[str]) -> list[dict[str, Any]]:
         """摄入文件或目录（目录递归）；返回每个文件的处理结果。"""
-        if not self._config.enabled:
-            raise KnowledgeError(
-                "知识库已关闭（data/config/knowledge.toml 的 enabled=false），摄入被拒绝"
-            )
+        if not module_enabled("knowledge"):
+            raise KnowledgeError("知识库已关闭（data/config/modules.toml），摄入被拒绝")
         if not targets:
             raise KnowledgeError("至少要给一个文件或目录路径")
 
@@ -236,10 +235,8 @@ class KnowledgeService:
         ``source_path`` 稳定可引用、可重摄（见 KNOWLEDGE-BASE.md 的 B3 决定）。
         单个文件的问题不拖垮整批：失败项以 ``status=failed`` 返回。
         """
-        if not self._config.enabled:
-            raise KnowledgeError(
-                "知识库已关闭（data/config/knowledge.toml 的 enabled=false），上传被拒绝"
-            )
+        if not module_enabled("knowledge"):
+            raise KnowledgeError("知识库已关闭（data/config/modules.toml），上传被拒绝")
         if not items:
             raise KnowledgeError("没有收到文件")
         if len(items) > self._config.max_files_per_upload:
@@ -282,7 +279,7 @@ class KnowledgeService:
     def status(self) -> dict[str, Any]:
         """给管理后台用的状态摘要（开关 / 上传限制 / 文档与块计数）。"""
         info: dict[str, Any] = {
-            "enabled": self._config.enabled,
+            "enabled": module_enabled("knowledge"),
             "upload_dir": str(self.upload_root()),
             "max_file_bytes": self._config.max_file_bytes,
             "max_files_per_upload": self._config.max_files_per_upload,
@@ -352,8 +349,8 @@ class KnowledgeService:
 
     def search(self, query: str, limit: int | None = None) -> dict[str, Any]:
         """纯向量近邻检索（D2 第一阶段），返回带来源标识的结果。"""
-        if not self._config.enabled:
-            logger.warning("知识库已关闭（enabled=false），检索返回空结果")
+        if not module_enabled("knowledge"):
+            logger.warning("知识库已关闭（data/config/modules.toml），检索返回空结果")
             return {"query": query, "results": [], "enabled": False}
         if not query.strip():
             raise KnowledgeError("检索词不能为空")

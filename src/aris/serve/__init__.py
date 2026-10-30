@@ -27,6 +27,7 @@ from .. import __version__
 from ..behavior.runtime import get_runtime
 from ..config import get_settings
 from ..core import call, services
+from ..modules import ModulesState, load_modules, resolve_modules
 from .conf import ServeConfig, get_serve_config
 from .steps import ServeStep, build_steps
 
@@ -62,6 +63,8 @@ def assemble() -> None:
     LLM 配置不可用时**只记警告不抛**——`aris doctor` / WebUI 仍要能起来；
     真要用 LLM 的入口（chat / serve 的 behavior 步骤）会拿到明确报错。
     """
+    import importlib
+
     from .. import paths
 
     # 首次运行播种 data/config/：必须早于各模块 import（模块级 load_config 在 import 时读配置）
@@ -69,23 +72,26 @@ def assemble() -> None:
     if seeded:
         logger.info(f"已播种默认配置：{', '.join(seeded)}")
 
-    import aris.behavior  # loop.run / tools.execute / skills.*
-    import aris.character  # character.system_prompt
-    import aris.core.llm  # llm.stream / llm.race / llm.deltas
-    import aris.knowledge  # knowledge.*
-    import aris.mcp  # mcp.ai_tools / mcp.call_tool / mcp.status
-    import aris.store  # store.*
-    import aris.webui  # noqa: F401  —— webui.start / webui.probe
-    from aris.behavior.skills import manager as _skills  # noqa: F401
+    # W3 模块开关：先读配置再 import（注册即 import，关了就不能碰）
+    state = resolve_modules(load_modules())
+
+    # 核心基础设施始终装配（LLM 配置 / 总线审计是全局能力，不在 7 个开关内）
+    import aris.core.llm  # noqa: F401  —— llm.stream / llm.race / llm.deltas
     from aris.core.llm import fetch as _fetch  # noqa: F401  —— llm.fetch.* / llm.missing.*
     from aris.core.llm import manage as _manage  # noqa: F401  —— llm.providers.*
 
-    try:
-        runtime = get_runtime()
-    except Exception as exc:  # noqa: BLE001 —— 组装期降级：只有 LLM 相关入口不可用
-        logger.warning(f"behavior 运行时未装配（LLM 配置不可用？）：{exc}")
-        return
-    logger.debug(f"behavior 运行时已装配（{runtime.tool_count()} 个工具）")
+    for module_name, import_path in state.import_paths():
+        importlib.import_module(import_path)
+        logger.debug(f"模块已装配：{module_name}（{import_path}）")
+    if state.enabled.get("behavior"):
+        from aris.behavior.skills import manager as _skills  # noqa: F401
+
+        try:
+            runtime = get_runtime()
+        except Exception as exc:  # noqa: BLE001 —— 组装期降级：只有 LLM 相关入口不可用
+            logger.warning(f"behavior 运行时未装配（LLM 配置不可用？）：{exc}")
+            return
+        logger.debug(f"behavior 运行时已装配（{runtime.tool_count()} 个工具）")
 
 
 def select_steps(
@@ -118,18 +124,28 @@ def select_steps(
 
 
 def run_plan(
-    steps: list[ServeStep], *, dry_run: bool = False
+    steps: list[ServeStep],
+    *,
+    dry_run: bool = False,
+    force_skip: dict[str, str] | None = None,
 ) -> tuple[list[StepOutcome], list[ServeStep]]:
     """按序执行非阻塞步骤，返回 ``(结果, 待执行的阻塞步骤)``。
 
     ``dry_run=True`` 时只跑探针，不执行任何启动动作。``required`` 步骤失败后，
     依赖它的步骤标记为 skipped（其余照常继续——serve 不整体退出）。
+    ``force_skip``：模块开关关闭的步骤 → 跳过原因（清单里显示「已关闭」）。
     """
     outcomes: list[StepOutcome] = []
     deferred: list[ServeStep] = []
     failed_required: set[str] = set()
+    forced = force_skip or {}
     planned = {step.name for step in steps}
     for step in steps:
+        if step.name in forced:
+            reason = forced[step.name]
+            logger.warning(f"跳过 {step.label}：{reason}")
+            outcomes.append(StepOutcome(step, "skipped", reason))
+            continue
         blocked_by = [dep for dep in step.needs if dep not in planned or dep in failed_required]
         if blocked_by:
             reason = f"依赖的步骤未启用或失败（{', '.join(blocked_by)}），已跳过"
@@ -175,6 +191,17 @@ def _log_outcome(outcome: StepOutcome) -> None:
         logger.warning(outcome.line)
 
 
+def _module_state() -> ModulesState:
+    """读模块开关并记日志（依赖被关的模块用 error，用户主动关的用 info）。"""
+    state = resolve_modules(load_modules())
+    for name, reason in state.reasons.items():
+        if "依赖的模块已关闭" in reason:
+            logger.error(f"模块 {name} 不装配：{reason}")
+        else:
+            logger.info(f"模块 {name} 已关闭：{reason}")
+    return state
+
+
 def probe_all(only: list[str] | None = None, skip: list[str] | None = None) -> list[StepOutcome]:
     """只跑探针并返回清单（供 `aris doctor` 复用；不启动任何东西）。
 
@@ -182,11 +209,12 @@ def probe_all(only: list[str] | None = None, skip: list[str] | None = None) -> l
     """
     config = get_serve_config()
     assemble()
+    state = _module_state()
     skipped = list(config.skip) + list(skip or [])
     if not config.web_enabled and not (only and "webui" in only):
         skipped.append("webui")
     plan = select_steps(build_steps(config), only, skipped)
-    outcomes, _ = run_plan(plan, dry_run=True)
+    outcomes, _ = run_plan(plan, dry_run=True, force_skip=state.enabled_steps())
     return outcomes
 
 
@@ -210,13 +238,14 @@ def serve(
         skipped.append("webui")  # 配置里关了 WebUI；显式 --only webui 时以用户为准
 
     assemble()
+    state = _module_state()
     plan = select_steps(build_steps(config), only, skipped)
 
     logger.info(
         f"aris serve v{__version__}  data={settings.data_dir}  pid={os.getpid()}"
         + ("  [dry-run]" if dry_run else "")
     )
-    outcomes, deferred = run_plan(plan, dry_run=dry_run)
+    outcomes, deferred = run_plan(plan, dry_run=dry_run, force_skip=state.enabled_steps())
     for outcome in outcomes:
         _log_outcome(outcome)
 

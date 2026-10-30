@@ -1,8 +1,7 @@
 # knowledge 模块可调参数（优先级：代码内默认值 < 本文件）
 # 详见 docs/developDoc/KNOWLEDGE-BASE.md 第 5 节
 
-# 总开关：false 时检索返回空、摄入直接拒绝
-enabled = true
+# 模块开关不在这里：见 data/config/modules.toml 的 [modules] knowledge
 
 # 分块：标题层级切 + 定长兜底重叠（max_chars 为单块字符上限）
 max_chars = 800

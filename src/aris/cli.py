@@ -9,6 +9,7 @@
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -572,6 +573,15 @@ def _cmd_db(args: argparse.Namespace) -> int:
 
 def _cmd_knowledge(args: argparse.Namespace) -> int:
     """知识库：add / list / remove / search / reindex。"""
+    from aris.modules import module_enabled
+
+    if not module_enabled("knowledge"):
+        logger.error(
+            "knowledge 模块已关闭（data/config/modules.toml）；"
+            "先执行 `aris modules enable knowledge`"
+        )
+        return 1
+
     from aris.knowledge import KnowledgeError, get_service
 
     service = get_service()
@@ -630,6 +640,14 @@ def _cmd_knowledge(args: argparse.Namespace) -> int:
 
 def _cmd_store(args: argparse.Namespace) -> int:
     """store 模块调试命令：info（配置 + 自检）/ embed（编码文本）。"""
+    from aris.modules import module_enabled
+
+    if not module_enabled("store"):
+        logger.error(
+            "store 模块已关闭（data/config/modules.toml）；先执行 aris modules enable store"
+        )
+        return 1
+
     from aris.store.conf import get_store_config
     from aris.store.embedding import EmbeddingError, get_provider
 
@@ -720,35 +738,222 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
 
 
 def _cmd_info(args: argparse.Namespace) -> int:
-    """显示版本、路径与运行环境信息。"""
-    import os
-
-    from . import __version__, paths
+    """版本 / 路径 / 模块开关等环境事实（只读；健康检查用 `aris doctor`）。"""
+    from . import paths
     from .config import get_settings
+    from .modules import MODULES, load_modules, resolve_modules
+
+    env = os.environ.get("ARIS_DATA_DIR", "").strip()
+    if env:
+        source = f"ARIS_DATA_DIR={env}"
+    elif paths._find_dev_root_via_cwd() is not None:
+        source = f"开发树 {Path.cwd().resolve()}"
+    elif paths._find_dev_root_via_file() is not None:
+        source = "开发树（按包路径判定）"
+    else:
+        source = "安装（默认 ~/.project-aris）"
 
     settings = get_settings()
-    if os.environ.get("ARIS_DATA_DIR"):
-        src = "env"
-    elif paths._find_dev_root_via_cwd() is not None or paths._find_dev_root_via_file() is not None:
-        src = "dev"
-    else:
-        src = "install"
+    state = resolve_modules(load_modules())
+    enabled = sum(1 for ok in state.enabled.values() if ok)
     print(f"Aris {__version__}")
-    print(f"Python: {sys.version.split()[0]}")
-    print(f"data_root: {paths.data_root()} ({src})")
-    print(f"config_dir: {paths.config_dir()}")
-    print(f"state_dir: {paths.state_dir()}")
-    print(f"logs_dir: {paths.logs_dir()}")
-    print(f"cwd: {Path.cwd().resolve()}")
-    print(f"llm_providers_file: {settings.llm_providers_file}")
-    try:
-        from .serve import probe_all
+    print(f"Python: {sys.version.split()[0]}（需要 >= 3.12）")
+    print(f"数据目录: {paths.data_root()}  [{source}]")
+    print(f"配置目录: {paths.config_dir()}")
+    print(f"状态目录: {paths.state_dir()}")
+    print(f"日志目录: {paths.logs_dir()}")
+    print(f"配置模板: {paths.SEED_CONFIG_DIR}")
+    print(f"providers: {settings.llm_providers_file}")
+    print(f"工作目录: {Path.cwd().resolve()}")
+    print(f"模块: 启用 {enabled}/{len(MODULES)}（详情 `aris modules list`）")
+    return 0
 
-        outcomes = probe_all()
-        for o in outcomes:
-            print(f"probe: {o.line}")
-    except (OSError, RuntimeError):
-        pass
+
+# TOML 里哪些键算密钥（只用于 `aris config show` 脱敏）
+_SECRET_KEY_RE = re.compile(r"(?i)(api[_-]?key|token|secret|password|passwd|hmac)")
+
+
+def _mask_toml(text: str) -> str:
+    """把 TOML 文本里的密钥值替换为 ***（逐行处理，保留原排版与注释）。"""
+    masked: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if "=" in stripped and not stripped.startswith("#"):
+            key = stripped.split("=", 1)[0].strip()
+            if _SECRET_KEY_RE.search(key):
+                indent = line[: len(line) - len(line.lstrip())]
+                masked.append(f'{indent}{key} = "***"')
+                continue
+        masked.append(line)
+    return "\n".join(masked)
+
+
+def _config_names() -> list[str]:
+    """全部配置文件名（种子模板 ∪ 用户目录里的 *.toml）。"""
+    from . import paths
+
+    names = {p.name for p in paths.SEED_CONFIG_DIR.glob("*.toml")}
+    names |= {p.name for p in paths.config_dir().glob("*.toml")}
+    return sorted(names)
+
+
+def _cmd_config(args: argparse.Namespace) -> int:
+    """配置事实（只读）：path / list / show / validate / env，不写任何文件。"""
+    from . import paths
+    from .cfgtoml import config_path
+
+    command = args.config_command
+
+    if command == "path":
+        print(f"配置目录: {paths.config_dir()}")
+        for name in _config_names():
+            user = paths.config_dir() / name
+            if user.is_file():
+                print(f"  {name:<22} 用户  {user}")
+            else:
+                seed = paths.seed_config_file(name)
+                print(f"  {name:<22} 种子  {seed if seed is not None else '（缺失）'}")
+        return 0
+
+    if command == "list":
+        for name in _config_names():
+            user = paths.config_dir() / name
+            resolved = config_path(name)
+            source = "用户" if user.is_file() else "种子"
+            has_file = resolved is not None and resolved.is_file()
+            size = f"{resolved.stat().st_size}" if has_file and resolved is not None else "-"
+            print(f"- {name:<22} {source}  {size:>6} B  {resolved or '（缺失）'}")
+        return 0
+
+    if command == "show":
+        name = args.name if args.name.endswith(".toml") else f"{args.name}.toml"
+        p = config_path(name)
+        if p is None:
+            logger.error(f"没有这个配置文件：{name}（可用 `aris config list` 查看）")
+            return 1
+        print(f"# {p}")
+        print(_mask_toml(p.read_text(encoding="utf-8")).rstrip())
+        return 0
+
+    if command == "validate":
+        import tomllib
+
+        from .modules import MODULES, load_modules, resolve_modules
+
+        errors: list[str] = []
+        checked = 0
+        for name in _config_names():
+            for candidate in (paths.config_dir() / name, paths.seed_config_file(name)):
+                if candidate is None or not candidate.is_file():
+                    continue
+                checked += 1
+                try:
+                    tomllib.loads(candidate.read_text(encoding="utf-8"))
+                except (tomllib.TOMLDecodeError, OSError) as exc:
+                    errors.append(f"{candidate}: {exc}")
+
+        module_file = paths.config_dir() / "modules.toml"
+        if module_file.is_file():
+            try:
+                table = tomllib.loads(module_file.read_text(encoding="utf-8")).get("modules")
+            except (tomllib.TOMLDecodeError, OSError) as exc:
+                errors.append(f"{module_file}: {exc}")
+                table = None
+            known = {spec.name for spec in MODULES}
+            if table is None:
+                errors.append(f"{module_file}: 缺少 [modules] 表")
+            elif not isinstance(table, dict):
+                errors.append(f"{module_file}: [modules] 不是表")
+            else:
+                errors.extend(
+                    f"{module_file}: 未知模块开关 {name!r}" for name in sorted(set(table) - known)
+                )
+                errors.extend(
+                    f"{module_file}: {name} 不是布尔值"
+                    for name, value in table.items()
+                    if not isinstance(value, bool)
+                )
+        state = resolve_modules(load_modules())
+        errors.extend(
+            f"模块 {name}: {reason}" for name, reason in state.reasons.items() if "依赖" in reason
+        )
+
+        if errors:
+            for line in errors:
+                logger.error(f"配置校验: {line}")
+            print(f"配置校验：{checked} 个文件，{len(errors)} 个问题")
+            return 1
+        print(f"配置校验：{checked} 个文件全部通过（TOML 可解析、模块开关合法、依赖满足）")
+        return 0
+
+    if command == "env":
+        from .config import get_settings
+
+        for key, value in get_settings().model_dump().items():
+            env_key = f"ARIS_{key.upper()}"
+            shown = "***" if _SECRET_KEY_RE.search(key) else value
+            print(f"{env_key}={shown}")
+        print(f"\n配置文件: {paths.config_dir()}（优先）/ 种子 {paths.SEED_CONFIG_DIR}")
+        print(f"密钥文件: {paths.secrets_file()}")
+        return 0
+
+    logger.error(f"未知的 config 子命令：{command}")
+    return 2
+
+
+def _cmd_modules(args: argparse.Namespace) -> int:
+    """模块开关事实：list / status / enable / disable（写文件，下一次启动生效）。"""
+    from .modules import (
+        MODULES,
+        load_modules,
+        resolve_modules,
+        set_module_enabled,
+        switch_warning,
+    )
+
+    command = args.modules_command
+
+    if command in {"enable", "disable"}:
+        if not args.name:
+            logger.error(f"用法：aris modules {command} <name>")
+            return 2
+        enabled = command == "enable"
+        try:
+            path = set_module_enabled(args.name, enabled)
+        except ValueError as exc:
+            logger.error(str(exc))
+            return 2
+        print(f"已写入 {path}：{args.name} = {str(enabled).lower()}")
+        warning = switch_warning(args.name, enabled)
+        if warning:
+            print(f"注意：{warning}")
+        print("下一次启动生效（不影响当前进程）。")
+        return 0
+
+    cfg = load_modules()
+    state = resolve_modules(cfg)
+
+    if command == "status":
+        for spec in MODULES:
+            if state.enabled.get(spec.name, False):
+                print(f"- {spec.name:<10} 启用")
+            else:
+                print(f"- {spec.name:<10} 关闭  ← {state.reasons.get(spec.name, '')}")
+        blocked = [n for n, r in state.reasons.items() if "依赖" in r]
+        if blocked:
+            print("\n依赖未满足（先启用依赖的模块）：")
+            for name in blocked:
+                print(f"  - {name}: {state.reasons[name]}")
+        return 0
+
+    print(f"模块开关（{len(MODULES)} 个；文件 data/config/modules.toml）")
+    for spec in MODULES:
+        raw = getattr(cfg, spec.name, True)
+        enabled = state.enabled.get(spec.name, False)
+        mark = "✓" if enabled else "✗"
+        deps = ",".join(spec.depends_on) or "-"
+        steps = ",".join(spec.steps) or "-"
+        print(f"- {mark} {spec.name:<10} 用户={str(raw).lower():<5} 依赖={deps:<12} 步骤={steps}")
     return 0
 
 
@@ -768,8 +973,45 @@ def main(argv: list[str] | None = None) -> int:
     p_doctor = sub.add_parser("doctor", help="环境自检")
     p_doctor.set_defaults(func=_cmd_doctor)
 
-    p_info = sub.add_parser("info", help="显示版本、路径与运行环境信息")
+    p_info = sub.add_parser("info", help="版本 / 路径 / 模块开关等环境事实（只读）")
     p_info.set_defaults(func=_cmd_info)
+
+    p_config = sub.add_parser("config", help="配置事实（只读：path/list/show/validate/env）")
+    p_config_sub = p_config.add_subparsers(dest="config_command")
+    p_config_path = p_config_sub.add_parser(
+        "path", help="打印配置目录与每个文件的来源（用户/种子）"
+    )
+    p_config_path.set_defaults(func=_cmd_config)
+    p_config_list = p_config_sub.add_parser("list", help="列出全部配置文件与大小（只读）")
+    p_config_list.set_defaults(func=_cmd_config)
+    p_config_show = p_config_sub.add_parser("show", help="打印某个配置（密钥脱敏）")
+    p_config_show.add_argument("name", help="文件名，如 settings / settings.toml / secrets")
+    p_config_show.set_defaults(func=_cmd_config)
+    p_config_validate = p_config_sub.add_parser("validate", help="校验全部 TOML 与模块开关")
+    p_config_validate.set_defaults(func=_cmd_config)
+    p_config_env = p_config_sub.add_parser("env", help="打印进程最终生效的 ARIS_* 设置")
+    p_config_env.set_defaults(func=_cmd_config)
+    p_config.set_defaults(func=_cmd_config, config_command="list")
+
+    p_modules = sub.add_parser("modules", help="模块开关（list / status / enable / disable）")
+    p_modules_sub = p_modules.add_subparsers(dest="modules_command")
+    p_modules_list = p_modules_sub.add_parser("list", help="列出 7 个模块的开关与依赖")
+    p_modules_list.set_defaults(func=_cmd_modules)
+    p_modules_status = p_modules_sub.add_parser("status", help="按依赖解析后的实际启停与原因")
+    p_modules_status.set_defaults(func=_cmd_modules)
+    p_modules_enable = p_modules_sub.add_parser(
+        "enable", help="启用模块（写 modules.toml，下次启动生效）"
+    )
+    p_modules_enable.add_argument(
+        "name", help="模块名：store / knowledge / mcp / behavior / webui / character / voice"
+    )
+    p_modules_enable.set_defaults(func=_cmd_modules)
+    p_modules_disable = p_modules_sub.add_parser(
+        "disable", help="关闭模块（写 modules.toml，下次启动生效）"
+    )
+    p_modules_disable.add_argument("name", help="模块名（同上）")
+    p_modules_disable.set_defaults(func=_cmd_modules)
+    p_modules.set_defaults(func=_cmd_modules, modules_command="list")
 
     p_llm = sub.add_parser("llm", help="LLM 提供方与模型管理")
     p_llm_test = p_llm.add_subparsers(dest="llm_command")
@@ -940,8 +1182,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # 注册模块级总线服务（各模块在 import 时自注册；此处只挂轻量模块）
-    import aris.knowledge  # 注册 knowledge.* 与建表迁移
-    import aris.store  # noqa: F401  —— 注册 store.*
+    # v0.4.4 W3：按 modules.toml 开关，关闭的模块不 import（注册即 import）
+    import importlib
+
+    from .modules import load_modules, resolve_modules
+
+    _state = resolve_modules(load_modules())
+    for _name, _import_path in _state.import_paths():
+        if _name in {"store", "knowledge"}:
+            importlib.import_module(_import_path)
 
     if args.command == "llm" and args.llm_command is None:
         p_llm.print_help()

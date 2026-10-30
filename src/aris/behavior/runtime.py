@@ -112,6 +112,10 @@ def get_runtime(*, rebuild: bool = False) -> BehaviorRuntime:
     """
     global _runtime, _assembly_error
     if _runtime is None or rebuild:
+        from ..modules import module_enabled
+
+        if not module_enabled("behavior"):
+            raise RuntimeError("behavior 模块已关闭（data/config/modules.toml）")
         try:
             _runtime = BehaviorRuntime(build_engine())
         except Exception as exc:

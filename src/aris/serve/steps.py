@@ -43,13 +43,20 @@ def _probe_services() -> str:
 
     清单由各模块自己声明（如 `webui.REQUIRED_SERVICES`），serve 只负责启动时统一
     核验——原实现散在 `webui.create_app()` 里，只有 WebUI 那条路径会被检查。
+    模块开关关闭后，该模块声明的依赖不再核验（它本来就不会装配）。
     """
-    from ..webui import REQUIRED_SERVICES
+    from ..modules import module_enabled
 
-    missing = [name for name in REQUIRED_SERVICES if not has_service(name)]
+    required: tuple[str, ...] = ()
+    if module_enabled("webui"):
+        from ..webui import REQUIRED_SERVICES
+
+        required = REQUIRED_SERVICES
+
+    missing = [name for name in required if not has_service(name)]
     if missing:
         raise RuntimeError(f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块")
-    return f"各模块声明的 {len(REQUIRED_SERVICES)} 个依赖服务全部就绪"
+    return f"各模块声明的 {len(required)} 个依赖服务全部就绪"
 
 
 def _probe_llm() -> str:
