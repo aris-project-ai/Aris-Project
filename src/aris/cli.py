@@ -16,9 +16,9 @@ from pathlib import Path
 from loguru import logger
 
 from . import __version__
-from .config import get_settings
 from .core.llm.config import LLMModel
-from .logging import setup_logging
+from .infra.logging import setup_logging
+from .infra.settings import get_settings
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -38,7 +38,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     except ImportError as e:  # 防御：csrc 模块本身异常时降级
         logger.warning(f"C 扩展: 模块异常（{e}），已降级")
 
-    from . import paths
+    from .infra import paths
 
     seeded = paths.seed_config()
     if seeded:
@@ -52,7 +52,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     logger.info(f"数据目录: {settings.data_dir}")
 
     # data/ 分层（可迁移性 D14）：必须带的项缺了只提示——首次运行本来就没有
-    from .paths import CARRIED_PATHS, missing_carried
+    from .infra.paths import CARRIED_PATHS, missing_carried
 
     missing = missing_carried(settings.data_dir)
     if missing:
@@ -573,7 +573,7 @@ def _cmd_db(args: argparse.Namespace) -> int:
 
 def _cmd_knowledge(args: argparse.Namespace) -> int:
     """知识库：add / list / remove / search / reindex。"""
-    from aris.modules import module_enabled
+    from aris.infra.modules import module_enabled
 
     if not module_enabled("knowledge"):
         logger.error(
@@ -640,7 +640,7 @@ def _cmd_knowledge(args: argparse.Namespace) -> int:
 
 def _cmd_store(args: argparse.Namespace) -> int:
     """store 模块调试命令：info（配置 + 自检）/ embed（编码文本）。"""
-    from aris.modules import module_enabled
+    from aris.infra.modules import module_enabled
 
     if not module_enabled("store"):
         logger.error(
@@ -739,9 +739,9 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
 
 def _cmd_info(args: argparse.Namespace) -> int:
     """版本 / 路径 / 模块开关等环境事实（只读；健康检查用 `aris doctor`）。"""
-    from . import paths
-    from .config import get_settings
-    from .modules import MODULES, load_modules, resolve_modules
+    from .infra import paths
+    from .infra.modules import MODULES, load_modules, resolve_modules
+    from .infra.settings import get_settings
 
     env = os.environ.get("ARIS_DATA_DIR", "").strip()
     if env:
@@ -790,7 +790,7 @@ def _mask_toml(text: str) -> str:
 
 def _config_names() -> list[str]:
     """全部配置文件名（种子模板 ∪ 用户目录里的 *.toml）。"""
-    from . import paths
+    from .infra import paths
 
     names = {p.name for p in paths.SEED_CONFIG_DIR.glob("*.toml")}
     names |= {p.name for p in paths.config_dir().glob("*.toml")}
@@ -799,8 +799,8 @@ def _config_names() -> list[str]:
 
 def _cmd_config(args: argparse.Namespace) -> int:
     """配置事实（只读）：path / list / show / validate / env，不写任何文件。"""
-    from . import paths
-    from .cfgtoml import config_path
+    from .infra import paths
+    from .infra.toml import config_path
 
     command = args.config_command
 
@@ -838,7 +838,7 @@ def _cmd_config(args: argparse.Namespace) -> int:
     if command == "validate":
         import tomllib
 
-        from .modules import MODULES, load_modules, resolve_modules
+        from .infra.modules import MODULES, load_modules, resolve_modules
 
         errors: list[str] = []
         checked = 0
@@ -887,7 +887,7 @@ def _cmd_config(args: argparse.Namespace) -> int:
         return 0
 
     if command == "env":
-        from .config import get_settings
+        from .infra.settings import get_settings
 
         for key, value in get_settings().model_dump().items():
             env_key = f"ARIS_{key.upper()}"
@@ -903,7 +903,7 @@ def _cmd_config(args: argparse.Namespace) -> int:
 
 def _cmd_modules(args: argparse.Namespace) -> int:
     """模块开关事实：list / status / enable / disable（写文件，下一次启动生效）。"""
-    from .modules import (
+    from .infra.modules import (
         MODULES,
         load_modules,
         resolve_modules,
@@ -1185,7 +1185,7 @@ def main(argv: list[str] | None = None) -> int:
     # v0.4.4 W3：按 modules.toml 开关，关闭的模块不 import（注册即 import）
     import importlib
 
-    from .modules import load_modules, resolve_modules
+    from .infra.modules import load_modules, resolve_modules
 
     _state = resolve_modules(load_modules())
     for _name, _import_path in _state.import_paths():

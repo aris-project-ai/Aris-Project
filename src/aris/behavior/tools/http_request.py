@@ -28,8 +28,8 @@ import urllib.parse
 from dataclasses import dataclass
 from enum import StrEnum
 
-from aris.cfgtoml import load_config
 from aris.core import call
+from aris.infra.toml import load_config
 
 from ..registry import ToolRegistry
 from .web_common import extract_page

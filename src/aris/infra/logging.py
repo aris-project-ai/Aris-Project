@@ -14,7 +14,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .cfgtoml import load_config
+from .toml import load_config
 
 _CONSOLE_FORMAT = (
     "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | "
@@ -55,7 +55,7 @@ def setup_logging(
         console_level: 控制台日志级别；为 None 时默认显示 WARNING 及以上。
     """
     if data_dir is None:
-        from .config import get_settings
+        from .settings import get_settings
 
         data_dir = get_settings().data_dir
     level = level.upper()

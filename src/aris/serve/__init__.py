@@ -25,9 +25,9 @@ from loguru import logger
 
 from .. import __version__
 from ..behavior.runtime import get_runtime
-from ..config import get_settings
 from ..core import call, services
-from ..modules import ModulesState, load_modules, resolve_modules
+from ..infra.modules import ModulesState, load_modules, resolve_modules
+from ..infra.settings import get_settings
 from .conf import ServeConfig, get_serve_config
 from .steps import ServeStep, build_steps
 
@@ -65,7 +65,7 @@ def assemble() -> None:
     """
     import importlib
 
-    from .. import paths
+    from ..infra import paths
 
     # 首次运行播种 data/config/：必须早于各模块 import（模块级 load_config 在 import 时读配置）
     seeded = paths.seed_config()

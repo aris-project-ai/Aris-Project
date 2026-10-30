@@ -19,7 +19,7 @@ from datetime import UTC
 
 from loguru import logger
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 # ── 引擎清单与首选顺序 ──
 # 名称同时是 data/config/search.toml prefer_engine 的合法值与输出 JSON engine 字段的值

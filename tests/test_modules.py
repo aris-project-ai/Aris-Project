@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from aris.modules import (
+from aris.infra.modules import (
     MODULES,
     ModulesConfig,
     load_modules,
@@ -116,7 +116,7 @@ def test_set_module_enabled_rejects_unknown(tmp_path: Path) -> None:
 
 def test_switch_warning_reports_cascade(tmp_path: Path, monkeypatch) -> None:
     path = _write_modules(tmp_path / "modules.toml", "[modules]\n")
-    monkeypatch.setattr("aris.modules.modules_file", lambda: path)
+    monkeypatch.setattr("aris.infra.modules.modules_file", lambda: path)
 
     warning = switch_warning("knowledge", False)
     assert warning is not None
@@ -125,7 +125,7 @@ def test_switch_warning_reports_cascade(tmp_path: Path, monkeypatch) -> None:
 
 def test_module_enabled_uses_dependency_cascade(tmp_path: Path, monkeypatch) -> None:
     path = _write_modules(tmp_path / "modules.toml", "[modules]\nstore = false\n")
-    monkeypatch.setattr("aris.modules.modules_file", lambda: path)
+    monkeypatch.setattr("aris.infra.modules.modules_file", lambda: path)
 
     assert module_enabled("store") is False
     assert module_enabled("knowledge") is False

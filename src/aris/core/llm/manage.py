@@ -13,8 +13,8 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 
-from aris.config import get_settings
 from aris.core.bus import provide
+from aris.infra.settings import get_settings
 
 from .config import LLMModel, LLMProvider, ProviderConfig, load_providers
 from .fetch import write_providers

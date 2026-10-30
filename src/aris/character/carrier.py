@@ -195,7 +195,7 @@ class CharacterStore:
 def characters_root(data_dir: Path | None = None) -> Path:
     """角色根目录 `<data_dir>/characters/`。"""
     if data_dir is None:
-        from ..config import get_settings
+        from ..infra.settings import get_settings
 
         data_dir = get_settings().data_dir
     return Path(data_dir) / CHARACTERS_DIR

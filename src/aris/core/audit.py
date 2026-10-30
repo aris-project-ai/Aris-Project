@@ -21,7 +21,7 @@ from enum import StrEnum
 from time import monotonic, time
 from typing import Any
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 
 class AuditKind(StrEnum):

@@ -21,7 +21,7 @@ from functools import lru_cache
 
 from loguru import logger
 
-from ..cfgtoml import load_config
+from ..infra.toml import load_config
 
 # server 名合法字符：小写字母 / 数字 / 下划线 / 连字符，1..32
 _NAME_RE = re.compile(r"^[a-z0-9_-]{1,32}$")

@@ -29,20 +29,20 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("ARIS_WEBUI_PASSWORD", "test-pass")
     monkeypatch.setattr(rate_limit.login_limiter, "_attempts", {})
 
-    from aris.config import get_settings
+    from aris.infra.settings import get_settings
 
     settings = get_settings()
     monkeypatch.setattr(settings, "data_dir", tmp_path / "data")
     (tmp_path / "data").mkdir(parents=True, exist_ok=True)
 
-    import aris.cfgtoml as cfgtoml
+    import aris.infra.toml as cfgtoml
 
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cfgtoml, "config_dir", lambda: cfg_dir)
 
     import aris.core.llm.manage as manage
-    from aris import paths
+    from aris.infra import paths
 
     providers_file = tmp_path / "providers.toml"
     shutil.copy(paths.seed_config_file("providers.toml"), providers_file)

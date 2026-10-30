@@ -5,7 +5,7 @@
 开发树判定：仓库根同时存在 pyproject.toml 与 src/aris。打包后的入口
 （paris / paris-gui）会显式注入 ARIS_DATA_DIR，不依赖这个猜测。
 
-本模块只回答「东西放哪」，不做业务；配置内容见 aris.config 与 aris.cfgtoml。
+本模块只回答「东西放哪」，不做业务；配置内容见 aris.infra.settings 与 aris.infra.toml。
 """
 
 from __future__ import annotations
@@ -34,7 +34,13 @@ def _find_dev_root_via_cwd() -> Path | None:
 def _find_dev_root_via_file() -> Path | None:
     try:
         here = Path(__file__).resolve()
-        for cand in [here.parent.parent.parent, here.parent.parent, here.parent]:
+        parents = [
+            here.parent.parent.parent.parent,
+            here.parent.parent.parent,
+            here.parent.parent,
+            here.parent,
+        ]
+        for cand in parents:
             if _is_dev_tree(cand):
                 return cand
     except (OSError, RuntimeError):
@@ -101,7 +107,7 @@ def notes_dir() -> Path:
 
 
 # 随包种子模板：用户配置缺失时作为默认值来源，也用于首次启动播种
-SEED_CONFIG_DIR = Path(__file__).resolve().parent / "seed" / "config"
+SEED_CONFIG_DIR = Path(__file__).resolve().parent.parent / "seed" / "config"
 
 
 def seed_config_file(name: str) -> Path | None:
