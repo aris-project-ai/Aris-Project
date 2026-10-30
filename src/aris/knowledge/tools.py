@@ -18,10 +18,10 @@ import json
 from loguru import logger
 
 from ..core.tools import ToolSpec
-from .conf import get_knowledge_config
+from ..modules import module_enabled
 from .service import get_service
 
-# 单块内容截断上限：与分块上限（config/knowledge.toml: max_chars）同量级，
+# 单块内容截断上限：与分块上限（data/config/knowledge.toml: max_chars）同量级，
 # 防止一次检索把上下文吃光
 MAX_CONTENT_CHARS = 800
 
@@ -79,7 +79,7 @@ def _do_search(query: str, top_k: int | None = None) -> str:
 
     results = list(payload.get("results", []))
     if not payload.get("enabled", True):
-        body = "（知识库当前已关闭：config/knowledge.toml 的 enabled = false）"
+        body = "（知识库当前已关闭：data/config/modules.toml 的 [modules] knowledge = false）"
     elif not results:
         body = "（知识库中没有找到相关内容）"
     else:
@@ -99,7 +99,7 @@ def _do_search(query: str, top_k: int | None = None) -> str:
 def tool_specs() -> list[ToolSpec]:
     """本模块的 agent 工具声明（经 `knowledge.ai_tools` 总线服务给出）。
 
-    声明必须廉价：只读配置与构造结构，不连库。知识库关闭（enabled=false）
+    声明必须廉价：只读配置与构造结构，不连库。知识库关闭（modules.toml）
     时照常声明、`enabled=False`——模型看不到该工具，但 CLI / 工具页仍可
     枚举；启用与否由 `registry.register_spec` 的 `enabled` 契约落到模型
     可见性上（见 `core/tools.py`）。
@@ -132,6 +132,6 @@ def tool_specs() -> list[ToolSpec]:
             },
             fn=_do_search,
             owner="knowledge",
-            enabled=get_knowledge_config().enabled,
+            enabled=module_enabled("knowledge"),
         ),
     ]

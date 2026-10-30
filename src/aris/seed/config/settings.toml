@@ -1,0 +1,10 @@
+# 全局启动参数（非密钥）。密钥放同目录的 secrets.toml。
+#
+# [settings] 下的键会映射成 ARIS_<KEY> 环境变量（log_level → ARIS_LOG_LEVEL）；
+# 进程环境变量优先级更高。data_dir 不在这里配：只认进程环境变量 ARIS_DATA_DIR。
+
+[settings]
+log_level = "INFO"
+
+# llm_fallback_timeout = 30.0   # 一次请求的总时间预算（秒），含 fallback 切换
+# llm_first_token_stall = 3.0   # 首字占位阈值（秒），超时先显示占位提示

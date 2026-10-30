@@ -128,7 +128,7 @@
 
 #### 场合风格（channel → 风格）
 
-配置里放**渠道 → 场合描述 + 风格要求**的映射（`config/chat.toml`），加渠道改配置不改代码：
+配置里放**渠道 → 场合描述 + 风格要求**的映射（`data/config/chat.toml`），加渠道改配置不改代码：
 
 ```toml
 [channels.voice]
@@ -169,4 +169,4 @@ style = "可以稍详细，允许代码块与列表"
 | `memory_messages` 表 | 补 `source` / `speaker` / `kind` / `expects_reply` |
 | D11 autorun | 补：主动任务类带 `kind=system` 进当前会话；内部维护类走系统场合 |
 | `aris doctor` | 补「迁移自检」项 |
-| `config/chat.toml` | 补 `channels.*`（场合风格）与 `session_cooldown_days` |
+| `data/config/chat.toml` | 补 `channels.*`（场合风格）与 `session_cooldown_days` |

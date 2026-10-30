@@ -22,7 +22,7 @@
 
 ## 2. 技术选型（定案）
 
-**VitePress**，独立仓库（不在 `Project-Aris` 内）。中文化要点：
+**VitePress**，独立仓库（不在 `Aris-Project` 内）。中文化要点：
 
 - `lang: 'zh-CN'`，并覆写默认主题的 nav / sidebar / outline 文案。
 - 搜索先用内置 `local search`；Algolia DocSearch 是申请制，不早期引入。

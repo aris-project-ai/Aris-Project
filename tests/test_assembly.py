@@ -13,12 +13,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 from types import SimpleNamespace
 
+import pytest
+
 from aris.behavior import AgentLoop, BehaviorRuntime, ToolRegistry
-from aris.behavior.runtime import TOOLS_SYSTEM_HINT
+from aris.behavior.runtime import (
+    TOOLS_SYSTEM_HINT,
+    assembly_error,
+    get_runtime,
+    peek_runtime,
+    reset_runtime,
+)
 from aris.chat import ChatSession
 from aris.core import bus, has_service
 from aris.core.llm.message import Message, MessageRole
-from aris.serve import assemble, get_runtime, peek_runtime, reset_runtime
+from aris.serve import assemble
 
 
 class _StubEngine:
@@ -141,3 +149,24 @@ def test_behavior_step_reports_runtime() -> None:
     assemble()
     assert "运行时已装配" in _probe_behavior()
     assert "工具已就绪" in _start_behavior()
+
+
+def test_assembly_failure_is_visible_in_probe(monkeypatch) -> None:
+    """装配失败不再只留一条 warning：behavior 步骤的探针如实报错。"""
+    import aris.behavior.runtime as runtime_module
+    from aris.serve.steps import _probe_behavior
+
+    def _boom():
+        raise RuntimeError("provider 配置坏了")
+
+    reset_runtime()
+    monkeypatch.setattr(runtime_module, "build_engine", _boom)
+    with pytest.raises(RuntimeError, match="provider 配置坏了"):
+        get_runtime()
+    assert assembly_error() == "provider 配置坏了"
+    with pytest.raises(RuntimeError, match="behavior 运行时未装配"):
+        _probe_behavior()
+
+    monkeypatch.undo()
+    reset_runtime()
+    assemble()  # 恢复一份装配好的运行时给后续用例

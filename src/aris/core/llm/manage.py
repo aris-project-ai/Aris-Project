@@ -120,7 +120,7 @@ def providers_check() -> list[tuple[str, str]]:
     ]
     issues += [("error", f"提供方 {p.id} 模型列表为空") for p in cfg.providers if not p.models]
     issues += [
-        ("error", f"提供方 {p.id} 缺 API key：请在 .env 设置 {p.api_key_env}")
+        ("error", f"提供方 {p.id} 缺 API key：请在 data/config/secrets.toml 设置 {p.api_key_env}")
         for p in cfg.providers
         if not os.environ.get(p.api_key_env)
     ]

@@ -5,7 +5,7 @@
 #   2. 已安装元数据与源一致（uv cache-keys 是否生效的兜底）
 #   3. uv.lock 与 pyproject.toml 同步（uv lock --check）
 #   4. 当前分支是 develop 且无未合并的本地 feature 分支
-#   5. 号码未被任何渠道占用（beta-vX.Y.Z / vX.Y.Z / 历史 vX.Y.Z-beta）
+#   5. 号码未被任何渠道占用（alpha-vX.Y.Z / beta-vX.Y.Z / vX.Y.Z / 历史 vX.Y.Z-beta）
 #   6. 号码大于已发布的最后一个号
 # 通过则输出发布流程提示并 exit 0；否则列出问题 exit 1。
 # 用法：bash scripts/release-check.sh
@@ -21,6 +21,9 @@ cd "$REPO_ROOT"
 
 PYPROJECT="pyproject.toml"
 VERSION_FILE="src/aris/__init__.py"
+
+# 分发包名：唯一源是 pyproject 的 name（import 包名与命令仍是 aris，不随品牌改名）
+DIST_NAME="$(python3 -c 'import sys,tomllib,pathlib; print(tomllib.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["project"]["name"])' "$PYPROJECT" 2>/dev/null || echo 'aris')"
 
 fail=0
 
@@ -61,9 +64,9 @@ fi
 # ---- 2. 已安装元数据与源一致（venv 存在时才查）----
 if [ -x ".venv/bin/python" ]; then
     installed="$(.venv/bin/python -c \
-        'import importlib.metadata as m; print(m.version("aris"))' 2>/dev/null || echo '')"
+        "import importlib.metadata as m; print(m.version('$DIST_NAME'))" 2>/dev/null || echo '')"
     if [ "$installed" = "$ver" ]; then
-        echo "[ ok ] 已安装元数据一致: aris==$installed"
+        echo "[ ok ] 已安装元数据一致: $DIST_NAME==$installed"
     else
         echo "[FAIL] 已安装元数据 ($installed) 与 $VERSION_FILE ($ver) 不一致"
         echo "         跑一次 uv sync（或用 scripts/bump-version.sh 改版本）"
@@ -111,10 +114,10 @@ fi
 # ---- 5. 号码占用 ----
 if [ -n "$ver" ]; then
     if existing="$(version_existing_tag "$ver")"; then
-        echo "[FAIL] 号码 $ver 已被 tag $existing 占用（beta 与正式共用号码，同一号只能发布一次）"
+        echo "[FAIL] 号码 $ver 已被 tag $existing 占用（各渠道共用号码，同一号只能发布一次）"
         fail=1
     else
-        echo "[ ok ] 号码 $ver 未被占用；发布时二选一：beta-v$ver / v$ver"
+        echo "[ ok ] 号码 $ver 未被占用；发布时按渠道打 tag：alpha-v$ver / beta-v$ver / v$ver"
     fi
 
     # ---- 6. 单调递增 ----
@@ -135,7 +138,7 @@ if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
     echo "  1. 在 develop 上 bump：bash scripts/bump-version.sh <版本|patch|minor|major>"
     echo "  2. 提交 chore(release) 后合并回 main（git merge --no-ff）"
-    echo "  3. 二选一打 tag：git tag beta-v$ver（beta：小版本更新）/ git tag v$ver（正式版）"
+    echo "  3. 按渠道打 tag：alpha-v$ver（只在 develop）/ beta-v$ver / v$ver（三选一，号码共用）"
     echo "  4. git push origin develop main && git push origin <tag>"
     exit 0
 fi

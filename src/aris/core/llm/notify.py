@@ -27,7 +27,7 @@ _DEFAULT_XDG_RUNTIME_DIR = f"/run/user/{os.getuid()}" if hasattr(os, "getuid") e
 
 @dataclass
 class NotifyConfig:
-    """桌面通知可调参数（config/notify.toml）。"""
+    """桌面通知可调参数（data/config/notify.toml）。"""
 
     timeout_seconds: float = 5.0
 

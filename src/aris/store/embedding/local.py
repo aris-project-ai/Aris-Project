@@ -163,7 +163,7 @@ def _data_dir() -> Path:
 
 
 def provider_from_config() -> LocalBekkoProvider:
-    """按 `config/store.toml` 建本地提供方实例。"""
+    """按 `data/config/store.toml` 建本地提供方实例。"""
     cfg = get_store_config()
     return LocalBekkoProvider(
         cfg.local_model,

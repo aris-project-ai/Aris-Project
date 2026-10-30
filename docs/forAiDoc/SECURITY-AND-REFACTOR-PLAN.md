@@ -86,7 +86,8 @@
 落地要点（与规划相比的调整）：
 
 - 服务名最终定为：`llm.providers.*`（load/add/delete/model_add/model_delete）、
-  `llm.fetch.plan/apply`、`llm.retired.list/delete`（代替规划中的
+  `llm.fetch.plan/apply`、`llm.retired.list/delete`（v0.4.4 W5 起 retired 退役，
+  改为只读 `llm.missing.list`）（代替规划中的
   `llm.providers.write`/`llm.fetch.run`，更贴合现有 fetch.py 函数语义）、
   `audit.recent`/`audit.summary`（代替规划中的 `audit.count`，summary 一次
   取全部聚合）、`skills.list/detail/create/save/delete`。

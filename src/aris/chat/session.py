@@ -4,7 +4,7 @@
 `<data_dir>/logs/YYYY-MM-DD/chat.log`，便于日后回溯与记忆系统接入。
 
 M1 上收后会话**不自建**引擎 / 工具注册表 / 技能管理器 / agent loop，
-而是注入 `BehaviorRuntime`（默认取组装根 `serve` 持有的进程级那一份）——
+而是注入 `BehaviorRuntime`（默认取 `behavior.runtime` 的进程级那一份）——
 原来每开一段对话都自建并 provide 一次，单槽总线服务会被互相顶掉。
 """
 
@@ -21,6 +21,7 @@ from pathlib import Path
 from aris.cfgtoml import load_config
 
 from ..behavior import BehaviorRuntime, LoopEventType
+from ..behavior.runtime import get_runtime
 from ..core import call, has_service
 from ..core.llm import LLMEngine, Message, MessageRole
 from .commands import (
@@ -32,7 +33,9 @@ from .commands import (
 )
 
 # 兜底人设：仅当 character 模块未注册（服务缺失）时使用，正常路径不会走到
-_FALLBACK_SYSTEM_PROMPT = "你是 Aris，一个拟人 AI，说话简洁自然。"
+_FALLBACK_SYSTEM_PROMPT = (
+    "你是 Aris，一个基于大语言模型、类似 Neuro-sama 的赛博生命体，说话简洁自然。"
+)
 
 
 def _resolve_cid(cid: str | None) -> str | None:
@@ -55,7 +58,7 @@ def _default_system_prompt(cid: str | None) -> str:
 
 @dataclass
 class ChatConfig:
-    """chat 模块可调参数（config/chat.toml）。"""
+    """chat 模块可调参数（data/config/chat.toml）。"""
 
     # LLM 采样参数：None = 不传（由提供方决定默认值）
     temperature: float | None = None  # 采样温度，0=确定性，1=随机性较高
@@ -127,18 +130,16 @@ class ChatSession:
     ) -> None:
         """建一段会话。
 
-        ``runtime``/``engine`` 可省：默认取组装根 `serve` 持有的**进程级运行时**
-        （M1 上收，见 `behavior/runtime.py` 与 `serve/assembly.py`）。测试或需要
+        ``runtime``/``engine`` 可省：默认取 `behavior.runtime` 的**进程级运行时**
+        （M1 上收，见 `behavior/runtime.py`）。测试或需要
         独立运行时时显式传：给 ``engine`` 会用该引擎自建一份运行时（工具面按
         ``tools_enabled`` 决定），给 ``runtime`` 则直接复用。
 
-        ``cid`` 是角色 id（M2）：缺省时按 `config/chat.toml` 的 ``character``、
+        ``cid`` 是角色 id（M2）：缺省时按 `data/config/chat.toml` 的 ``character``、
         再退到 character 模块的默认角色；`system_prompt` 显式给了则不取人设。
         """
         if runtime is None:
             if engine is None:
-                from ..serve import get_runtime  # 组装根；懒导入避免循环引用
-
                 runtime = get_runtime()
             else:
                 runtime = BehaviorRuntime(engine, with_tools=tools_enabled)

@@ -28,7 +28,7 @@
 - **owner 线程**：SDK 是 asyncio、Aris 总线是同步——SDK 跑在专属 daemon 线程的
   事件循环（AstrBot owner-task 模式搬线程），对外全部经
   `asyncio.run_coroutine_threadsafe` + Future 同步等待，超时给 `MCPToolError` 人话。
-- **transport**：`config/mcp.toml` 驱动（stdio：`command`+`args`，子进程继承环境、
+- **transport**：`data/config/mcp.toml` 驱动（stdio：`command`+`args`，子进程继承环境、
   `env_names` 声明凭据变量名；http：`url` + 可选 `bearer_env` 做 Bearer 头）。
 - **工具汇入**：命名 `mcp_<server>_<tool>`（server 名约束 `[a-z0-9_-]{1,32}`，
   前缀化保证永不与内置 / 技能 / 业务工具撞名）；单工具 schema 非法只丢该工具
@@ -45,7 +45,7 @@
   说明文字（Aris 是文字/语音期）；`content` 空而 `structuredContent` 有值时
   stringify 兜底（dsh 的已知缺陷反向修）；`isError` 加 `[工具返回错误标识]` 前缀。
 
-## 配置（`config/mcp.toml`）
+## 配置（`data/config/mcp.toml`）
 
 server 表 `[servers.<name>]` + 三组超时 + 退避参数，缺文件 = 未接任何 server
 （模块零开销，`.ai_tools` 返回空）。密钥只写环境变量名，值进 `.env`。

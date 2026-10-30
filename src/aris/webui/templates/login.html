@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - Project-Aris WebUI</title>
+    <title>登录 - {{ app_name }} WebUI</title>
     <script src="/static/uno.js"></script>
 </head>
 <body class="bg-gray-50 flex items-center justify-center min-h-screen">
     <div class="w-full max-w-sm">
         <div class="bg-white rounded-lg shadow-md p-8">
-            <h1 class="text-xl font-semibold text-center mb-6">Project-Aris</h1>
+            <h1 class="text-xl font-semibold text-center mb-6">{{ app_name }}</h1>
 
             {% if error %}
             <div class="bg-red-50 text-red-700 text-sm p-3 rounded mb-4">

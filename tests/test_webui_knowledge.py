@@ -82,14 +82,10 @@ def test_upload_enforces_count_limit(upload_service) -> None:
         upload_service.upload(items)
 
 
-def test_upload_refuses_when_disabled(upload_service) -> None:
-    config = upload_service.config
-    config.enabled = False
-    try:
-        with pytest.raises(KnowledgeError):
-            upload_service.upload([{"filename": "n.md", "data": b"x"}])
-    finally:
-        config.enabled = True
+def test_upload_refuses_when_disabled(upload_service, monkeypatch) -> None:
+    monkeypatch.setattr("aris.knowledge.service.module_enabled", lambda name: False)
+    with pytest.raises(KnowledgeError):
+        upload_service.upload([{"filename": "n.md", "data": b"x"}])
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@
   Python 层足够（KISS + 轮子哲学），C 继续只做性能敏感点。
 
 实现要点：
-- 内存环形缓冲（定长 config/audit.toml max_records），只保留最近 N 条，防内存膨胀。
+- 内存环形缓冲（定长 data/config/audit.toml max_records），只保留最近 N 条，防内存膨胀。
 - 记录失败静默降级（try/except 包裹），绝不拖累业务调用。
 - 线程安全：多线程（如将来 auto 定时任务模块）并发记录/查询均加锁。
 """
@@ -33,7 +33,7 @@ class AuditKind(StrEnum):
 
 @dataclass
 class AuditConfig:
-    """审计可调参数（config/audit.toml）。"""
+    """审计可调参数（data/config/audit.toml）。"""
 
     max_records: int = 2000
     recent_default_limit: int = 50

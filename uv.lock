@@ -42,7 +42,7 @@ wheels = [
 ]
 
 [[package]]
-name = "aris"
+name = "aris-project"
 source = { editable = "." }
 default-groups = ["dev", "embedding"]
 dependencies = [

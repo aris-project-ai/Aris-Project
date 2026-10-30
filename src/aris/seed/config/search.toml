@@ -1,7 +1,7 @@
 # 联网搜索模块配置（引擎池：Bing 直连 / Tavily 含 keyless / Exa 经 mcp）
 
 # 首选搜索引擎（"bing"/"tavily"/"exa"/"auto"），失败自动按序兜底
-# exa 引擎还要 mcp.server 已连接才生效（config/mcp.toml 里 [servers.exa]）
+# exa 引擎还要 mcp.server 已连接才生效（data/config/mcp.toml 里 [servers.exa]）
 # auto = 按查询语言分流（含中文走 Tavily），仅在需要时切换
 prefer_engine = "bing"
 

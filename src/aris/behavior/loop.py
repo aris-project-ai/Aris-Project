@@ -48,7 +48,7 @@ class LoopEventType(StrEnum):
 
 @dataclass
 class LoopConfig:
-    """agent loop 可调参数（config/chat.toml）。"""
+    """agent loop 可调参数（data/config/chat.toml）。"""
 
     max_rounds: int = 8
 
@@ -84,8 +84,8 @@ class AgentLoop:
         *,
         registry: ToolRegistry,
         max_rounds: int | None = None,
-        temperature: float | None = None,  # 采样温度（config/chat.toml）
-        top_p: float | None = None,  # 核采样概率质量（config/chat.toml）
+        temperature: float | None = None,  # 采样温度（data/config/chat.toml）
+        top_p: float | None = None,  # 核采样概率质量（data/config/chat.toml）
     ) -> None:
         """建 loop。
 

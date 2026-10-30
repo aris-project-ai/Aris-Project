@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 版本号 bump（AGENTS.md §9）：
 #   版本号唯一源是 src/aris/__init__.py 的 __version__，本脚本是唯一的改法。
-#   版本串只写数字（X.Y.Z / X.Y.Z.W），beta / 正式由发布时的 tag 决定。
+#   版本串只写数字（X.Y.Z / X.Y.Z.W），beta / 正式 / alpha 由发布时的 tag 决定。
 #
 # 用法：
 #   bash scripts/bump-version.sh 1.0.0     # 指定版本
@@ -75,7 +75,7 @@ fi
 # 号码未被任何渠道占用（先查重，报错更直接）
 if existing="$(version_existing_tag "$base")"; then
     echo "错误：号码 $base 已被 tag $existing 占用" >&2
-    echo "      beta 与正式共用号码，同一个号只能发布一次；请换一个更高的号" >&2
+    echo "      所有渠道共用号码，同一个号只能发布一次；请换一个更高的号" >&2
     exit 1
 fi
 
@@ -101,8 +101,10 @@ echo "完成，当前版本：$(uv run aris --version)"
 echo "下一步："
 echo "  1. git add $VERSION_FILE uv.lock && git commit -m 'chore(release): 版本号 bump 至 $base'"
 echo "  2. bash scripts/release-check.sh"
-echo "  3. git checkout main && git merge --no-ff develop -m 'chore(release): <一句话总结>'"
-echo "  4. 二选一打 tag："
+echo "  3. alpha（预发布，只在 develop）：直接打 tag，不合并 main"
+echo "     beta / 正式：git checkout main && git merge --no-ff develop -m 'chore(release): <一句话总结>'"
+echo "  4. 三选一打 tag（号码共用）："
+echo "       git tag alpha-v$base  # alpha：develop 预发布，占号"
 echo "       git tag beta-v$base   # beta：小版本更新"
 echo "       git tag v$base        # 正式版"
 echo "  5. git push origin develop main && git push origin <tag>"

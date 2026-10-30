@@ -1,4 +1,4 @@
-"""配置管理路由——查看/编辑 config/*.toml，.env 状态只读。"""
+"""配置管理路由——查看/编辑 data/config/*.toml；密钥只读展示是否已配置。"""
 
 from __future__ import annotations
 

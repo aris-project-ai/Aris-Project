@@ -28,7 +28,7 @@ _FILE_FORMAT = (
 
 @dataclass
 class LoggingConfig:
-    """文件日志可调参数（config/logging.toml）。"""
+    """文件日志可调参数（data/config/logging.toml）。"""
 
     file_rotation: str = "10 MB"
     retention: str = "30 days"

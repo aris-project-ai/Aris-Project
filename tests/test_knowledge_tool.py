@@ -103,16 +103,11 @@ def test_tool_reports_distance_for_weak_hits(registry: ToolRegistry, ingested_do
 
 
 @requires_pg
-def test_tool_reports_disabled(registry: ToolRegistry, ingested_doc: Path) -> None:
+def test_tool_reports_disabled(registry: ToolRegistry, ingested_doc: Path, monkeypatch) -> None:
     """知识库关闭时明确说明，不抛异常。"""
-    from aris.knowledge import get_service
+    monkeypatch.setattr("aris.knowledge.service.module_enabled", lambda name: False)
 
-    config = get_service().config
-    config.enabled = False
-    try:
-        off = json.loads(registry.execute("knowledge_search", {"query": "端口"}))
-    finally:
-        config.enabled = True
+    off = json.loads(registry.execute("knowledge_search", {"query": "端口"}))
 
     assert off["count"] == 0
     assert "已关闭" in off["results"]

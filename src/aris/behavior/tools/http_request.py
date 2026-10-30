@@ -10,7 +10,7 @@
   http_request 的结果。模型只要在回复里提过一次该域名即放行（固有边界，
   规则主要挡「凭空编造域名」）
 - 不能访问需要认证的内容（登录墙 / 私有文档）
-- 密钥不放请求头 / 请求体（走 .env / 模块配置）
+- 密钥不放请求头 / 请求体（走 data/config/secrets.toml / 模块配置）
 
 设计：
 - 走 core.call("http.request")，与 LLM 请求同理，可审计可复用
@@ -44,7 +44,7 @@ class HttpRequestResultType(StrEnum):
 
 @dataclass
 class HttpRequestConfig:
-    """http_request 工具可调参数（config/search.toml）。"""
+    """http_request 工具可调参数（data/config/search.toml）。"""
 
     http_request_max_chars: int = 4000  # 单次返回内容上限（字符）
     http_request_timeout_seconds: float = 20.0

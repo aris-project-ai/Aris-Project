@@ -1,8 +1,8 @@
-# Project Aris
+# Aris Project
 
 ## 简述
 
-Project Aris 是一个拟人 AI，参考 Neuro-sama：目标不是做助手，而是一个长期存在、会自己长大的「人」。
+Aris Project 是一个基于大语言模型、类似 Neuro-sama 的**赛博生命体**。
 
 项目始于 2026-07，在 AI 辅助下开发。
 

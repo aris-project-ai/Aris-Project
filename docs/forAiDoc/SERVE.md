@@ -158,7 +158,7 @@ CLI（默认全启）：
 优先级：`--only` 先定集合 → `--skip` 再减 → **CLI 覆盖配置**。
 不再加 `--no-db` / `--no-web` 之类的糖（等价于 `--skip db,webui`，KISS）。
 
-`config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
+`data/config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
 
 ```toml
 start_db = true            # 没跑就自启便携 PG
@@ -169,13 +169,16 @@ web_enabled = true         # 是否并入 WebUI
 skip = []                  # 默认跳过的步骤（CLI --skip 追加）
 ```
 
-WebUI 自身的 `host` / `port` / `session_days` 仍归 `config/webui.toml`；
+WebUI 自身的 `host` / `port` / `session_days` 仍归 `data/config/webui.toml`；
 serve 只管「启不启」。
 
 ## 7. 与既有入口 / 模块的关系（定案）
 
 - **唯一组装根（已落地）**：`serve.assemble()` 是唯一一份「import 哪些所有者模块」
-  的清单；服务自检由 `services` 步骤统一做。`aris serve` / `aris web` 都走它，
+  的清单；服务自检由 `services` 步骤统一做。**v0.4.4 W3 起该清单来自
+  `data/config/modules.toml`（`src/aris/modules.py`）**：关闭的模块不 import，
+  依赖被关的模块级联关闭（记 error、步骤标 skipped、不退出）；`aris modules enable|disable`
+  只写文件、下一次启动生效。`aris serve` / `aris web` 都走它，
   测试在 `tests/conftest.py` 里调它，`webui.create_app()` 只搭 HTTP 层、不再自己
   import 各模块（原先 `cli.py` 与 `webui/__init__.py` 各维护一套，必然漂移）。
   依赖清单仍由各模块自己声明（如 `webui.REQUIRED_SERVICES`），避免「谁需要什么」
@@ -205,7 +208,7 @@ serve 只管「启不启」。
 
 | # | 内容 | 状态 |
 |---|---|---|
-| 1 | `serve/conf.py` + `config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
+| 1 | `serve/conf.py` + `data/config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
 | 2 | 各模块补启动 hook（`store.start/stop`、`store.embed_preload`、`knowledge.start`、`webui.start/probe`） | ✅ 2026-09-19 |
 | 3 | 端口探测 + 失败分级日志 + `--only/--skip/--dry-run` | ✅ 2026-09-19 |
 | 4 | 上收组装根与依赖清单（`create_app()` 只搭 HTTP 层；`serve.assemble()` 唯一触发点；`services` 步骤统一核验 `REQUIRED_SERVICES`） | ✅ 2026-09-19 |
@@ -229,8 +232,10 @@ serve 只管「启不启」。
 已知缺口（下一步）：
 
 已完成（v1.0 M1，2026-10-07）：**工具注册表 / agent loop / LLM engine / `skills.menu` 已上收**——
-`serve/assembly.py` 只装配一份**进程级运行时**（`behavior/runtime.py` 的 `BehaviorRuntime`：
-engine + registry + skills + loop），`ChatSession` 接受注入、缺省懒取 `get_runtime()`；
+一份**进程级运行时**（`BehaviorRuntime`：engine + registry + skills + loop），`ChatSession`
+接受注入、缺省取 `get_runtime()`。**v0.4.4 W4 起运行期单例归 `behavior/runtime.py`**：serve
+只转调、不持有（`serve/assembly.py` 已删）；任何模块不得 import `serve`，守卫见
+`tests/test_import_boundary.py`；装配失败由 behavior 步骤探针如实报错（不再只 warning）。
 `behavior` 步骤由此有了真实启动动作与「运行时已装配」探针。按 `cid` / `session_id` 分的资源
 map 留给 M3（D15 单一会话下暂不需要，运行时 docstring 已留接缝）。
 

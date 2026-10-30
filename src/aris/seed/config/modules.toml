@@ -1,0 +1,11 @@
+# 模块开关：false = 该模块不装配、服务不注册（依赖它的模块会被跳过）。
+# 用户主动关闭的模块被依赖时只记 error 日志，不退出程序。
+
+[modules]
+store = true
+knowledge = true
+mcp = true
+behavior = true
+webui = true
+character = true
+voice = true
