@@ -9,7 +9,7 @@ server 名会进入工具名（`mcp_<server>_<tool>`），约束是为了防撞�
 （AGENTS.md §6：调用方拿到 `None` 不能直接属性访问，这里同样在源头拒绝脏名字）。
 
 密钥不进 toml：stdio 服务试进程环境变量名（`env_names`）与 http 鉴权头
-（`bearer_env`）都只写**环境变量名**，值从 `.env`（已 setdefault 进
+（`bearer_env`）都只写**环境变量名**，值从 data/config/secrets.toml（已 setdefault 进
 `os.environ`）取。
 """
 
@@ -34,7 +34,7 @@ TRANSPORTS = ("stdio", "http")
 class McpServerConfig:
     """一个 MCP server 的接入配置（`data/config/mcp.toml` 的 `[servers.<name>]`）。
 
-    stdio：`command` + `args` 启动子进程（`env_names` 转发 `.env` 里的凭据）；
+    stdio：`command` + `args` 启动子进程（`env_names` 转发环境变量里的凭据）；
     http：`url` 指向 MCP streamable-http 端点（`bearer_env` 可选，做 Bearer 头）。
     """
 
@@ -42,7 +42,7 @@ class McpServerConfig:
     # stdio 专用
     command: str = ""
     args: list[str] = field(default_factory=list)
-    # 环境变量名列表：把这些 `.env` / 环境变量原样转发给子进程（只名字，不写值）
+    # 环境变量名列表：把这些环境变量原样转发给子进程（只名字，不写值）
     env_names: list[str] = field(default_factory=list)
     # http 专用
     url: str = ""

@@ -1,7 +1,7 @@
 """CLI 入口（argparse 子命令式）。
 
 现有子命令：
-- doctor：环境自检（Python 版本、C 扩展、.env）
+- doctor：环境自检（Python 版本、C 扩展、配置目录）
 - llm test：手动验证 LLM 连接（流式对话，用于调试 fallback）
 - chat：文字对话（交互循环或单次问答，基于 core/llm）
 后续按阶段新增：voice 等。

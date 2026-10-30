@@ -58,7 +58,7 @@ def fetch_provider_models(provider: LLMProvider, timeout: float = 20.0) -> list[
         raise LLMError(f"拉取模型列表失败（网络错误）: {e}", provider_id=provider.id) from e
     if resp.status_code == 401:
         raise AuthError(
-            f"/models 需要鉴权，请在 .env 设置 {provider.api_key_env}",
+            f"/models 需要鉴权，请在 data/config/secrets.toml 设置 {provider.api_key_env}",
             provider_id=provider.id,
         )
     if resp.status_code != 200:

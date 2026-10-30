@@ -4,7 +4,7 @@
 每个提供方含名称、id、base_url、密钥环境变量名、超时、传输方式、
 以及模型列表（统一 id / 请求名 / 支持格式）。
 
-密钥（API key）不放 toml，通过 `api_key_env` 指定的环境变量从 .env 读取。
+密钥（API key）不放 toml，通过 `api_key_env` 指定的环境变量读取（值放 data/config/secrets.toml）。
 """
 
 from __future__ import annotations

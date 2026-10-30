@@ -213,7 +213,8 @@ class McpRuntime:
                 token = os.environ.get(cfg.bearer_env)
                 if not token:
                     raise MCPToolError(
-                        f"mcp: {name} 的鉴权环境变量 {cfg.bearer_env} 未设置（写进 .env）"
+                        f"mcp: {name} 的鉴权环境变量 {cfg.bearer_env} 未设置"
+                        "（写进 data/config/secrets.toml）"
                     )
                 headers = {"Authorization": f"Bearer {token}"}
             http_client = create_mcp_http_client(headers=headers)

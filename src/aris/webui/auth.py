@@ -1,6 +1,6 @@
 """鉴权中间件——密码登录 + HMAC 签名 cookie session。
 
-密码来源：.env 的 ARIS_WEBUI_PASSWORD。会话：aris_session cookie，payload 含签发
+密码来源：data/config/secrets.toml 的 ARIS_WEBUI_PASSWORD。会话：aris_session cookie，payload 含签发
 时间 + 过期时间，HMAC-SHA256 签名。
 
 **无密码模式（2026-09-18 定案）**：未配置 `ARIS_WEBUI_PASSWORD` 时进入免鉴权模式
@@ -100,7 +100,7 @@ def resolve_bind_host(host: str) -> tuple[str, str]:
         return host, ""
     return "127.0.0.1", (
         f"未配置 ARIS_WEBUI_PASSWORD：已把监听地址从 {host} 降级为 127.0.0.1（免鉴权模式"
-        "仅限本机）。需要局域网访问请在 .env 里设置 ARIS_WEBUI_PASSWORD。"
+        "仅限本机）。需要局域网访问请在 data/config/secrets.toml 里设置 ARIS_WEBUI_PASSWORD。"
     )
 
 

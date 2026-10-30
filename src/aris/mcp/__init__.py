@@ -16,7 +16,7 @@
 - 订阅 ``tools.sync_generation`` 的是 behavior 的注册表（世代换装的落点）
 
 配置：`data/config/mcp.toml`（server 表 + 三组超时 + 退避参数），密钥只写
-环境变量名、值进 `.env`；缺文件 = 未接任何 server（模块零开销）。
+环境变量名、值进 data/config/secrets.toml；缺文件 = 未接任何 server（模块零开销）。
 """
 
 from __future__ import annotations
