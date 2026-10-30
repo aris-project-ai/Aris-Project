@@ -66,8 +66,7 @@ aris web                      # 仅启动 WebUI
 ## 文档与参与
 
 - 变更记录：[`changelogs/`](changelogs/)（每个版本一条，面向使用者）
-- 开发流程与提交规范：[`docs/dev-flow.md`](docs/dev-flow.md)、[`CONTRIBUTING.md`](CONTRIBUTING.md)
-- AI 协作规则与模块契约：[`AGENTS.md`](AGENTS.md)、[`docs/forAiDoc/`](docs/forAiDoc/)
+- 开发流程与提交规范：[`docs/dev-flow.md`](docs/dev-flow.md)
 
 ## 许可证
 

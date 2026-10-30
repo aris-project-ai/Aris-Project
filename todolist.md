@@ -93,12 +93,13 @@
 > 目标：让项目看起来与维护方式符合「标准开源项目」。CI/CD 与 i18n 不在本阶段（v1 期间做）。
 
 ### A. 提交记录（head / body / footer）
-- [x] 规则写清：AGENTS.md §8、CONTRIBUTING.md、docs/dev-flow.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
+- [x] 规则写清：AGENTS.md §8、docs/dev-flow.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
 - [ ] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
 - [ ] 新提交一律带 footer（有可关联 issue/PR 时）；合并时保留分支内多条 commit
 
 ### B. 文档
-- [x] CONTRIBUTING.md / SECURITY.md / changelogs（README + 0.4.4 + unreleased）
+- [x] changelogs（README + 0.4.4 + unreleased）
+- [ ] CONTRIBUTING.md / SECURITY.md 先删除，后续按「面向人类、不引用 AI 文档」重写
 - [ ] 用户文档体系：docs/zh（与 docs/en）分语言，先补「安装 / 配置 / 使用 / FAQ」四类
 - [ ] README 升级：简介、截图、快速开始、文档索引、许可证与徽章
 - [x] forAiDoc 清理：skills-backup、discuss-2026-09-28.md、Project-Aris.drawy、PLUGIN、DOCS-SITE、

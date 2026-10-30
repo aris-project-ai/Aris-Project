@@ -1,7 +1,7 @@
 #!/bin/sh
 # commit-msg hook —— 校验提交信息符合 Conventional Commits 规范。
 #
-# 规则（与 AGENTS.md §8 / CONTRIBUTING.md 一致）：
+# 规则（与 docs/dev-flow.md §4 一致）：
 #   head 必须形如：type(scope): desc
 #     type  限 feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert
 #     scope 可选（如 feat(bus): ...）
@@ -13,7 +13,7 @@
 #   只在出现 footer token 时校验 footer 段，普通正文不会被误伤。
 #   放行 merge 提交（--no-ff 合并）与 revert 提交的默认信息。
 #
-# 校验失败时以非零退出码中止提交，错误信息指向 AGENTS.md。
+# 校验失败时以非零退出码中止提交，错误信息指向 docs/dev-flow.md。
 
 MSG_FILE="$1"
 
@@ -40,7 +40,7 @@ if ! printf '%s' "$FIRST_LINE" | grep -Eq '^(feat|fix|docs|refactor|chore|test|b
     echo "  head 应形如：type(scope): 描述"
     echo "  type 允许：feat fix docs refactor chore test build ci perf style revert"
     echo "  示例：feat: 添加登录功能  或  fix(bus): 修复注册表竞态"
-    echo "  规范详见 AGENTS.md「Git 流程」与 CONTRIBUTING.md"
+    echo "  规范详见 docs/dev-flow.md 第 4 节"
     echo ""
     exit 1
 fi
