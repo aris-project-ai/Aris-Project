@@ -2,6 +2,9 @@ forAiTools.md
 *.gguf
 tavily-quickstart
 
+# 历史存档：保留在本机、不再入库（见 AGENTS.md §10）
+docs/archive/
+
 # Python
 .venv
 __pycache__/
