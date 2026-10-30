@@ -101,13 +101,16 @@
 - [x] CONTRIBUTING.md / SECURITY.md / changelogs（README + 0.4.4 + unreleased）
 - [ ] 用户文档体系：docs/zh（与 docs/en）分语言，先补「安装 / 配置 / 使用 / FAQ」四类
 - [ ] README 升级：简介、截图、快速开始、文档索引、许可证与徽章
-- [ ] forAiDoc 清理：skills-backup、discuss-2026-09-28.md、历史实现细节迁 docs/archive
+- [x] forAiDoc 清理：skills-backup、discuss-2026-09-28.md、Project-Aris.drawy、PLUGIN、DOCS-SITE、
+      SECURITY-AND-REFACTOR-PLAN、referenceDocumentation、v0.4.4 施工文档 → `docs/archive/`（本机保留、不再跟踪）
 
 ### C. 项目结构
 - [x] datadir.py 并入 paths.py（数据目录只有一处来源）
 - [ ] 顶层基础设施收进 src/aris/infra/（paths / config / cfgtoml / modules / logging / branding）——**待开发者确认**
 - [ ] tests/ 按模块分组或加 README；测试支持代码收口到 tests/support
-- [ ] docs/ 目录整理（forAiDoc / process / referenceDocumentation / archive 的边界与命名）
+- [x] docs/ 目录边界：`forAiDoc`（AI 契约）/ `process`（阶段过程）/ `archive`（本机存档，不随仓库）；
+      用户/开发文档语言结构随 v1 文档站一起规范（docs/zh、docs/en）
+- [x] oldWish 迁出主仓库：独立仓库在 `data/temp/oldWish`（带历史），主仓库与 fork 已删除该分支
 
 ### D. CI/CD（v1 期间）
 - [ ] 打包（wheel + 可选 GUI）后加 CI：lint / test / build / release 产物

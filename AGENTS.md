@@ -231,7 +231,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   从最新 develop 拉出），分支内小步提交，验证后 `git merge --no-ff` 合并回 develop，
   随后删除本地与远程 feature 分支。日常开发不直接碰 main。
 - **`main` 只进发布**：beta 版与正式版发布时从 develop 合并回 main（`--no-ff`）并打 tag。
-- `oldWish` 是历史保留分支，不要删除。
+- `oldWish` 已迁出主仓库（独立仓库在 `data/temp/oldWish`，带完整历史）；主仓库不再保留该分支。
 - **提交信息**：`<type>(<scope>): 简短中文描述`，type 取
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
 - **body**：空行后**用 `-` 分条**列出改了什么，每条一两句，必要时简述原因；
@@ -289,20 +289,16 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | v1.0 施工方案与验收 | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
-| 当前阶段施工文档（过程性） | `docs/process/v0.4.4.md` |
-| 已作废的旧待办（只读） | `docs/archive/BACKLOG-2026-10.md` |
-| 项目蓝图 / 参考材料 | `docs/forAiDoc/Aris-Project.md`、`docs/referenceDocumentation/` |
+| 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
+| 项目蓝图 | `docs/forAiDoc/Aris-Project.md` |
+| 旧事 / 已作废的方案 | `docs/archive/`（本机保留、不随仓库分发；新克隆读不到） |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
-| 插件系统 / 文档站（均搁置） | `docs/forAiDoc/PLUGIN.md`、`docs/forAiDoc/DOCS-SITE.md` |
-| 安全审查与总线化改造记录 | `docs/forAiDoc/SECURITY-AND-REFACTOR-PLAN.md` |
 | TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
-| 旧事 / 已作废的方案 | `docs/archive/` |
 
 ### 文档规范（`docs/forAiDoc/`）
 
 **分层**：AGENTS 是规则与唯一索引；`docs/forAiDoc/` 只收**契约与约束**（边界、接口、为什么这么设计、坑、未决）；
 `docs/` 放人类文档（如 `DEV-FLOW.md`）；`docs/process/` 放阶段施工文档（过程性，阶段结束后移入 archive）；
-`docs/referenceDocumentation/` 是外部资料快照（已基本废弃，暂不维护）；
 `docs/archive/` 只读。**状态进 `PROGRESS.md`，待办进 `todolist.md`，过程进 archive。**
 本规范只适用于AI， `docs/forAiDoc` 从目录名也可以看出只适用于AI，对于人，文档现阶段放在 `docs/` 根目录。
 人类开发者不受本文档以及其他针对AI的文档的约束。对于人，规范将在后续完善。
