@@ -24,7 +24,7 @@
 - **面向未来（i18n 远景）**：将来可能做多语言，现在不引框架、不做翻译，但**新增用户可见文案
   不要硬编码在业务逻辑里**（集中到常量 / 资源处），避免到时候满地改。
 - **两份文件不要乱动**：`README.md` 面向使用者（简介 + 快速开始），
-  `docs/forAiDoc/Project-Aris.md` 是全项目的信念与蓝图（定位与大致形态）。改这两份要先
+  `docs/forAiDoc/Aris-Project.md` 是全项目的信念与蓝图（定位与大致形态）。改这两份要先
   得到开发者同意；日常开发只在确有必要时补一句，不要重写、不要把它们当索引用（索引由本文件负责）。
 - **必须读进度**：每次开工前先读 `PROGRESS.md`，确认当前版本、模块状态与阻塞；
   不要凭记忆或聊天记录判断项目状态。读完再按 §10 取对应模块文档。
@@ -117,6 +117,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   pydantic-settings 配配置；loguru 记日志；pytest 写测试；ruff + mypy 做静态检查。
 - **加依赖**：用 `uv add`；重依赖进 dependency-group `embedding`（默认安装，
   `uv sync --no-default-groups` 可要轻量环境）。
+- **对外文案**：项目显示名与仓库地址只在 `src/aris/branding.py` 定义（模板经渲染上下文取
+  `app_name` / `github_url`），新增用户可见文案同样收成常量。**代码标识不随品牌改名**：
+  `import aris`、命令 `aris`、`ARIS_` 前缀、数据目录名保持稳定。
 
 ## 6. 架构约束
 
@@ -253,6 +256,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **密集发布、单个 patch 装不下的小功能**可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
 - **alpha 渠道**：只在 `develop` 发布，tag 形如 `alpha-vX.Y.Z`，用于 v1.0.0 前的预发布；
   **占用数字线**（与 beta / 正式同规则，同号不得再发其他渠道）。
+- **大版本代号**：v1.0.0 = **「跨越」（Cross）**。代号只写在本节与发版说明里，不散落到文档各处。
 - 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
   号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
 - 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
@@ -278,7 +282,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
 | 当前阶段施工文档（过程性） | `docs/process/v0.4.4.md` |
 | 已作废的旧待办（只读） | `docs/archive/BACKLOG-2026-10.md` |
-| 项目蓝图 / 参考材料 | `docs/forAiDoc/Project-Aris.md`、`docs/referenceDocumentation/` |
+| 项目蓝图 / 参考材料 | `docs/forAiDoc/Aris-Project.md`、`docs/referenceDocumentation/` |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
 | 插件系统 / 文档站（均搁置） | `docs/forAiDoc/PLUGIN.md`、`docs/forAiDoc/DOCS-SITE.md` |
 | 安全审查与总线化改造记录 | `docs/forAiDoc/SECURITY-AND-REFACTOR-PLAN.md` |
