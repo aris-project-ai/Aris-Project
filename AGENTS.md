@@ -47,6 +47,7 @@
 |---|---|
 | `uv run aris serve [--only/--skip/--dry-run]` | 一条命令起全套（PG 自启、迁移、embedding 预热、WebUI） |
 | `uv run aris doctor` | 环境与依赖自检；出问题先跑它 |
+| `uv run aris info` / `config` / `modules` | 路径、配置、模块开关等事实（只读；`config show` 脱敏） |
 | `uv run aris chat` | TUI 调试对话（不自启数据库） |
 | `uv run aris web` | 只起 WebUI |
 | `uv run aris db init\|start\|stop\|status\|migrate\|psql` | 便携库管理；`psql` 直接进库看数据 |

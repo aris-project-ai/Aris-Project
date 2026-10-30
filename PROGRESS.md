@@ -15,7 +15,7 @@
 |---|---|
 | W1 统一数据目录（`paths.py`） | 完成 |
 | W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
-| W3 CLI 事实入口（`info` / `config` / `modules`） | 待做 |
+| W3 CLI 事实入口（`info` / `config` / `modules`） | 完成 |
 | W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
 | W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 完成 |
 | W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 完成 |
@@ -54,6 +54,10 @@
 - **W6**：许可证换 AGPL-3.0-or-later（`COPYING` + pyproject + README/AGENTS 口径）；
   版本脚本支持 `alpha-vX.Y.Z`（只在 develop、占号，含测试）；`docs/archive` 取消跟踪
   （本机保留、`.gitignore` 排除）；新增 `CLAUDE.md -> AGENTS.md` 软链。
+- **W3**：新增 `src/aris/modules.py`（7 个模块开关 + 依赖级联 + modules.toml 读写）；
+  `serve.assemble()` 先读开关再 import，关闭模块的启动步骤标 skipped、依赖方记 error 不退出；
+  CLI 新增 `aris info` / `aris config path|list|show|validate|env` / `aris modules list|status|enable|disable`；
+  `knowledge.toml` 的 `enabled` 并入 modules.toml。
 
 ## 阻塞 / 待决
 
@@ -64,5 +68,6 @@
 
 ## 下一步
 
-1. W3（CLI + 模块开关，最大）。
+1. 阶段收官：`bump-version.sh 0.4.4` → `release-check.sh` → 合并 main → tag `v0.4.4`。
+2. 可选技术债：`cli.py` 拆包（W3 建议项，未做）、模块开关测试的总线快照隔离（3.5 建议项）。
 2. 每项收工用 `date` 记录实际工时，回填 `docs/process/v0.4.4.md` §4。

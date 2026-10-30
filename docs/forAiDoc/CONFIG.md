@@ -1,6 +1,7 @@
 # 配置体系（CONFIG.md）
 
-> 状态：契约 | 代码入口：`src/aris/config.py`、`src/aris/cfgtoml.py`、`src/aris/paths.py`
+> 状态：契约 | 代码入口：`src/aris/config.py`、`src/aris/cfgtoml.py`、`src/aris/paths.py`、`src/aris/modules.py`
+> 事实查看：`aris config path|list|show|validate|env`、`aris modules list|status`、`aris info`
 
 ## 一处来源
 
@@ -14,7 +15,7 @@
 | `secrets.toml` | 密钥，键名**就是**环境变量名 | `setdefault` 进 `os.environ`（`config.py`） |
 | `providers.toml` | LLM 提供方（base_url / key 环境变量名 / 超时 / transport / 模型） | `core/llm/config.py`；`ARIS_LLM_PROVIDERS_FILE` 可覆盖路径 |
 | `<module>.toml` | 模块可调参数（chat / search / logging / audit / notify / serve / knowledge / store / webui / mcp） | `cfgtoml.load_config`（tomllib） |
-| `modules.toml` | 模块开关（`[modules]`） | serve 装配 / `aris modules` |
+| `modules.toml` | 模块开关（`[modules]`，7 个业务模块，缺键=true） | `modules.py`；serve 装配 / `aris modules` |
 
 ## 优先级
 
@@ -48,6 +49,16 @@ _search_config = load_config(SearchConfig(), "search.toml")
 - `config_path(filename)`：用户文件优先，缺失时退回种子模板，两者都没有返回 `None`。
 - 覆盖规则：与 dataclass 字段**同名**的顶层键覆盖默认值；不做类型校验。
 - 模块级单例在 import 时读，因此 `serve.assemble()` 先播种配置、再 import 各模块。
+
+## 模块开关（modules.toml）
+
+- `[modules]` 表，7 个业务模块：store / knowledge / mcp / behavior / webui / character / voice；缺键 = `true`。
+- 关闭 = `serve.assemble()` **不 import** 该模块（模块服务在 import 时自注册，所以必须先读开关再 import）。
+- `aris modules enable|disable` 只改 TOML 布尔值（保留注释），**下一次启动生效**，不动运行中的进程。
+- 依赖关系：`knowledge → store`、`webui → store + knowledge`；依赖被关时依赖方级联关闭，
+  serve 记 error 日志并把对应启动步骤标 skipped，**不退出程序**（required 仍只有启用 store 时的 `store.db`）。
+- `knowledge.toml` 不再有 `enabled`（v0.4.4 W3 并入 modules.toml）。
+- 只读事实：`aris modules list|status`、`aris config path|list|show|validate|env`、`aris info`
 
 ## 收口原则（2026-08-12 定案，2026-10 沿用）
 

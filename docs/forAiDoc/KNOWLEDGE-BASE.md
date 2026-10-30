@@ -164,8 +164,8 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
 **A3 —— 不做 skill。** 知识库属**内部底层设施**，能力经**大总线**暴露；
 skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延迟。
 
-**启用开关**：`data/config/knowledge.toml` 的 `enabled`（模块级可调参数，走既有
-`cfgtoml` 加载器；缺文件/缺键静默用默认）。
+**启用开关**：`data/config/modules.toml` 的 `[modules] knowledge`（v0.4.4 W3 起并入；
+关闭后知识库不装配、服务不注册，依赖它的 WebUI 也会被级联跳过）。
 
 **总线服务（实施时落表）**：
 - `store.embed` —— 文本 → 向量（按 provider 参数化）
@@ -249,7 +249,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 | 载入 | `knowledge/loaders.py` | md / txt / html；html 用 BeautifulSoup 转 markdown（trafilatura 会抹平标题层级，实测弃用） |
 | 分块 | `knowledge/chunking.py` | 标题层级切 + 定长兜底重叠；代码围栏内的 `#` 不算标题 |
 | 业务 | `knowledge/service.py` | 摄入（hash 幂等 + 软删重建）/ 列举 / 移除 / 纯向量检索 / 建索引 |
-| 入口 | `aris knowledge add\|list\|remove\|search\|reindex` | 开关 `data/config/knowledge.toml: enabled` |
+| 入口 | `aris knowledge add\|list\|remove\|search\|reindex` | 开关 `data/config/modules.toml: [modules] knowledge` |
 
 **实测（2026-09-18）**：
 - `uv run pytest` **78 passed**，含端到端用例「摄入 → 幂等跳过 → 变更重建 →
@@ -288,7 +288,7 @@ skill 是**外部扩展接口**，内部模块绕经 skill 只增一层壳与延
 |---|---|---|---|
 | 2026-09-14 | 定位 | 面向外部资料的**独立 RAG 知识检索能力**，与个人记忆分开 | 需明确与 `memory/` 的边界（A1） |
 | 2026-09-18 | 数据库部署（原前置阻塞） | **micromamba + conda-forge** 便携 PostgreSQL + pgvector，脚本探测缺失后自动获取，不依赖系统安装（见第 3 节） | 前置阻塞解除；代码只认 DSN，不影响 A/B/C/D |
-| 2026-09-18 | A1/A2/A3 边界与归属 | 新建 **`store/`**（embedding + PG 基础设施）+ **`knowledge/`** 两模块，共享底层、依赖单向；**不做 skill**，经大总线暴露；开关 `data/config/knowledge.toml: enabled` | 目录结构与服务表定型；`memory/` 后续复用 `store/` |
+| 2026-09-18 | A1/A2/A3 边界与归属 | 新建 **`store/`**（embedding + PG 基础设施）+ **`knowledge/`** 两模块，共享底层、依赖单向；**不做 skill**，经大总线暴露；开关 `data/config/knowledge.toml: enabled`（v0.4.4 起并入 modules.toml） | 目录结构与服务表定型；`memory/` 后续复用 `store/` |
 | 2026-09-18 | D1/D2/D3/D4 检索侧 | agent 工具**自主调用**（无自动注入）；第一阶段**纯向量**；结果格式沿用 web_search 约定 + **必带来源**；与记忆**两条独立通路** | 对外契约定型；`knowledge_search` 工具与 `store.embed` 服务可直接实现 |
 | 2026-09-18 | B1–B4 摄入侧 | 本地文件/目录 + HTML 起步（**无 PDF / 目录监听 / 对话沉淀**）；**CLI 先行**，**agent 不给摄入权**；content hash 幂等 + **软删重建** | 摄入链路定型；`knowledge_docs` / `knowledge_chunks` 两表 |
 | 2026-09-18 | C1–C4 存储与切分 | 维度 **384 本地 Bekko**（不占云端）；标题层级切 + 定长兜底重叠；元数据 11 字段 + `meta jsonb`；HNSW cosine `m=16` / `ef_construction=64`，先导数据后建索引 | 表结构定型；本地 embedding 列可选依赖 + 摄入限并发 |
