@@ -137,7 +137,7 @@ summary = query_summary()            # 聚合统计
 | `llm.providers.add/delete` | `core/llm/manage.py` 模块级 | 增删提供商（结构化写回 toml） | `webui` 提供商页 |
 | `llm.providers.model_add/model_delete` | `core/llm/manage.py` 模块级 | 增删模型 | `webui` 提供商页 |
 | `llm.fetch.plan/apply` | `core/llm/fetch.py` 模块级 | /models 同步：生成计划 / 应用计划 | `webui` 提供商页 |
-| `llm.retired.list/delete` | `core/llm/fetch.py` 模块级 | 退休模型：列表 / 手动删除 | `webui` 提供商页 |
+| `llm.missing.list` | `core/llm/fetch.py` 模块级 | 缺失模型记录（只读）：同步后从端点消失的模型 | `webui` 提供商页 |
 | `skills.list/detail` | `behavior/skills/manager.py` 模块级 | 技能清单 / 详情 | `webui` 技能页 |
 | `skills.create/save/delete` | `behavior/skills/manager.py` 模块级 | 技能增改删 | `webui` 技能页 |
 | `knowledge.ai_tools` | `knowledge/__init__.py` 模块级 | agent 工具声明（`list[ToolSpec]`，契约 `core/tools.py`；`.ai_tools` 后缀由 behavior 探询） | behavior 装配（`register_declared_tools`） |
@@ -195,8 +195,9 @@ summary = query_summary()            # 聚合统计
 - 背景：WebUI 属管理层 UI，此前若直接跨模块 import 会违反总线规则。
 - 服务落位：
   - `core/llm/manage.py`（新建）、`core/llm/fetch.py`（追加）：注册全部
-    `llm.providers.*` / `llm.fetch.*` / `llm.retired.*` 服务，接管提供商/
-    模型/退役管理，写回统一走 `fetch.write_providers`（tomli-w 结构化防注入）。
+    `llm.providers.*` / `llm.fetch.*` 服务，接管提供商/模型管理，写回统一走
+    `fetch.write_providers`（tomli-w 结构化防注入）；原 `llm.retired.*` 已在 v0.4.4 W5
+    退役，改为只读的 `llm.missing.list`（`data/state/llm-list-missing.json`）。
   - `behavior/skills/manager.py`（追加）：注册 `skills.*` CRUD 服务，
     技能目录用包内绝对路径 `SKILLS_DIR`，与运行时同源、与 CWD 解耦。
   - `core/bus.py`（追加）：注册 `audit.recent` / `audit.summary`（内部封
@@ -208,8 +209,8 @@ summary = query_summary()            # 聚合统计
   组装根 `serve.assemble()`（2026-09-19，见 `docs/forAiDoc/SERVE.md` 第 7 节），
   避免同一份「需要哪些服务」的清单散在多处漂移。
 - **基础设施例外（可直连，不算模块间通讯）**：
-  - `aris.config.get_settings()`（`.env` / `data_dir` 等启动级配置）。
-  - `aris.cfgtoml`（模块级 toml 读取/写回，配置页用）。
+  - `aris.infra.settings.get_settings()`（`data_dir` 等启动级配置）。
+  - `aris.infra.toml`（模块级 toml 读取/写回，配置页用）。
   - 除此之外 webui 与任何模块的数据交换一律经总线。
 
 ### 明确不走总线（设计边界）
@@ -222,6 +223,21 @@ summary = query_summary()            # 聚合统计
 - **CLI 组装**：`cli.py` 创建 engine/session，属于组装根，保持直接引用。
 - **纯数据/类型引用**：`Message`/`ChatRequest`/`ToolDefinition` 等
   数据结构跨模块共享，import 类型即可，不经总线。
+
+### 例外登记（2026-10-29）
+
+以下直连是**有意保留**的例外，不算模块间通讯。新增例外必须先在表里登记并写清边界，否则视为违例。
+
+| 直连 | 为什么不走总线 | 边界 |
+|---|---|---|
+| `knowledge/migrations.py` → `store.migrate` | 迁移以「注册函数」形式在 import 时登记（`Migration` 含建表函数），总线只承载可调用服务，不适合承载迁移注册 | 只允许 `knowledge → store`；禁止反向 |
+| `chat/session.py` → `behavior`（`BehaviorRuntime` / `LoopEventType`） | 会话经构造注入拿运行时，属对象构造 / 依赖注入 + 纯类型引用 | 只取类型与注入实例，不在 chat 内直接调 behavior 内部函数 |
+| `aris.infra.settings.get_settings()` / `aris.infra.toml` | 配置是基础设施，三层三源本身即一层，不是模块间业务通讯（WebUI 配置页同） | 只读写配置；不要借此绕过业务服务 |
+| `serve/__init__.py`（`assemble()`）→ 各所有者模块 | 组装根是唯一 import 触发点；serve 只被入口与测试使用，**不被任何模块 import** | serve 不对外提供查询服务 |
+| `tests/conftest.py` → `serve.assemble()` | 测试也是宿主，需注册全部服务再建 app | 仅测试 |
+
+> 事件总线目前只有 `mcp.tools_changed` 一个发布者、无总线订阅者（WebUI SSE 用自有 broker）；
+> 首个真实订阅者随 memory / voice 落地，暂不新增事件面。
 
 ### 未迁移（遗留，后续视需要处理）
 

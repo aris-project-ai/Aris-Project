@@ -99,7 +99,7 @@ aris serve v1.0.0  data=…/data  pid=12345
 | ② | 集群**角色名**是 initdb 时写下的（旧主机用户名） | 新建集群统一 `initdb -U aris`（与主机无关）；老集群用 `align_user()` 实连候选角色：本机用户名 / `aris` / 从 `pg_authid` **离线扫出**的角色名 / `pgdata` 属主 / `postgres`，命中即写 `pgdata/aris-role`（随数据一起搬走） | 全不通 → 提示用 `ARIS_PG_USER` 指定 |
 | ③ | 固定端口可能被占 | `choose_port()` 启动前探测，被占则向内核要一个空闲端口；端口**不写任何配置**，运行中实例的端口留在 socket 文件名（`.s.PGSQL.<port>`）里，`aris db status/psql` 等独立进程据此反推 | —— |
 
-另外两处启动幂等：`data/` 分层由步骤 `data` 负责（`datadir.ensure_dirs()`），
+另外两处启动幂等：`data/` 分层由步骤 `data` 负责（`paths.ensure_dirs()`），
 崩溃残留的 `postmaster.pid` 与 `.s.PGSQL.*`（含 `.lock`）由 `_clear_stale_runtime()`
 在启动前清掉（只清第一次也是唯一一次：`is_running()` 已确认服务不在）。
 
@@ -158,7 +158,7 @@ CLI（默认全启）：
 优先级：`--only` 先定集合 → `--skip` 再减 → **CLI 覆盖配置**。
 不再加 `--no-db` / `--no-web` 之类的糖（等价于 `--skip db,webui`，KISS）。
 
-`config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
+`data/config/serve.toml`（模块级，加载方式同 `store/conf.py`）：
 
 ```toml
 start_db = true            # 没跑就自启便携 PG
@@ -169,13 +169,16 @@ web_enabled = true         # 是否并入 WebUI
 skip = []                  # 默认跳过的步骤（CLI --skip 追加）
 ```
 
-WebUI 自身的 `host` / `port` / `session_days` 仍归 `config/webui.toml`；
+WebUI 自身的 `host` / `port` / `session_days` 仍归 `data/config/webui.toml`；
 serve 只管「启不启」。
 
 ## 7. 与既有入口 / 模块的关系（定案）
 
 - **唯一组装根（已落地）**：`serve.assemble()` 是唯一一份「import 哪些所有者模块」
-  的清单；服务自检由 `services` 步骤统一做。`aris serve` / `aris web` 都走它，
+  的清单；服务自检由 `services` 步骤统一做。**v0.4.4 W3 起该清单来自
+  `data/config/modules.toml`（`src/aris/infra/modules.py`）**：关闭的模块不 import，
+  依赖被关的模块级联关闭（记 error、步骤标 skipped、不退出）；`aris modules enable|disable`
+  只写文件、下一次启动生效。`aris serve` / `aris web` 都走它，
   测试在 `tests/conftest.py` 里调它，`webui.create_app()` 只搭 HTTP 层、不再自己
   import 各模块（原先 `cli.py` 与 `webui/__init__.py` 各维护一套，必然漂移）。
   依赖清单仍由各模块自己声明（如 `webui.REQUIRED_SERVICES`），避免「谁需要什么」
@@ -189,7 +192,7 @@ serve 只管「启不启」。
 - **WebUI 仪表盘「系统状态区域」**（v0.3.0 遗留待办）→ WebUI 直接调各模块自己的
   服务取状态，**不经过 serve**（对应 §1 的单向边界）。
 
-## 8. 与 BACKLOG 的接缝（现在不做）
+## 8. 与后续计划的接缝（现在不做）
 
 - `#3 对外接口` / `#4 多人格并行` / `#7 自动任务`：将来都跑在 serve 里，serve 会是
   长驻宿主。**现在只做启动编排**，不加会话管理、不加调度器（YAGNI）。
@@ -205,7 +208,7 @@ serve 只管「启不启」。
 
 | # | 内容 | 状态 |
 |---|---|---|
-| 1 | `serve/conf.py` + `config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
+| 1 | `serve/conf.py` + `data/config/serve.toml` + `aris serve`（清单与日志） | ✅ 2026-09-19 |
 | 2 | 各模块补启动 hook（`store.start/stop`、`store.embed_preload`、`knowledge.start`、`webui.start/probe`） | ✅ 2026-09-19 |
 | 3 | 端口探测 + 失败分级日志 + `--only/--skip/--dry-run` | ✅ 2026-09-19 |
 | 4 | 上收组装根与依赖清单（`create_app()` 只搭 HTTP 层；`serve.assemble()` 唯一触发点；`services` 步骤统一核验 `REQUIRED_SERVICES`） | ✅ 2026-09-19 |
@@ -229,8 +232,10 @@ serve 只管「启不启」。
 已知缺口（下一步）：
 
 已完成（v1.0 M1，2026-10-07）：**工具注册表 / agent loop / LLM engine / `skills.menu` 已上收**——
-`serve/assembly.py` 只装配一份**进程级运行时**（`behavior/runtime.py` 的 `BehaviorRuntime`：
-engine + registry + skills + loop），`ChatSession` 接受注入、缺省懒取 `get_runtime()`；
+一份**进程级运行时**（`BehaviorRuntime`：engine + registry + skills + loop），`ChatSession`
+接受注入、缺省取 `get_runtime()`。**v0.4.4 W4 起运行期单例归 `behavior/runtime.py`**：serve
+只转调、不持有（`serve/assembly.py` 已删）；任何模块不得 import `serve`，守卫见
+`tests/test_import_boundary.py`；装配失败由 behavior 步骤探针如实报错（不再只 warning）。
 `behavior` 步骤由此有了真实启动动作与「运行时已装配」探针。按 `cid` / `session_id` 分的资源
 map 留给 M3（D15 单一会话下暂不需要，运行时 docstring 已留接缝）。
 

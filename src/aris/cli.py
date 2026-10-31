@@ -1,7 +1,7 @@
 """CLI 入口（argparse 子命令式）。
 
 现有子命令：
-- doctor：环境自检（Python 版本、C 扩展、.env）
+- doctor：环境自检（Python 版本、C 扩展、配置目录）
 - llm test：手动验证 LLM 连接（流式对话，用于调试 fallback）
 - chat：文字对话（交互循环或单次问答，基于 core/llm）
 后续按阶段新增：voice 等。
@@ -9,19 +9,20 @@
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
 from loguru import logger
 
 from . import __version__
-from .config import get_settings
 from .core.llm.config import LLMModel
-from .logging import setup_logging
+from .infra.logging import setup_logging
+from .infra.settings import get_settings
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    """环境自检：Python 版本、C 扩展可用性、.env 是否存在。"""
+    """环境自检：Python 版本、C 扩展可用性、配置与数据目录。"""
     ok = True
 
     logger.info(f"Aris {__version__}")
@@ -37,22 +38,27 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     except ImportError as e:  # 防御：csrc 模块本身异常时降级
         logger.warning(f"C 扩展: 模块异常（{e}），已降级")
 
-    if Path(".env").exists():
-        logger.info(".env: 存在")
+    from .infra import paths
+
+    seeded = paths.seed_config()
+    if seeded:
+        logger.info(f"配置: 首次播种 {', '.join(seeded)} → {paths.config_dir()}")
     else:
-        logger.info(".env: 不存在（可复制 .env.example，非必需）")
+        logger.info(f"配置目录: {paths.config_dir()}")
+    if not paths.secrets_file().exists():
+        logger.warning("密钥: secrets.toml 缺失（需要 LLM key 时填 data/config/secrets.toml）")
 
     settings = get_settings()
     logger.info(f"数据目录: {settings.data_dir}")
 
     # data/ 分层（可迁移性 D14）：必须带的项缺了只提示——首次运行本来就没有
-    from .datadir import CARRIED_PATHS, missing_carried
+    from .infra.paths import CARRIED_PATHS, missing_carried
 
     missing = missing_carried(settings.data_dir)
     if missing:
-        logger.info(f"data/ 分层: 缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）")
+        logger.info(f"分层: 缺 {'、'.join(missing)}（启动时创建 / 首次运行生成）")
     else:
-        logger.info(f"data/ 分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
+        logger.info(f"分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
 
     # 模块状态：与 `aris serve` 共用同一份探针（不再各写一套自检）
     from .serve import probe_all
@@ -167,7 +173,7 @@ def _cmd_llm_test(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# aris llm fetch / aris llm retired
+# aris llm fetch / aris llm missing list
 # ---------------------------------------------------------------------------
 
 
@@ -296,7 +302,7 @@ def _run_candidate_picker(title: str, candidates: list[LLMModel]) -> set[str] | 
 
 
 def _cmd_llm_fetch(args: argparse.Namespace) -> int:
-    """/models 同步：拉取 → 对比 → 勾选/对齐 → 退休巡检 → 写回。
+    """/models 同步：拉取 → 对比 → 勾选/对齐 → 写回（缺失模型记入只读记录）。
 
     默认 dry-run（只打印 diff 不落盘）；--write 才应用变更。
     """
@@ -306,10 +312,9 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     from aris.core.llm.fetch import (
         apply_sync,
         fetch_provider_models,
-        load_retired,
+        missing_file_path,
         modelsdev_load,
         plan_sync,
-        retired_file_path,
     )
 
     settings = get_settings()
@@ -332,26 +337,19 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     print(f"  端点共 {len(endpoint_ids)} 个模型")
 
     modelsdev = modelsdev_load(settings.data_dir, refresh=args.refresh)
-    retired = load_retired()
-    plan = plan_sync(provider, endpoint_ids, retired, modelsdev)
+    plan = plan_sync(provider, endpoint_ids, modelsdev)
 
     # ---- 打印 diff ----
-    d, r = plan.diff, plan.retire
+    d = plan.diff
     print(f"\n对比 {provider.id}（本地 {len(provider.models)} 个）:")
     print(f"  云有本地无（添加候选）: {len(d.added)} 个")
     for mid in d.added:
         print(f"    + {mid}")
     print(f"  两边都有（保留）: {len(d.kept)} 个")
     if d.missing:
-        print(f"  本地有云无（→退休）: {len(d.missing)} 个")
+        print(f"  本地有云无（→ 移除并记入缺失文件）: {len(d.missing)} 个")
         for mid in d.missing:
             print(f"    - {mid}")
-    if r.restored:
-        print(f"  退休回归（自动恢复）: {r.restored}")
-    if r.expired:
-        print(f"  退休超期（永久删除）: {[e.model for e in r.expired]}")
-    if r.retired_now:
-        print(f"  新退休（进入宽限期）: {[e.model for e in r.retired_now]}")
 
     if not args.write:
         print("\n（dry-run，未写入任何文件；确认后加 --write 应用变更）")
@@ -380,113 +378,36 @@ def _cmd_llm_fetch(args: argparse.Namespace) -> int:
     keep = set(args.keep.split(",")) if args.keep else set()
 
     # ---- 应用 ----
-    apply_sync(
+    recorded = apply_sync(
         plan,
         sorted(selected),
         cfg=providers,
         providers_path=settings.llm_providers_file,
-        retired=retired,
         keep=sorted(keep),
-        retired_path=retired_file_path(),
     )
     print(f"\n已写入 {settings.llm_providers_file}")
     print(f"  新增: {sorted(selected)}")
-    print(f"  移除(退休): {sorted(set(d.missing) - keep)}")
+    print(f"  移除(记入缺失): {sorted(set(d.missing) - keep)}")
     print(f"  保留(keep): {sorted(keep)}")
     print(f"  备份: {settings.llm_providers_file}.bak")
+    print(f"  缺失记录: {missing_file_path()}（共 {len(recorded)} 条，只读查看）")
     return 0
 
 
-def _cmd_llm_retired(args: argparse.Namespace) -> int:
-    """退休模型管理：列出 + 手动删除（交互勾选或 --delete 指定）。"""
-    from aris.core.llm.fetch import load_retired, save_retired
+def _cmd_llm_missing(args: argparse.Namespace) -> int:
+    """缺失模型记录：只读列出同步后从端点消失的模型。"""
+    from aris.core.llm.fetch import load_missing, missing_file_path
 
-    entries = load_retired()
+    entries = load_missing()
+    path = missing_file_path()
     if not entries:
-        print("退休列表为空。")
+        print(f"缺失记录为空（{path}）。")
         return 0
 
-    print(f"退休模型共 {len(entries)} 个：")
+    print(f"缺失模型共 {len(entries)} 个（{path}）：")
     for e in entries:
-        print(f"  [{e.provider}] {e.model}  (自 {e.first_missing})")
-
-    if args.delete:
-        wanted = set(args.delete.split(","))
-        kept = [e for e in entries if e.model not in wanted]
-        save_retired(kept)
-        print(f"已删除退休记录: {sorted(wanted)}")
-        return 0
-
-    if not sys.stdin.isatty():
-        print("\n（非终端；可用 --delete id,... 删除）")
-        return 0
-
-    from prompt_toolkit.application import Application
-    from prompt_toolkit.formatted_text import HTML
-    from prompt_toolkit.key_binding import KeyBindings
-    from prompt_toolkit.layout.containers import HSplit, Window
-    from prompt_toolkit.layout.controls import FormattedTextControl
-    from prompt_toolkit.layout.layout import Layout
-
-    row = 0
-    selected: set[int] = set()
-    confirmed = False
-
-    def build_text() -> str:
-        lines = ["# 选择要永久删除的退休模型（回车确认删除）", ""]
-        for i, e in enumerate(entries):
-            mark = "[x]" if i in selected else "[ ]"
-            cursor = ">" if i == row else " "
-            lines.append(f" {cursor}{mark} {e.model:<30} 自 {e.first_missing}")
-        lines += ["", " ↑/↓ 或 j/k 移动   空格 选择   回车 确认删除   q/ESC 放弃"]
-        return "\n".join(lines)
-
-    text_control = FormattedTextControl(HTML)
-    text_control.text = build_text()
-
-    def set_content() -> None:
-        text_control.text = build_text()
-
-    kb = KeyBindings()
-
-    @kb.add("up", "k")
-    def _(event):
-        nonlocal row
-        row = (row - 1) % len(entries)
-        set_content()
-
-    @kb.add("down", "j")
-    def _(event):
-        nonlocal row
-        row = (row + 1) % len(entries)
-        set_content()
-
-    @kb.add(" ")
-    def _(event):
-        selected.symmetric_difference_update({row})
-        set_content()
-
-    @kb.add("enter")
-    def _(event):
-        nonlocal confirmed
-        confirmed = True
-        event.app.exit()
-
-    @kb.add("q", "c-q", "escape")
-    def _(event):
-        event.app.exit()
-
-    Application(
-        layout=Layout(HSplit([Window(text_control)])),
-        key_bindings=kb,
-        full_screen=True,
-    ).run()
-
-    if confirmed and selected:
-        targets = {entries[i].model for i in selected}
-        kept = [e for e in entries if e.model not in targets]
-        save_retired(kept)
-        print(f"已删除退休记录: {sorted(targets)}")
+        print(f"  [{e.provider}] {e.model}  (自 {e.last_seen})")
+    print("\n只读记录：无宽限期、不自动恢复；模型回到端点后重新同步即可加回。")
     return 0
 
 
@@ -532,8 +453,9 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     v1.0 M1：引擎 / 工具注册表 / agent loop 不再在这里自建，走组装根
     `serve.assemble()` 建好的**进程级运行时**（会话与它共享一份）。
     """
+    from aris.behavior.runtime import get_runtime
     from aris.chat import ChatSession
-    from aris.serve import assemble, get_runtime
+    from aris.serve import assemble
 
     settings = get_settings()
     assemble()  # 幂等；顺带注册 character / skills 等模块级服务
@@ -651,6 +573,15 @@ def _cmd_db(args: argparse.Namespace) -> int:
 
 def _cmd_knowledge(args: argparse.Namespace) -> int:
     """知识库：add / list / remove / search / reindex。"""
+    from aris.infra.modules import module_enabled
+
+    if not module_enabled("knowledge"):
+        logger.error(
+            "knowledge 模块已关闭（data/config/modules.toml）；"
+            "先执行 `aris modules enable knowledge`"
+        )
+        return 1
+
     from aris.knowledge import KnowledgeError, get_service
 
     service = get_service()
@@ -709,6 +640,14 @@ def _cmd_knowledge(args: argparse.Namespace) -> int:
 
 def _cmd_store(args: argparse.Namespace) -> int:
     """store 模块调试命令：info（配置 + 自检）/ embed（编码文本）。"""
+    from aris.infra.modules import module_enabled
+
+    if not module_enabled("store"):
+        logger.error(
+            "store 模块已关闭（data/config/modules.toml）；先执行 aris modules enable store"
+        )
+        return 1
+
     from aris.store.conf import get_store_config
     from aris.store.embedding import EmbeddingError, get_provider
 
@@ -749,7 +688,8 @@ def _cmd_store(args: argparse.Namespace) -> int:
 
 def _cmd_tools(args: argparse.Namespace) -> int:
     """tools 命令：list —— agent 工具面清单（registry 全量 + 声明探询失败）。"""
-    from aris.serve import assemble, get_runtime
+    from aris.behavior.runtime import get_runtime
+    from aris.serve import assemble
 
     assemble()
     try:
@@ -797,9 +737,231 @@ def _extract_psql_passthrough(argv: list[str]) -> tuple[list[str], list[str]]:
     return argv, []
 
 
+def _cmd_info(args: argparse.Namespace) -> int:
+    """版本 / 路径 / 模块开关等环境事实（只读；健康检查用 `aris doctor`）。"""
+    from .infra import paths
+    from .infra.modules import MODULES, load_modules, resolve_modules
+    from .infra.settings import get_settings
+
+    env = os.environ.get("ARIS_DATA_DIR", "").strip()
+    if env:
+        source = f"ARIS_DATA_DIR={env}"
+    elif paths._find_dev_root_via_cwd() is not None:
+        source = f"开发树 {Path.cwd().resolve()}"
+    elif paths._find_dev_root_via_file() is not None:
+        source = "开发树（按包路径判定）"
+    else:
+        source = "安装（默认 ~/.project-aris）"
+
+    settings = get_settings()
+    state = resolve_modules(load_modules())
+    enabled = sum(1 for ok in state.enabled.values() if ok)
+    print(f"Aris {__version__}")
+    print(f"Python: {sys.version.split()[0]}（需要 >= 3.12）")
+    print(f"数据目录: {paths.data_root()}  [{source}]")
+    print(f"配置目录: {paths.config_dir()}")
+    print(f"状态目录: {paths.state_dir()}")
+    print(f"日志目录: {paths.logs_dir()}")
+    print(f"配置模板: {paths.SEED_CONFIG_DIR}")
+    print(f"providers: {settings.llm_providers_file}")
+    print(f"工作目录: {Path.cwd().resolve()}")
+    print(f"模块: 启用 {enabled}/{len(MODULES)}（详情 `aris modules list`）")
+    return 0
+
+
+# TOML 里哪些键算密钥（只用于 `aris config show` 脱敏）
+_SECRET_KEY_RE = re.compile(r"(?i)(api[_-]?key|token|secret|password|passwd|hmac)")
+
+
+def _mask_toml(text: str) -> str:
+    """把 TOML 文本里的密钥值替换为 ***（逐行处理，保留原排版与注释）。"""
+    masked: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if "=" in stripped and not stripped.startswith("#"):
+            key = stripped.split("=", 1)[0].strip()
+            if _SECRET_KEY_RE.search(key):
+                indent = line[: len(line) - len(line.lstrip())]
+                masked.append(f'{indent}{key} = "***"')
+                continue
+        masked.append(line)
+    return "\n".join(masked)
+
+
+def _config_names() -> list[str]:
+    """全部配置文件名（种子模板 ∪ 用户目录里的 *.toml）。"""
+    from .infra import paths
+
+    names = {p.name for p in paths.SEED_CONFIG_DIR.glob("*.toml")}
+    names |= {p.name for p in paths.config_dir().glob("*.toml")}
+    return sorted(names)
+
+
+def _cmd_config(args: argparse.Namespace) -> int:
+    """配置事实（只读）：path / list / show / validate / env，不写任何文件。"""
+    from .infra import paths
+    from .infra.toml import config_path
+
+    command = args.config_command
+
+    if command == "path":
+        print(f"配置目录: {paths.config_dir()}")
+        for name in _config_names():
+            user = paths.config_dir() / name
+            if user.is_file():
+                print(f"  {name:<22} 用户  {user}")
+            else:
+                seed = paths.seed_config_file(name)
+                print(f"  {name:<22} 种子  {seed if seed is not None else '（缺失）'}")
+        return 0
+
+    if command == "list":
+        for name in _config_names():
+            user = paths.config_dir() / name
+            resolved = config_path(name)
+            source = "用户" if user.is_file() else "种子"
+            has_file = resolved is not None and resolved.is_file()
+            size = f"{resolved.stat().st_size}" if has_file and resolved is not None else "-"
+            print(f"- {name:<22} {source}  {size:>6} B  {resolved or '（缺失）'}")
+        return 0
+
+    if command == "show":
+        name = args.name if args.name.endswith(".toml") else f"{args.name}.toml"
+        p = config_path(name)
+        if p is None:
+            logger.error(f"没有这个配置文件：{name}（可用 `aris config list` 查看）")
+            return 1
+        print(f"# {p}")
+        print(_mask_toml(p.read_text(encoding="utf-8")).rstrip())
+        return 0
+
+    if command == "validate":
+        import tomllib
+
+        from .infra.modules import MODULES, load_modules, resolve_modules
+
+        errors: list[str] = []
+        checked = 0
+        for name in _config_names():
+            for candidate in (paths.config_dir() / name, paths.seed_config_file(name)):
+                if candidate is None or not candidate.is_file():
+                    continue
+                checked += 1
+                try:
+                    tomllib.loads(candidate.read_text(encoding="utf-8"))
+                except (tomllib.TOMLDecodeError, OSError) as exc:
+                    errors.append(f"{candidate}: {exc}")
+
+        module_file = paths.config_dir() / "modules.toml"
+        if module_file.is_file():
+            try:
+                table = tomllib.loads(module_file.read_text(encoding="utf-8")).get("modules")
+            except (tomllib.TOMLDecodeError, OSError) as exc:
+                errors.append(f"{module_file}: {exc}")
+                table = None
+            known = {spec.name for spec in MODULES}
+            if table is None:
+                errors.append(f"{module_file}: 缺少 [modules] 表")
+            elif not isinstance(table, dict):
+                errors.append(f"{module_file}: [modules] 不是表")
+            else:
+                errors.extend(
+                    f"{module_file}: 未知模块开关 {name!r}" for name in sorted(set(table) - known)
+                )
+                errors.extend(
+                    f"{module_file}: {name} 不是布尔值"
+                    for name, value in table.items()
+                    if not isinstance(value, bool)
+                )
+        state = resolve_modules(load_modules())
+        errors.extend(
+            f"模块 {name}: {reason}" for name, reason in state.reasons.items() if "依赖" in reason
+        )
+
+        if errors:
+            for line in errors:
+                logger.error(f"配置校验: {line}")
+            print(f"配置校验：{checked} 个文件，{len(errors)} 个问题")
+            return 1
+        print(f"配置校验：{checked} 个文件全部通过（TOML 可解析、模块开关合法、依赖满足）")
+        return 0
+
+    if command == "env":
+        from .infra.settings import get_settings
+
+        for key, value in get_settings().model_dump().items():
+            env_key = f"ARIS_{key.upper()}"
+            shown = "***" if _SECRET_KEY_RE.search(key) else value
+            print(f"{env_key}={shown}")
+        print(f"\n配置文件: {paths.config_dir()}（优先）/ 种子 {paths.SEED_CONFIG_DIR}")
+        print(f"密钥文件: {paths.secrets_file()}")
+        return 0
+
+    logger.error(f"未知的 config 子命令：{command}")
+    return 2
+
+
+def _cmd_modules(args: argparse.Namespace) -> int:
+    """模块开关事实：list / status / enable / disable（写文件，下一次启动生效）。"""
+    from .infra.modules import (
+        MODULES,
+        load_modules,
+        resolve_modules,
+        set_module_enabled,
+        switch_warning,
+    )
+
+    command = args.modules_command
+
+    if command in {"enable", "disable"}:
+        if not args.name:
+            logger.error(f"用法：aris modules {command} <name>")
+            return 2
+        enabled = command == "enable"
+        try:
+            path = set_module_enabled(args.name, enabled)
+        except ValueError as exc:
+            logger.error(str(exc))
+            return 2
+        print(f"已写入 {path}：{args.name} = {str(enabled).lower()}")
+        warning = switch_warning(args.name, enabled)
+        if warning:
+            print(f"注意：{warning}")
+        print("下一次启动生效（不影响当前进程）。")
+        return 0
+
+    cfg = load_modules()
+    state = resolve_modules(cfg)
+
+    if command == "status":
+        for spec in MODULES:
+            if state.enabled.get(spec.name, False):
+                print(f"- {spec.name:<10} 启用")
+            else:
+                print(f"- {spec.name:<10} 关闭  ← {state.reasons.get(spec.name, '')}")
+        blocked = [n for n, r in state.reasons.items() if "依赖" in r]
+        if blocked:
+            print("\n依赖未满足（先启用依赖的模块）：")
+            for name in blocked:
+                print(f"  - {name}: {state.reasons[name]}")
+        return 0
+
+    print(f"模块开关（{len(MODULES)} 个；文件 data/config/modules.toml）")
+    for spec in MODULES:
+        raw = getattr(cfg, spec.name, True)
+        enabled = state.enabled.get(spec.name, False)
+        mark = "✓" if enabled else "✗"
+        deps = ",".join(spec.depends_on) or "-"
+        steps = ",".join(spec.steps) or "-"
+        print(f"- {mark} {spec.name:<10} 用户={str(raw).lower():<5} 依赖={deps:<12} 步骤={steps}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI 主入口。"""
-    parser = argparse.ArgumentParser(prog="aris", description="拟人 AI Aris —— 社会学意义上的人")
+    parser = argparse.ArgumentParser(
+        prog="aris", description="Aris —— 基于大语言模型、类似 Neuro-sama 的赛博生命体"
+    )
     parser.add_argument("--version", action="version", version=f"Aris {__version__}")
     parser.add_argument(
         "--verbose",
@@ -810,6 +972,46 @@ def main(argv: list[str] | None = None) -> int:
 
     p_doctor = sub.add_parser("doctor", help="环境自检")
     p_doctor.set_defaults(func=_cmd_doctor)
+
+    p_info = sub.add_parser("info", help="版本 / 路径 / 模块开关等环境事实（只读）")
+    p_info.set_defaults(func=_cmd_info)
+
+    p_config = sub.add_parser("config", help="配置事实（只读：path/list/show/validate/env）")
+    p_config_sub = p_config.add_subparsers(dest="config_command")
+    p_config_path = p_config_sub.add_parser(
+        "path", help="打印配置目录与每个文件的来源（用户/种子）"
+    )
+    p_config_path.set_defaults(func=_cmd_config)
+    p_config_list = p_config_sub.add_parser("list", help="列出全部配置文件与大小（只读）")
+    p_config_list.set_defaults(func=_cmd_config)
+    p_config_show = p_config_sub.add_parser("show", help="打印某个配置（密钥脱敏）")
+    p_config_show.add_argument("name", help="文件名，如 settings / settings.toml / secrets")
+    p_config_show.set_defaults(func=_cmd_config)
+    p_config_validate = p_config_sub.add_parser("validate", help="校验全部 TOML 与模块开关")
+    p_config_validate.set_defaults(func=_cmd_config)
+    p_config_env = p_config_sub.add_parser("env", help="打印进程最终生效的 ARIS_* 设置")
+    p_config_env.set_defaults(func=_cmd_config)
+    p_config.set_defaults(func=_cmd_config, config_command="list")
+
+    p_modules = sub.add_parser("modules", help="模块开关（list / status / enable / disable）")
+    p_modules_sub = p_modules.add_subparsers(dest="modules_command")
+    p_modules_list = p_modules_sub.add_parser("list", help="列出 7 个模块的开关与依赖")
+    p_modules_list.set_defaults(func=_cmd_modules)
+    p_modules_status = p_modules_sub.add_parser("status", help="按依赖解析后的实际启停与原因")
+    p_modules_status.set_defaults(func=_cmd_modules)
+    p_modules_enable = p_modules_sub.add_parser(
+        "enable", help="启用模块（写 modules.toml，下次启动生效）"
+    )
+    p_modules_enable.add_argument(
+        "name", help="模块名：store / knowledge / mcp / behavior / webui / character / voice"
+    )
+    p_modules_enable.set_defaults(func=_cmd_modules)
+    p_modules_disable = p_modules_sub.add_parser(
+        "disable", help="关闭模块（写 modules.toml，下次启动生效）"
+    )
+    p_modules_disable.add_argument("name", help="模块名（同上）")
+    p_modules_disable.set_defaults(func=_cmd_modules)
+    p_modules.set_defaults(func=_cmd_modules, modules_command="list")
 
     p_llm = sub.add_parser("llm", help="LLM 提供方与模型管理")
     p_llm_test = p_llm.add_subparsers(dest="llm_command")
@@ -823,16 +1025,18 @@ def main(argv: list[str] | None = None) -> int:
     p_test.add_argument(
         "--model",
         default=None,
-        help="统一模型 id（默认取 config/providers.toml 的 default_model）",
+        help="统一模型 id（默认取 data/config/providers.toml 的 default_model）",
     )
     p_test.add_argument("--message", default="用一句话介绍你自己。", help="要发送的用户消息")
     p_test.add_argument(
-        "--system", default="你是 Aris，一个拟人 AI，说话简洁自然。", help="系统提示词"
+        "--system",
+        default="你是 Aris，一个基于大语言模型、类似 Neuro-sama 的赛博生命体，说话简洁自然。",
+        help="系统提示词",
     )
     p_test.set_defaults(func=_cmd_llm_test)
 
     p_fetch = p_llm_test.add_parser(
-        "fetch", help="与 /models 端点同步模型列表（对比/勾选/退休巡检）"
+        "fetch", help="与 /models 端点同步模型列表（对比/勾选/写回/缺失记录）"
     )
     p_fetch.add_argument(
         "provider_id", nargs="?", default=None, help="目标提供方（默认取 default_model 所在）"
@@ -843,25 +1047,25 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_fetch.add_argument("--add", default=None, help="只添加指定模型（逗号分隔，跳过勾选）")
     p_fetch.add_argument(
-        "--keep", default=None, help="保留这些模型不移除（逗号分隔，即使云端已消失）"
+        "--keep", default=None, help="保留这些模型不移除、不记缺失（逗号分隔，即使云端已消失）"
     )
     p_fetch.add_argument("--delete", default=None, help="从不添加候选的模型中排除（逗号分隔）")
     p_fetch.set_defaults(func=_cmd_llm_fetch)
 
-    p_retired = p_llm_test.add_parser(
-        "retired", help="退休模型管理（列出 / 交互删除 / --delete 指定）"
-    )
-    p_retired.add_argument(
-        "--delete", default=None, help="直接删除指定退休模型（逗号分隔，非交互）"
-    )
-    p_retired.set_defaults(func=_cmd_llm_retired)
+    p_missing = p_llm_test.add_parser("missing", help="缺失模型记录（同步后从端点消失，只读）")
+    p_missing_sub = p_missing.add_subparsers(dest="missing_command")
+    p_missing_list = p_missing_sub.add_parser("list", help="列出缺失模型记录")
+    p_missing_list.set_defaults(func=_cmd_llm_missing)
+
+    p_retired = p_llm_test.add_parser("retired", help="[已退役] 旧命令别名，请改用 missing list")
+    p_retired.set_defaults(func=_cmd_llm_missing)
 
     p_chat = sub.add_parser("chat", help="文字对话（交互循环或单次问答）")
     p_chat.add_argument("message", nargs="?", help="要发送的消息；不提供则进入交互对话循环")
     p_chat.add_argument(
         "--model",
         default=None,
-        help="统一模型 id（默认取 config/providers.toml 的 default_model）",
+        help="统一模型 id（默认取 data/config/providers.toml 的 default_model）",
     )
     p_chat.add_argument(
         "--system",
@@ -978,8 +1182,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # 注册模块级总线服务（各模块在 import 时自注册；此处只挂轻量模块）
-    import aris.knowledge  # 注册 knowledge.* 与建表迁移
-    import aris.store  # noqa: F401  —— 注册 store.*
+    # v0.4.4 W3：按 modules.toml 开关，关闭的模块不 import（注册即 import）
+    import importlib
+
+    from .infra.modules import load_modules, resolve_modules
+
+    _state = resolve_modules(load_modules())
+    for _name, _import_path in _state.import_paths():
+        if _name in {"store", "knowledge"}:
+            importlib.import_module(_import_path)
 
     if args.command == "llm" and args.llm_command is None:
         p_llm.print_help()

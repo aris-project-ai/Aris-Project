@@ -47,7 +47,7 @@ def _gather_stats_impl() -> dict:
 
     from aris.core import call
 
-    from ...config import get_settings
+    from ...infra.settings import get_settings
 
     settings = get_settings()
 

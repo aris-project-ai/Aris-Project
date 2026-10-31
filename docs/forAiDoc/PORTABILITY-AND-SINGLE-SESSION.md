@@ -1,6 +1,6 @@
 # v1.0 两条硬目标：可迁移性 + 单一会话原则
 
-> 2026-09-28 商讨定案（`discuss-2026-09-28.md` 的补充 D14/D15）。
+> 2026-09-28 商讨定案（`docs/archive/discuss-2026-09-28.md` 的补充 D14/D15；该商讨记录已归档）。
 > 这两条是**更新目标（v1.0 必须满足）**，不是"以后再说"——凡与它们冲突的既有设计，
 > 实现时以本文为准。
 
@@ -128,7 +128,7 @@
 
 #### 场合风格（channel → 风格）
 
-配置里放**渠道 → 场合描述 + 风格要求**的映射（`config/chat.toml`），加渠道改配置不改代码：
+配置里放**渠道 → 场合描述 + 风格要求**的映射（`data/config/chat.toml`），加渠道改配置不改代码：
 
 ```toml
 [channels.voice]
@@ -169,4 +169,4 @@ style = "可以稍详细，允许代码块与列表"
 | `memory_messages` 表 | 补 `source` / `speaker` / `kind` / `expects_reply` |
 | D11 autorun | 补：主动任务类带 `kind=system` 进当前会话；内部维护类走系统场合 |
 | `aris doctor` | 补「迁移自检」项 |
-| `config/chat.toml` | 补 `channels.*`（场合风格）与 `session_cooldown_days` |
+| `data/config/chat.toml` | 补 `channels.*`（场合风格）与 `session_cooldown_days` |

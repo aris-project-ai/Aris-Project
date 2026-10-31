@@ -29,7 +29,7 @@ async def logs_page(
     page: int = Query(1, ge=1),
 ) -> HTMLResponse:
     """日志查看页面。"""
-    from ...config import get_settings
+    from ...infra.settings import get_settings
 
     settings = get_settings()
 

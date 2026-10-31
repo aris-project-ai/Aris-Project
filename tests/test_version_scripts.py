@@ -93,6 +93,10 @@ def make_release_repo(repo: Path, version: str = "0.5.0") -> Path:
         '[tool.setuptools.dynamic]\nversion = {attr = "aris.__version__"}\n\n'
         '[tool.uv]\ncache-keys = [{ file = "src/aris/__init__.py" }]\n'
     )
+    (repo / "changelogs").mkdir()
+    (repo / "changelogs" / f"{version}.md").write_text(
+        f"# {version}\n\n## 新增\n- 测试用变更记录\n", encoding="utf-8"
+    )
     git(repo, "checkout", "-q", "-B", "develop")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "setup")
@@ -245,3 +249,50 @@ def test_release_check_passes_with_free_number(repo: Path, tmp_path: Path) -> No
     make_release_repo(repo)
     out = release_check(repo, fake_uv(tmp_path))
     assert out.returncode == 0, out.stdout
+
+
+def test_release_check_requires_changelog(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    (repo / "changelogs" / "0.5.0.md").unlink()
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "缺少 changelogs/0.5.0.md" in out.stdout
+
+
+# ---- alpha 渠道（v0.4.4 W6）----
+
+
+def test_alpha_tag_occupies_number(repo: Path) -> None:
+    git(repo, "tag", "alpha-v1.0.0")
+    out = lib_call(repo, "version_existing_tag 1.0.0")
+    assert out.stdout.strip() == "alpha-v1.0.0"
+
+
+def test_alpha_tag_counts_as_last_number(repo: Path) -> None:
+    for tag in ("v0.4.1", "alpha-v0.9.0", "beta-v0.8.0"):
+        git(repo, "tag", tag)
+    out = lib_call(repo, "version_last_number")
+    assert out.stdout.strip() == "0.9.0"
+
+
+def test_bump_rejects_number_used_by_alpha(repo: Path) -> None:
+    make_bump_repo(repo)
+    git(repo, "tag", "alpha-v0.5.0")
+    out = bump(repo, "0.5.0")
+    assert out.returncode == 1
+    assert "已被 tag alpha-v0.5.0 占用" in out.stderr
+
+
+def test_bump_prints_alpha_tag_hint(repo: Path, tmp_path: Path) -> None:
+    make_bump_repo(repo)
+    out = bump(repo, "0.5.0", env=fake_uv(tmp_path))
+    assert out.returncode == 0, out.stderr
+    assert "alpha-v0.5.0" in out.stdout
+
+
+def test_release_check_rejects_number_used_by_alpha(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    git(repo, "tag", "alpha-v0.5.0")
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "已被 tag alpha-v0.5.0 占用" in out.stdout

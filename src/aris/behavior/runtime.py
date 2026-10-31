@@ -1,6 +1,8 @@
 """behavior 的进程级运行时：工具注册表 + 技能管理器 + agent loop。
 
-一个进程只有一份，由组装根 `serve.assemble()` 建好并持有（v1.0 M1 上收）——
+一个进程只有一份（v1.0 M1 上收）——v0.4.4 W4 起，运行期单例（引擎 / 注册表 /
+运行时）归本模块，`serve` 只负责组装与启动编排、转调 `get_runtime`；
+任何模块都**不得 import serve**（AGENTS.md §6），需要运行时直接依赖本模块。
 原来每个 `ChatSession` 构造时都自建一套并 `provide` 一次，而
 `tools.execute` / `loop.run` / `skills.menu` 都是**单槽**总线服务，
 多开一段对话就把前一份顶掉（多人格时 A 的技能面会被 B 覆盖）。
@@ -15,6 +17,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+
+from loguru import logger
 
 from ..core.llm.engine import LLMEngine
 from .loop import AgentLoop
@@ -79,4 +83,72 @@ class BehaviorRuntime:
         return "\n\n".join(parts)
 
 
-__all__ = ["TOOLS_SYSTEM_HINT", "BehaviorRuntime"]
+# 进程级唯一运行时（None = 尚未装配）；装配失败原因留给启动清单 / doctor 显示
+_runtime: BehaviorRuntime | None = None
+_assembly_error: str | None = None
+
+
+def build_engine() -> LLMEngine:
+    """按 data/config（settings.toml / providers.toml）建 LLM engine。"""
+    from ..core.llm import load_providers
+    from ..infra.settings import get_settings
+
+    settings = get_settings()
+    providers = load_providers(settings.llm_providers_file)
+    return LLMEngine(
+        providers,
+        timeout=settings.llm_fallback_timeout,
+        first_token_stall=settings.llm_first_token_stall,
+        error_message=settings.llm_error_message,
+    )
+
+
+def get_runtime(*, rebuild: bool = False) -> BehaviorRuntime:
+    """取进程级 behavior 运行时；首次调用时构建，之后幂等返回同一份。
+
+    构建失败（LLM 配置不可用）时先把原因记进模块级状态再原样抛出：
+    `serve.assemble()` 需要继续把 WebUI / doctor 拉起来，而启动清单与
+    `aris doctor` 经 :func:`assembly_error` 把失败如实显示（不静默降级）。
+    """
+    global _runtime, _assembly_error
+    if _runtime is None or rebuild:
+        from ..infra.modules import module_enabled
+
+        if not module_enabled("behavior"):
+            raise RuntimeError("behavior 模块已关闭（data/config/modules.toml）")
+        try:
+            _runtime = BehaviorRuntime(build_engine())
+        except Exception as exc:
+            _assembly_error = str(exc)
+            raise
+        _assembly_error = None
+        logger.debug(f"behavior 运行时已装配：{_runtime.tool_count()} 个工具")
+    return _runtime
+
+
+def peek_runtime() -> BehaviorRuntime | None:
+    """看已装配的运行时（None = 还没建）；供探针用，不触发构建。"""
+    return _runtime
+
+
+def reset_runtime() -> None:
+    """丢弃已装配的运行时（测试用；不注销已注册的总线服务）。"""
+    global _runtime, _assembly_error
+    _runtime = None
+    _assembly_error = None
+
+
+def assembly_error() -> str | None:
+    """上次装配失败的原因（None = 没失败过）；供启动清单 / `aris doctor` 显示。"""
+    return _assembly_error
+
+
+__all__ = [
+    "TOOLS_SYSTEM_HINT",
+    "BehaviorRuntime",
+    "assembly_error",
+    "build_engine",
+    "get_runtime",
+    "peek_runtime",
+    "reset_runtime",
+]

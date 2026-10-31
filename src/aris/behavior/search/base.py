@@ -19,10 +19,10 @@ from datetime import UTC
 
 from loguru import logger
 
-from aris.cfgtoml import load_config
+from aris.infra.toml import load_config
 
 # ── 引擎清单与首选顺序 ──
-# 名称同时是 config/search.toml prefer_engine 的合法值与输出 JSON engine 字段的值
+# 名称同时是 data/config/search.toml prefer_engine 的合法值与输出 JSON engine 字段的值
 ENGINES = ("bing", "tavily", "exa")
 # prefer_engine 未知值的兜底
 _DEFAULT_ENGINE = "bing"
@@ -71,7 +71,7 @@ class SearchAllFailed(Exception):
 
 @dataclass
 class SearchConfig:
-    """联网搜索可调参数（config/search.toml；shell 与引擎共用）。
+    """联网搜索可调参数（data/config/search.toml；shell 与引擎共用）。
 
     prefer_engine：首选引擎，"bing" / "tavily" / "exa" / "auto"
     （auto = 按查询语言分流，含中文走 Tavily——2026-08-14 备选方案，默认已回 bing）。
@@ -88,7 +88,7 @@ class SearchConfig:
 # 模块级单例：web_search 壳层的历史符号 `_search_config` 指向它（测试与 toml 覆写共享同一份）
 search_config = load_config(SearchConfig(), "search.toml")
 
-# → Exa 引擎走总线 mcp.call_tool，server 名固定为 config/mcp.toml 里的 "exa"
+# → Exa 引擎走总线 mcp.call_tool，server 名固定为 data/config/mcp.toml 里的 "exa"
 EXA_MCP_SERVER = "exa"
 # mcp.exa.ai 的搜索工具名（免 key 端点，免不了万一改名，失败会降级到其他引擎）
 EXA_TOOL_NAME = "web_search_exa"

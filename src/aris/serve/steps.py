@@ -19,8 +19,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ..config import get_settings
+from ..behavior.runtime import assembly_error, get_runtime, peek_runtime
 from ..core import call, has_service
+from ..infra.settings import get_settings
 from .conf import ServeConfig
 
 
@@ -42,13 +43,20 @@ def _probe_services() -> str:
 
     清单由各模块自己声明（如 `webui.REQUIRED_SERVICES`），serve 只负责启动时统一
     核验——原实现散在 `webui.create_app()` 里，只有 WebUI 那条路径会被检查。
+    模块开关关闭后，该模块声明的依赖不再核验（它本来就不会装配）。
     """
-    from ..webui import REQUIRED_SERVICES
+    from ..infra.modules import module_enabled
 
-    missing = [name for name in REQUIRED_SERVICES if not has_service(name)]
+    required: tuple[str, ...] = ()
+    if module_enabled("webui"):
+        from ..webui import REQUIRED_SERVICES
+
+        required = REQUIRED_SERVICES
+
+    missing = [name for name in required if not has_service(name)]
     if missing:
         raise RuntimeError(f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块")
-    return f"各模块声明的 {len(REQUIRED_SERVICES)} 个依赖服务全部就绪"
+    return f"各模块声明的 {len(required)} 个依赖服务全部就绪"
 
 
 def _probe_llm() -> str:
@@ -57,7 +65,7 @@ def _probe_llm() -> str:
 
     config = load_providers(get_settings().llm_providers_file)
     if not config.providers:
-        raise RuntimeError("providers.toml 里没有可用提供方，请检查 config/providers.toml")
+        raise RuntimeError("providers.toml 里没有可用提供方，请检查 data/config/providers.toml")
     models = sum(len(p.models) for p in config.providers)
     default = config.default_model or "未设"
     missing = [s for s in ("audit.recent", "audit.summary", "http.request") if not has_service(s)]
@@ -92,12 +100,15 @@ def _probe_behavior() -> str:
     """探针：技能服务已注册 + 进程级运行时是否已装配（v1.0 M1 上收）。
 
     工具注册表（``tools.execute``）、agent loop（``loop.run``）、``skills.menu``
-    原先由会话对象自建，现已由组装根建一份进程级运行时持有（`serve/assembly.py`）。
+    原先由会话对象自建，现由一份进程级运行时持有，单例归 `behavior/runtime.py`（v0.4.4 W4）；
+    装配失败的原因在这里如实报错，而不是只留一条 assemble 的 warning。
     探针**只读**：用 `peek_runtime()` 看状态，不触发构建。
     """
     if not has_service("skills.list"):
         raise RuntimeError("skills.list 未注册")
-    from .assembly import peek_runtime
+    error = assembly_error()
+    if error:
+        raise RuntimeError(f"behavior 运行时未装配：{error}")
 
     runtime = peek_runtime()
     if runtime is None:
@@ -108,15 +119,13 @@ def _probe_behavior() -> str:
 
 def _start_behavior() -> str:
     """启动动作：装配进程级 behavior 运行时（幂等；LLM 配置不可用时抛错按档位降级）。"""
-    from .assembly import get_runtime
-
     runtime = get_runtime()
     return f"{runtime.tool_count()} 个工具已就绪"
 
 
 def _probe_data() -> str:
     """探针：``data/`` 分层完整性（可迁移性 D14；只读，缺失只提示）。"""
-    from ..datadir import missing_carried
+    from ..infra.paths import missing_carried
 
     data_dir = get_settings().data_dir
     missing = missing_carried(data_dir)
@@ -127,7 +136,7 @@ def _probe_data() -> str:
 
 def _start_data() -> str:
     """启动动作：幂等创建 ``data/`` 下必须带的目录（换机后拷过来就能起）。"""
-    from ..datadir import ensure_dirs
+    from ..infra.paths import ensure_dirs
 
     created = ensure_dirs(get_settings().data_dir)
     return f"新建 {', '.join(created)}" if created else "目录已齐备，无新建"
@@ -206,7 +215,7 @@ def _probe_knowledge() -> str:
     if not info:
         raise RuntimeError("knowledge.status 未注册")
     if not info.get("enabled", True):
-        return "已关闭（config/knowledge.toml: enabled=false）"
+        return "已关闭（data/config/knowledge.toml: enabled=false）"
     db: dict[str, Any] = call("store.db_status") or {}
     if not db.get("running"):
         return "待数据库启动后建表（PG 未运行）"
@@ -221,7 +230,7 @@ def _start_knowledge() -> str:
     if not info:
         raise RuntimeError("knowledge.start 未注册")
     if not info.get("enabled", True):
-        return "已关闭（config/knowledge.toml: enabled=false）"
+        return "已关闭（data/config/knowledge.toml: enabled=false）"
     return f"{info.get('docs', 0)} 文档 / {info.get('chunks', 0)} 块，索引已就绪"
 
 
@@ -232,7 +241,7 @@ def _probe_mcp() -> str:
         raise RuntimeError("mcp.status 未注册")
     servers: dict[str, Any] = info.get("servers") or {}
     if not servers:
-        return "未配置 server（config/mcp.toml 无 [servers.*]）"
+        return "未配置 server（data/config/mcp.toml 无 [servers.*]）"
     connected = sum(1 for s in servers.values() if s.get("status") == "已连接")
     tools = sum(s.get("tools") or 0 for s in servers.values())
     bad = [
