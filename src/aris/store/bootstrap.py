@@ -35,6 +35,7 @@ from .pgenv import (
     owner_name,
     port_available,
     remember_port,
+    socket_port,
     write_role_marker,
 )
 
@@ -204,13 +205,32 @@ def probe_runnable(env: PgEnv, *, fresh: bool = False) -> tuple[bool, str]:
     return result
 
 
+def _live_socket_port(env: PgEnv) -> int | None:
+    """本集群已在运行的端口（从 unix socket 反推并实测确认），没有则返回 None。
+
+    必须实测：崩溃后 socket 文件可能残留，不能只凭文件名认定实例在跑。
+    """
+    port = socket_port(env.run_dir)
+    if port is None:
+        return None
+    return port if is_running(env.with_port(port)) else None
+
+
 def choose_port(env: PgEnv) -> PgEnv:
     """端口被占时换一个可用端口（只在「准备启动」时调用）。
 
     D14 缺口③：默认端口 ``55432`` 可能被别的进程占着。端口**不写任何配置文件**——
     只记在进程内 + 由运行中实例的 unix socket 文件名对外可见，故 ``aris db psql``
     这类独立进程也能找对端口。
+
+    先认「本实例已经在跑」的端口：``db init`` 起实例后紧接着 ``db start``（两个进程）
+    时，端口自然处于被占状态，若当成外部占用换端口，就会重复启动并误清运行中实例的
+    pid/socket（回归见 ``test_store_portability``）。
     """
+    running = _live_socket_port(env)
+    if running is not None:
+        remember_port(running)
+        return env.with_port(running)
     if port_available(env.port):
         remember_port(env.port)
         return env
@@ -345,6 +365,12 @@ def start(env: PgEnv) -> bool:
     """启动服务；已在运行则返回 False（无操作）。"""
     if is_running(env):
         return False
+    running = _live_socket_port(env)
+    if running is not None:
+        # 调用方端口过期但实例其实在跑：绝不能当残留清掉（会弄停正在用的库）
+        remember_port(running)
+        logger.info(f"实例已在端口 {running} 运行，跳过启动")
+        return False
     _clear_stale_runtime(env)
     env.run_dir.mkdir(parents=True, exist_ok=True)
     env.log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -380,8 +406,11 @@ def start(env: PgEnv) -> bool:
 def stop(env: PgEnv) -> bool:
     """停止服务；本就未运行则返回 False（无操作，顺手清残留 pidfile）。"""
     if not is_running(env):
-        _clear_stale_runtime(env)
-        return False
+        running = _live_socket_port(env)
+        if running is None:
+            _clear_stale_runtime(env)
+            return False
+        env = env.with_port(running)
     _run([str(env.tool("pg_ctl")), "-D", str(env.pgdata), "-m", "fast", "-w", "stop"])
     return True
 
