@@ -3,10 +3,10 @@
 [![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-76bad9)](COPYING)
 [![Python](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
 
-> ## 正式发布 v0.4.5（首个标准化版本）
+> ## 正式发布 v0.4.5.1（标准化收尾补丁）
 >
 > uv sync && uv run aris serve : 一键启动
-> 本版定下变更记录、CI 与发版流程；第三方许可清单见 `NOTICE`
+> 本版修好首次发版暴露的 CI 问题并清理文档债，不含功能变更；第三方许可清单见 `NOTICE`
 > v1.0 前接口与数据格式可能变动，介意的话先别接自己的数据。
 
 <!-- 截图位：WebUI 仪表盘 / TUI 对话截图，补图后放在这里 -->

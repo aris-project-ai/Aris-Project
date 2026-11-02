@@ -1,7 +1,7 @@
 """可迁移性与启动幂等（D14）测试：角色对齐 / 端口探测 / 二进制可运行 / data 分层。
 
-**无外部依赖**：不连数据库、不启动实例；需要真实 PG 二进制的那条用 skipif 跳过。
-设计依据见 docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md 与 V1.0-PLAN.md 的 M0。
+**无外部依赖**：不连数据库、不启动实例；需要真实 PG 二进制的那条在用例内跳过。
+设计依据见 docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md。
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from aris.store import pgenv
 from aris.store.bootstrap import choose_port, probe_runnable
 from aris.store.pgenv import (
     DEFAULT_USER,
+    PgSource,
     detect,
     ownership_error,
     port_available,
@@ -29,7 +30,14 @@ from aris.store.pgenv import (
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     """清掉影响探针的环境变量，并复位进程内的临时端口（避免用例互相污染）。"""
-    for key in ("ARIS_PG_BIN", "ARIS_PG_DSN", "ARIS_PG_PORT", "ARIS_PG_USER", "ARIS_PG_DB"):
+    for key in (
+        "ARIS_PG_BIN",
+        "ARIS_PG_SOURCE",
+        "ARIS_PG_DSN",
+        "ARIS_PG_PORT",
+        "ARIS_PG_USER",
+        "ARIS_PG_DB",
+    ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr("aris.store.pgenv.shutil.which", lambda _name: None)
     remember_port(None)
@@ -154,6 +162,61 @@ def test_choose_port_keeps_free_port(tmp_path):
     assert choose_port(env.with_port(free)).port == free
 
 
+def test_choose_port_reuses_running_instance(tmp_path, monkeypatch):
+    """本实例已在跑时必须沿用它的端口，不能当成「外部占用」换端口。
+
+    回归：``db init`` 起实例后紧接着 ``db start``（两个进程），端口自然是被本实例
+    自己占着的；换端口会导致重复启动，并误清运行中实例的 pid/socket。
+    """
+    import importlib
+
+    bootstrap_mod = importlib.import_module("aris.store.bootstrap")
+
+    data = tmp_path / "data"
+    _init_cluster(data / "pgdata")
+    run_dir = data / "pg" / "run"
+    run_dir.mkdir(parents=True)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen(1)
+        port = busy.getsockname()[1]
+        (run_dir / f".s.PGSQL.{port}").touch()
+
+        env = detect(data)  # 端口从 socket 反推出来 = port，且确实被占着
+        assert env.port == port
+        monkeypatch.setattr(bootstrap_mod, "is_running", lambda e: e.port == port)
+
+        chosen = choose_port(env)
+
+    assert chosen.port == port
+    assert detect(data).port == port
+
+
+def test_start_keeps_running_instance_on_other_port(tmp_path, monkeypatch):
+    """调用方端口过期时也不能清运行中实例的 pid/socket（start 兜底）。"""
+    import importlib
+
+    bootstrap_mod = importlib.import_module("aris.store.bootstrap")
+
+    data = tmp_path / "data"
+    _init_cluster(data / "pgdata")
+    run_dir = data / "pg" / "run"
+    run_dir.mkdir(parents=True)
+    socket_file = run_dir / ".s.PGSQL.60011"
+    socket_file.touch()
+    pid_file = data / "pgdata" / "postmaster.pid"
+    pid_file.write_text("123\n", encoding="utf-8")
+
+    env = detect(data)
+    stale = env.with_port(60012)  # 模拟调用方拿到的过期端口
+    monkeypatch.setattr(bootstrap_mod, "is_running", lambda e: e.port == 60011)
+
+    assert bootstrap_mod.start(stale) is False
+    assert pid_file.exists()
+    assert socket_file.exists()
+
+
 # ---------------------------------------------------------------- 二进制可运行
 
 
@@ -162,10 +225,98 @@ def test_probe_runnable_missing_binary():
     assert probe_runnable(detect(Path("/nonexistent-data"))) == (False, "未安装")
 
 
-@pytest.mark.skipif(not detect().installed, reason="本机未安装 PostgreSQL 二进制")
+def _fake_system_pg(tmp_path: Path) -> Path:
+    """伪造系统安装：PATH 里能找到 pg_config，且它指向一个含 postgres 的 bin 目录。"""
+    bindir = tmp_path / "system-bin"
+    bindir.mkdir()
+    (bindir / "postgres").write_text("", encoding="utf-8")
+    return bindir
+
+
+def _fake_pg_config(monkeypatch, bindir: Path) -> None:
+    monkeypatch.setattr("aris.store.pgenv.shutil.which", lambda _name: "/fake/pg_config")
+    monkeypatch.setattr("aris.store.pgenv._pg_config_bindir", lambda _path: bindir)
+
+
+def test_pg_source_project_skips_system(tmp_path, monkeypatch):
+    """ARIS_PG_SOURCE=project：系统 PG 未必带 pgvector，强制走便携实例。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "project")
+    env = detect(data)
+
+    assert env.source is PgSource.PROJECT
+    assert env.bin_dir == project_bin
+
+
+def test_pg_source_project_without_portable_reports_missing(tmp_path, monkeypatch):
+    """project 模式不退回系统 PG：没装便携实例就算未安装，交给 bootstrap 去下载。"""
+    _fake_pg_config(monkeypatch, _fake_system_pg(tmp_path))
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "project")
+    env = detect(tmp_path / "data")
+
+    assert env.source is PgSource.MISSING
+    assert env.installed is False
+
+
+def test_pg_source_system_skips_portable(tmp_path, monkeypatch):
+    """system 模式只用 PATH 里的 PostgreSQL。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "system")
+    env = detect(data)
+
+    assert env.source is PgSource.SYSTEM
+    assert env.bin_dir == system_bin
+
+
+def test_pg_source_default_prefers_system(tmp_path, monkeypatch):
+    """auto（默认）保持原顺序：系统 PG 优先于 data/pg。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    env = detect(data)
+
+    assert env.source is PgSource.SYSTEM
+    assert env.bin_dir == system_bin
+
+
+def test_pg_source_invalid_falls_back_to_auto(tmp_path, monkeypatch):
+    """非法值按 auto 兜底（只需不炸、行为与默认一致）。"""
+    _fake_pg_config(monkeypatch, _fake_system_pg(tmp_path))
+    monkeypatch.setenv("ARIS_PG_SOURCE", "banana")
+
+    assert detect(tmp_path / "data").source is PgSource.SYSTEM
+
+
 def test_probe_runnable_real_binary():
-    """真二进制实际执行一次 ``--version``——文件在 ≠ 能跑。"""
-    ok, detail = probe_runnable(detect(), fresh=True)
+    """真二进制实际执行一次 ``--version``——文件在 ≠ 能跑。
+
+    跳过条件必须写在用例里，不能用模块级 ``skipif``：``_clean_env`` 会把
+    ``shutil.which`` 打成 None，而 ``skipif`` 在**收集阶段**就求值（早于 fixture）。
+    装着系统 PostgreSQL 的机器（如 CI runner 自带 ``pg_config``）会先被判成
+    「已安装」而不跳过，随后用例内探测到的却是「未安装」，变成假失败。
+    """
+    env = detect()
+    if not env.installed:
+        pytest.skip("本机未安装 PostgreSQL 二进制")
+
+    ok, detail = probe_runnable(env, fresh=True)
 
     assert ok is True
     assert "PostgreSQL" in detail
