@@ -105,14 +105,17 @@ git add -A && git commit -m "chore(release): v0.4.5"
 git push origin release/v0.4.5
 ```
 
-随后：
+随后（以下均在网页上操作，不需要 `gh`）：
 
-1. 上游开 PR：`release/v0.4.5 → main`；
-2. 在 PR 上开启原生自动合并：`gh pr merge --auto --merge`；
-3. 必需检查全绿后自动合并；在上游 `main` 打 tag 并推送（`v0.4.5` / `beta-v0.4.5`）；
-4. 再开 PR：`main → develop`，`--no-ff` 合并（同样可以 `gh pr merge --auto --merge`）；
-5. 删除 release 分支（本地与远端）；
+1. 在 `upstream` 开 PR：`kasamorin:release/v0.4.5 → aris-project-ai:main`；
+2. PR 页面右下 **Enable auto-merge** → 选 **Merge commit**（等价 `--no-ff`，保留分支历史）；
+3. 必需检查（`check` + `integration`）全绿后自动合并；在 `upstream` 的 `main` 上打 tag 并推送
+   （`v0.4.5` / `beta-v0.4.5`）；
+4. 再开 PR：`main → develop`，同样开 auto-merge；
+5. 删除 release 分支（本地 `git branch -d`；远端在 PR 页面点 **Delete branch**）；
 6. **不创建 GitHub Release**（等 GUI 打包后补）。
+
+> 装了 `gh` 也可以用 `gh pr merge --auto --merge`；网页操作与它完全等价。
 
 标准：
 
@@ -130,8 +133,11 @@ git push origin release/v0.4.5
     （仓库内的参考定义见 `.github/rulesets/`，在上游导入后生效）；
   - 被 `if` 跳过的作业按 GitHub 规则视为通过，不会卡住不相关的 PR；
   - 不强制分支保持最新（CI 跑在 PR 的合并结果上），单人开发不必反复点 Update branch；
-  - 第一次带 `.github/workflows/` 的 PR 也能跑：`pull_request` 用的是 PR 合并后的工作流文件；
-    fork 发起的首个 PR 可能需要在 Actions 页面批准一次。
+  - **workflow 必须先落在 base 分支**：fork 发起的 PR，`pull_request` 读取的是**基线仓库
+    base 分支上的** `.github/workflows/`。`main` 上还没有 workflow 时，`release → main`
+    的 PR 不会触发任何作业（实测 0 run），只能先绕过保护合并一次把 workflow 带进去
+    （bootstrap）；此后正常。
+  - fork 发起的首个 PR，Actions 可能要求在 PR 页面点一次 **Approve and run**（首次贡献者限制）。
 - 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
 - `release.sh` 只做本地准备：校验、切分支、bump、跑 `release-check.sh`、打印后续命令；
   **不推送、不打 tag、不合并 `main`**。
