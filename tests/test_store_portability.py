@@ -162,6 +162,61 @@ def test_choose_port_keeps_free_port(tmp_path):
     assert choose_port(env.with_port(free)).port == free
 
 
+def test_choose_port_reuses_running_instance(tmp_path, monkeypatch):
+    """本实例已在跑时必须沿用它的端口，不能当成「外部占用」换端口。
+
+    回归：``db init`` 起实例后紧接着 ``db start``（两个进程），端口自然是被本实例
+    自己占着的；换端口会导致重复启动，并误清运行中实例的 pid/socket。
+    """
+    import importlib
+
+    bootstrap_mod = importlib.import_module("aris.store.bootstrap")
+
+    data = tmp_path / "data"
+    _init_cluster(data / "pgdata")
+    run_dir = data / "pg" / "run"
+    run_dir.mkdir(parents=True)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen(1)
+        port = busy.getsockname()[1]
+        (run_dir / f".s.PGSQL.{port}").touch()
+
+        env = detect(data)  # 端口从 socket 反推出来 = port，且确实被占着
+        assert env.port == port
+        monkeypatch.setattr(bootstrap_mod, "is_running", lambda e: e.port == port)
+
+        chosen = choose_port(env)
+
+    assert chosen.port == port
+    assert detect(data).port == port
+
+
+def test_start_keeps_running_instance_on_other_port(tmp_path, monkeypatch):
+    """调用方端口过期时也不能清运行中实例的 pid/socket（start 兜底）。"""
+    import importlib
+
+    bootstrap_mod = importlib.import_module("aris.store.bootstrap")
+
+    data = tmp_path / "data"
+    _init_cluster(data / "pgdata")
+    run_dir = data / "pg" / "run"
+    run_dir.mkdir(parents=True)
+    socket_file = run_dir / ".s.PGSQL.60011"
+    socket_file.touch()
+    pid_file = data / "pgdata" / "postmaster.pid"
+    pid_file.write_text("123\n", encoding="utf-8")
+
+    env = detect(data)
+    stale = env.with_port(60012)  # 模拟调用方拿到的过期端口
+    monkeypatch.setattr(bootstrap_mod, "is_running", lambda e: e.port == 60011)
+
+    assert bootstrap_mod.start(stale) is False
+    assert pid_file.exists()
+    assert socket_file.exists()
+
+
 # ---------------------------------------------------------------- 二进制可运行
 
 

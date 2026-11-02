@@ -35,6 +35,8 @@
   runner 上误判为「已安装」。
 - CI 的 `integration` 作业固定使用项目便携 PostgreSQL，避免选中系统实例后
   `CREATE EXTENSION vector` 失败。
+- 修 `aris db init` 后紧接着 `aris db start` 的误判：实例自己占着端口时不再当成「端口被外部
+  占用」换端口，避免重复启动并误清运行中实例的 pid/socket。
 
 ### 升级注意
 
