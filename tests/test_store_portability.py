@@ -16,6 +16,7 @@ from aris.store import pgenv
 from aris.store.bootstrap import choose_port, probe_runnable
 from aris.store.pgenv import (
     DEFAULT_USER,
+    PgSource,
     detect,
     ownership_error,
     port_available,
@@ -29,7 +30,14 @@ from aris.store.pgenv import (
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     """清掉影响探针的环境变量，并复位进程内的临时端口（避免用例互相污染）。"""
-    for key in ("ARIS_PG_BIN", "ARIS_PG_DSN", "ARIS_PG_PORT", "ARIS_PG_USER", "ARIS_PG_DB"):
+    for key in (
+        "ARIS_PG_BIN",
+        "ARIS_PG_SOURCE",
+        "ARIS_PG_DSN",
+        "ARIS_PG_PORT",
+        "ARIS_PG_USER",
+        "ARIS_PG_DB",
+    ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr("aris.store.pgenv.shutil.which", lambda _name: None)
     remember_port(None)
@@ -160,6 +168,85 @@ def test_choose_port_keeps_free_port(tmp_path):
 def test_probe_runnable_missing_binary():
     """没装就是不可运行（不抛异常）。"""
     assert probe_runnable(detect(Path("/nonexistent-data"))) == (False, "未安装")
+
+
+def _fake_system_pg(tmp_path: Path) -> Path:
+    """伪造系统安装：PATH 里能找到 pg_config，且它指向一个含 postgres 的 bin 目录。"""
+    bindir = tmp_path / "system-bin"
+    bindir.mkdir()
+    (bindir / "postgres").write_text("", encoding="utf-8")
+    return bindir
+
+
+def _fake_pg_config(monkeypatch, bindir: Path) -> None:
+    monkeypatch.setattr("aris.store.pgenv.shutil.which", lambda _name: "/fake/pg_config")
+    monkeypatch.setattr("aris.store.pgenv._pg_config_bindir", lambda _path: bindir)
+
+
+def test_pg_source_project_skips_system(tmp_path, monkeypatch):
+    """ARIS_PG_SOURCE=project：系统 PG 未必带 pgvector，强制走便携实例。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "project")
+    env = detect(data)
+
+    assert env.source is PgSource.PROJECT
+    assert env.bin_dir == project_bin
+
+
+def test_pg_source_project_without_portable_reports_missing(tmp_path, monkeypatch):
+    """project 模式不退回系统 PG：没装便携实例就算未安装，交给 bootstrap 去下载。"""
+    _fake_pg_config(monkeypatch, _fake_system_pg(tmp_path))
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "project")
+    env = detect(tmp_path / "data")
+
+    assert env.source is PgSource.MISSING
+    assert env.installed is False
+
+
+def test_pg_source_system_skips_portable(tmp_path, monkeypatch):
+    """system 模式只用 PATH 里的 PostgreSQL。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("ARIS_PG_SOURCE", "system")
+    env = detect(data)
+
+    assert env.source is PgSource.SYSTEM
+    assert env.bin_dir == system_bin
+
+
+def test_pg_source_default_prefers_system(tmp_path, monkeypatch):
+    """auto（默认）保持原顺序：系统 PG 优先于 data/pg。"""
+    system_bin = _fake_system_pg(tmp_path)
+    _fake_pg_config(monkeypatch, system_bin)
+    data = tmp_path / "data"
+    project_bin = data / "pg" / "bin"
+    project_bin.mkdir(parents=True)
+    (project_bin / "postgres").write_text("", encoding="utf-8")
+
+    env = detect(data)
+
+    assert env.source is PgSource.SYSTEM
+    assert env.bin_dir == system_bin
+
+
+def test_pg_source_invalid_falls_back_to_auto(tmp_path, monkeypatch):
+    """非法值按 auto 兜底（只需不炸、行为与默认一致）。"""
+    _fake_pg_config(monkeypatch, _fake_system_pg(tmp_path))
+    monkeypatch.setenv("ARIS_PG_SOURCE", "banana")
+
+    assert detect(tmp_path / "data").source is PgSource.SYSTEM
 
 
 def test_probe_runnable_real_binary():
