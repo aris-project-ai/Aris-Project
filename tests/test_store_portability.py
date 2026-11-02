@@ -162,10 +162,19 @@ def test_probe_runnable_missing_binary():
     assert probe_runnable(detect(Path("/nonexistent-data"))) == (False, "未安装")
 
 
-@pytest.mark.skipif(not detect().installed, reason="本机未安装 PostgreSQL 二进制")
 def test_probe_runnable_real_binary():
-    """真二进制实际执行一次 ``--version``——文件在 ≠ 能跑。"""
-    ok, detail = probe_runnable(detect(), fresh=True)
+    """真二进制实际执行一次 ``--version``——文件在 ≠ 能跑。
+
+    跳过条件必须写在用例里，不能用模块级 ``skipif``：``_clean_env`` 会把
+    ``shutil.which`` 打成 None，而 ``skipif`` 在**收集阶段**就求值（早于 fixture）。
+    装着系统 PostgreSQL 的机器（如 CI runner 自带 ``pg_config``）会先被判成
+    「已安装」而不跳过，随后用例内探测到的却是「未安装」，变成假失败。
+    """
+    env = detect()
+    if not env.installed:
+        pytest.skip("本机未安装 PostgreSQL 二进制")
+
+    ok, detail = probe_runnable(env, fresh=True)
 
     assert ok is True
     assert "PostgreSQL" in detail
