@@ -68,7 +68,7 @@ def _is_shift_mouse(data: str) -> bool:
         return False
     try:
         button = int(data[3:-1].split(";")[0])
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         return False
     return bool(button & 4)
 

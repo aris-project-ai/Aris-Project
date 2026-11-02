@@ -24,9 +24,9 @@ git switch -c feat/add-knowledge-pdf
 
 标准：
 
-- Python 3.12+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
+- Python 3.14+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
 - 公开函数 / 类写全类型标注；新代码尽量带类型。
-- 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`（迁移完成前为 `.env`），两者都不入 git。
+- 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`，两者都不入 git。
 
 ## 3. 本地验证
 
@@ -93,23 +93,51 @@ git push origin --delete feat/add-knowledge-pdf
 
 ## 6. 发版
 
+一个版本从准备到发布完成，**只开一次 PR**：正式版 `release/vX.Y.Z → main`，
+beta `release/beta-vX.Y.Z → main`。**渠道由分支名表达**，CI 据此选测试档位。
+
 ```bash
-bash scripts/bump-version.sh 0.4.4      # 或 patch / minor / major；只改文件不提交
-git add -A && git commit -m "chore(release): 版本号 bump 至 0.4.4"
+bash scripts/release.sh patch           # 正式版：release/v0.4.5
+bash scripts/release.sh --beta patch    # beta：release/beta-v0.4.5
+# 手工封 CHANGELOG.md 的版本段（脚本不代写文案）
 bash scripts/release-check.sh           # 必须 PASS
-git switch main
-git merge --no-ff develop
-git tag beta-v0.4.4                     # 或 v0.4.4；alpha 只在 develop 发 alpha-vX.Y.Z
-git push origin main --tags
+git add -A && git commit -m "chore(release): v0.4.5"
+git push origin release/v0.4.5
 ```
+
+随后：
+
+1. 上游开 PR：`release/v0.4.5 → main`；
+2. 在 PR 上开启原生自动合并：`gh pr merge --auto --merge`；
+3. 必需检查全绿后自动合并；在上游 `main` 打 tag 并推送（`v0.4.5` / `beta-v0.4.5`）；
+4. 再开 PR：`main → develop`，`--no-ff` 合并（同样可以 `gh pr merge --auto --merge`）；
+5. 删除 release 分支（本地与远端）；
+6. **不创建 GitHub Release**（等 GUI 打包后补）。
 
 标准：
 
-- 渠道：beta（小版本，发 `main`）、正式版（发 `main`）、alpha（只发 `develop`）。
-- 号码全线唯一：同一个 `X.Y.Z` 只能出现一次；beta 与正式共用数字线，另一个渠道要用更高的号。
+- 远端约定：`origin` = 日常 fork（`kasamorin/Aris-Project`），`upstream` = 上游
+  （`aris-project-ai/Aris-Project`）；代码只推 `origin`，PR 开在 `upstream`。
+- 渠道与分支：alpha 不走 release 分支，直接在 `develop` 打 `alpha-vX.Y.Z`；beta 用
+  `release/beta-vX.Y.Z`；正式版用 `release/vX.Y.Z`。tag 与分支一一对应，号码全线唯一。
+- CI 分档（`.github/workflows/ci.yml`）：
+  - 普通 PR 与 `develop` / `main` 的 push → `check`（ruff / format / mypy / pytest，PG 与 embedding 用例自动 skip）；
+  - PR → `main` 与 push 到 `main` → `integration`（真起便携 PostgreSQL + 下载 embedding 模型，跑全量测试与冷启动自检）；
+  - `alpha-v*` tag → `smoke`（不装 embedding 组，只验 CLI 与 `serve --dry-run`）。
+- 自动合并的前置设置（上游仓库，只做一次）：
+  - Settings → General → Pull Requests → 勾上 **Allow auto-merge**；
+  - 分支保护 / ruleset：`main` 必需检查 `check` + `integration`，`develop` 必需检查 `check`
+    （仓库内的参考定义见 `.github/rulesets/`，在上游导入后生效）；
+  - 被 `if` 跳过的作业按 GitHub 规则视为通过，不会卡住不相关的 PR；
+  - 不强制分支保持最新（CI 跑在 PR 的合并结果上），单人开发不必反复点 Update branch；
+  - 第一次带 `.github/workflows/` 的 PR 也能跑：`pull_request` 用的是 PR 合并后的工作流文件；
+    fork 发起的首个 PR 可能需要在 Actions 页面批准一次。
 - 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- 发版后同步 `PROGRESS.md` 的版本状态，并把 `changelogs/unreleased.md` 的内容
-  移到 `changelogs/<版本>.md`（面向使用者，格式见 `changelogs/README.md`）。
+- `release.sh` 只做本地准备：校验、切分支、bump、跑 `release-check.sh`、打印后续命令；
+  **不推送、不打 tag、不合并 `main`**。
+- 变更记录：根 `CHANGELOG.md` 只留 `[Unreleased]` 与**当前最新版本**；发版时把上一版本整段
+  移入 `changelogs/<版本>.md`（格式见 `changelogs/README.md`）。
+- 发版后同步 `PROGRESS.md` 的版本状态，勾掉 `todolist.md` 的对应条目。
 
 ## 7. 热修
 

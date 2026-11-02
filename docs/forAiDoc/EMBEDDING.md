@@ -57,7 +57,7 @@
 
 ### 2.2 运行环境
 
-- Python 3.12 实测通过（`sentence-transformers>=5` + `optimum[openvino]` +
+- Python 3.14 实测通过（`sentence-transformers>=5` + `optimum[openvino]` +
   `openvino>=2025` + `transformers<5.1`）。
 - 关键坑：OpenVINO 后端要求 `transformers<5.1`（sentence-transformers 5.x 默认拉
   transformers 5.x，需显式锁低版本）。

@@ -94,12 +94,30 @@ def make_release_repo(repo: Path, version: str = "0.5.0") -> Path:
         '[tool.uv]\ncache-keys = [{ file = "src/aris/__init__.py" }]\n'
     )
     (repo / "changelogs").mkdir()
-    (repo / "changelogs" / f"{version}.md").write_text(
-        f"# {version}\n\n## 新增\n- 测试用变更记录\n", encoding="utf-8"
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n## [" + version + "] - 2026-11-01\n\n"
+        "### 新增\n- 测试用变更记录\n",
+        encoding="utf-8",
     )
     git(repo, "checkout", "-q", "-B", "develop")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "setup")
+    return repo
+
+
+def make_release_script_repo(repo: Path, version: str = "0.4.4", target: str = "0.4.5") -> Path:
+    """release.sh 需要的仓库：脚本 + 版本文件 + pyproject + 带目标版本段的 CHANGELOG。"""
+    make_release_repo(repo, version)
+    for name in ("bump-version.sh", "release.sh"):
+        shutil.copy(SCRIPTS / name, repo / "scripts" / name)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n"
+        f"## [{version}] - 2026-10-30\n\n### 新增\n- 旧版本\n\n"
+        f"## [{target}] - 2026-11-01\n\n### 新增\n- 目标版本\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "release scripts")
     return repo
 
 
@@ -219,6 +237,23 @@ def test_bump_rejects_below_current_even_without_tags(repo: Path) -> None:
     assert "必须大于" in out.stderr
 
 
+def test_bump_allows_release_branch(repo: Path, tmp_path: Path) -> None:
+    make_bump_repo(repo)
+    git(repo, "checkout", "-q", "-B", "release/v0.5.0")
+    out = bump(repo, "0.5.0", env=fake_uv(tmp_path))
+    assert out.returncode == 0, out.stderr
+    content = (repo / "src" / "aris" / "__init__.py").read_text()
+    assert '__version__ = "0.5.0"' in content
+
+
+def test_bump_rejects_other_branch(repo: Path) -> None:
+    make_bump_repo(repo)
+    git(repo, "checkout", "-q", "-B", "feat/whatever")
+    out = bump(repo, "0.5.0")
+    assert out.returncode == 1
+    assert "只能在 develop 或 release/" in out.stderr
+
+
 # ---- release-check.sh ----
 
 
@@ -253,10 +288,35 @@ def test_release_check_passes_with_free_number(repo: Path, tmp_path: Path) -> No
 
 def test_release_check_requires_changelog(repo: Path, tmp_path: Path) -> None:
     make_release_repo(repo)
-    (repo / "changelogs" / "0.5.0.md").unlink()
+    (repo / "CHANGELOG.md").write_text("# 变更记录\n\n## [Unreleased]\n", encoding="utf-8")
     out = release_check(repo, fake_uv(tmp_path))
     assert out.returncode == 1
-    assert "缺少 changelogs/0.5.0.md" in out.stdout
+    assert "缺少非空的 '## [0.5.0]" in out.stdout
+
+
+def test_release_check_requires_changelog_section_body(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n## [0.5.0] - 2026-11-01\n", encoding="utf-8"
+    )
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "缺少非空的 '## [0.5.0]" in out.stdout
+
+
+def test_release_check_rejects_already_archived_version(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    (repo / "changelogs" / "0.5.0.md").write_text("# 0.5.0\n", encoding="utf-8")
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "changelogs/0.5.0.md 已存在" in out.stdout
+
+
+def test_release_check_allows_release_branch(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    git(repo, "checkout", "-q", "-B", "release/v0.5.0")
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 0, out.stdout
 
 
 # ---- alpha 渠道（v0.4.4 W6）----
@@ -296,3 +356,34 @@ def test_release_check_rejects_number_used_by_alpha(repo: Path, tmp_path: Path) 
     out = release_check(repo, fake_uv(tmp_path))
     assert out.returncode == 1
     assert "已被 tag alpha-v0.5.0 占用" in out.stdout
+
+
+# ---- release.sh ----
+
+
+def release_script(repo: Path, *args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return run(["bash", "scripts/release.sh", *args], repo, check=False, env=env)
+
+
+def test_release_script_creates_stable_branch(repo: Path, tmp_path: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "patch", env=fake_uv(tmp_path, "0.4.5"))
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert git(repo, "branch", "--show-current").stdout.strip() == "release/v0.4.5"
+    assert '__version__ = "0.4.5"' in (repo / "src" / "aris" / "__init__.py").read_text()
+    assert "v0.4.5" in out.stdout
+
+
+def test_release_script_creates_beta_branch(repo: Path, tmp_path: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "--beta", "patch", env=fake_uv(tmp_path, "0.4.5"))
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert git(repo, "branch", "--show-current").stdout.strip() == "release/beta-v0.4.5"
+    assert "beta-v0.4.5" in out.stdout
+
+
+def test_release_script_rejects_alpha(repo: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "--alpha", "patch", env=os.environ)
+    assert out.returncode == 2
+    assert "alpha 不走 release 分支" in out.stderr

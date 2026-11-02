@@ -1,0 +1,150 @@
+# CI（v0.4.5）：按渠道分档，与 AGENTS.md §9 / docs/dev-flow.md §6 对齐。
+#
+#   check        普通 PR 与 develop / main 的 push：ruff / format / mypy / pytest
+#                （依赖真库与 embedding 模型的用例自动 skip）
+#   integration  PR → main（正式版 release/vX.Y.Z、beta release/beta-vX.Y.Z）
+#                与 push 到 main：真起便携 PostgreSQL + 下载 embedding 模型，
+#                跑全量测试与冷启动自检
+#   smoke        alpha-v* tag（只在 develop 打）：不装 embedding 组，
+#                只验证 CLI 与 serve --dry-run
+#
+# alpha 不进 main；渠道由 tag 前缀与 release 分支名表达（beta 分支带 beta- 前缀）。
+# 自动合并由开发者在上游开启（原生 auto-merge），workflow 不替人合并。
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+    tags: ["alpha-v*"]
+
+# 同一 ref 的新提交取消上一轮，省额度
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    # tag 走 smoke，不重复跑常规检查
+    if: github.event_name == 'pull_request' || github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      # 第三方 action 固定到发布提交（SHA），第一方 actions/* 用主版本号
+      - name: 安装 uv（含依赖缓存）
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # 默认组含 embedding（torch / openvino / transformers），装得慢但与本机一致
+      - name: 同步依赖
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+      - name: mypy（core + store）
+        run: uv run mypy src/aris/core src/aris/store
+
+      - name: pytest
+        run: uv run pytest -q
+
+  integration:
+    name: integration
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      # 第三方 action 固定到发布提交（SHA），第一方 actions/* 用主版本号
+      - name: 安装 uv（含依赖缓存）
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: 同步依赖（全量，含 embedding 组）
+        run: uv sync --frozen
+
+      # 便携 PostgreSQL 的二进制装在 data/pg（数据目录 data/pgdata 不进缓存，
+      # 每次从空库初始化，避免把上一次的状态带进来）
+      - name: 缓存便携 PostgreSQL
+        uses: actions/cache@v6
+        with:
+          path: data/pg
+          key: pg-17-${{ runner.os }}-${{ hashFiles('src/aris/store/bootstrap.py') }}
+          restore-keys: |
+            pg-17-${{ runner.os }}-
+
+      # 本地 embedding 模型的下载缓存（HF_HOME 指向 data/models）
+      - name: 缓存 embedding 模型
+        uses: actions/cache@v6
+        with:
+          path: data/models
+          key: hf-bekko-${{ runner.os }}
+
+      - name: 初始化并启动便携 PostgreSQL
+        run: |
+          uv run aris db init
+          uv run aris db start
+          uv run aris db migrate
+
+      - name: 全量测试（含 PG + embedding）
+        run: uv run pytest -q
+
+      # 用假 key 让 LLM 配置校验通过；不发起任何网络请求
+      - name: 冷启动自检
+        env:
+          DEEPSEEK_API_KEY: ci-dummy-key
+        run: uv run aris serve --dry-run
+
+  smoke:
+    name: smoke
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'alpha-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      # 第三方 action 固定到发布提交（SHA），第一方 actions/* 用主版本号
+      - name: 安装 uv（含依赖缓存）
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # alpha 只验启动链路，不装 embedding 组（torch 等重依赖）
+      - name: 同步依赖（轻量）
+        run: uv sync --frozen --no-default-groups
+
+      # --no-sync：否则 uv run 会隐式补装默认组（含 torch），把「轻量」抵消掉
+      - name: CLI 事实入口
+        run: |
+          uv run --no-sync aris --version
+          uv run --no-sync aris info
+
+      # 不连数据库：跳过 store.db 与 knowledge，其余探针必须全过
+      - name: 冷启动自检（不连数据库）
+        env:
+          DEEPSEEK_API_KEY: ci-dummy-key
+        run: uv run --no-sync aris serve --dry-run --skip store.db,knowledge

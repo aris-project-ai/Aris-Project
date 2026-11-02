@@ -9,7 +9,7 @@ from __future__ import annotations
 APP_NAME = "Aris Project"
 """显示名：WebUI 标题 / 侧栏 / FastAPI title。"""
 
-GITHUB_URL = "https://github.com/kasamorin/Project-Aris"
+GITHUB_URL = "https://github.com/aris-project-ai/Aris-Project"
 """仓库地址。迁入 GitHub 组织后改这一行，`pyproject.toml` 的 URL 同步。"""
 
 __all__ = ["APP_NAME", "GITHUB_URL"]

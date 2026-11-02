@@ -1,18 +1,23 @@
 # Aris-Project
 
-> ## 正式发布 v0.4.4（地基版）
+[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-76bad9)](COPYING)
+[![Python](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
+
+> ## 正式发布 v0.4.5（首个标准化版本）
 >
 > uv sync && uv run aris serve : 一键启动
-> CLI 事实入口: `aris info` / `config` / `modules`，路径、配置、模块开关直接查
-> 配置收口: 统一 `data/config/` + TOML + 随包种子模板，不再需要 `.env`
-> 模块开关: store / knowledge / mcp / behavior / webui / character / voice 可单独关闭
+> 本版定下变更记录、CI 与发版流程；第三方许可清单见 `NOTICE`
+> v1.0 前接口与数据格式可能变动，介意的话先别接自己的数据。
+
+<!-- 截图位：WebUI 仪表盘 / TUI 对话截图，补图后放在这里 -->
 
 ## 简介
-在 2026-07 我看了Neuro-sama后，萌生了自建的想法，恰逢 Agentic 爆发，于是，在 AI （Opencode伟大，无需多言）的辅助下，本项目诞生了
+在 2026-07 看了 Neuro-sama 后，萌生了自建的想法；恰逢 Agentic 爆发，于是，在 AI（Opencode 伟大，无需多言）的辅助下，本项目诞生了。
+只不过不巧的是 DeepSeek Harness 与 dsh 插件的爆发，本项目显得有些迟滞。
 
 ## 快速开始
 
-环境要求: Python >= 3.12,uv
+环境要求：Python >= 3.14、uv（Python 由 uv 自动准备，不需要手动安装）
 
 ### 启动
 ``` bash
@@ -48,7 +53,7 @@ aris web                      # 仅启动 WebUI
 ```
 其他用法见 `aris -h` 与 `aris {doctor,llm,web...} -h`。
 
-# 数据相关
+## 数据与备份
 
 一切运行时数据都在 `data/`（不进 git，首次启动自动创建）：
 
@@ -57,23 +62,27 @@ aris web                      # 仅启动 WebUI
 - `data/models/` —— 本地 embedding 模型
 - `data/logs/` `data/state/` —— 日志与运行时状态
 
-# 备份与迁移
-
-只需把 `data/` 整个拷到新位置（配置、密钥、数据库、模型都在里面）；新机 `git clone` 后覆盖 `data/` 再 `uv run aris serve` 即可。
-
-> 本项目的代码均由 AI 生成
+备份只需把 `data/` 整个拷到新位置（配置、密钥、数据库、模型都在里面）；新机 `git clone` 后覆盖 `data/` 再 `uv run aris serve` 即可。
 
 ## 文档与参与
 
-- 变更记录：[`changelogs/`](changelogs/)（每个版本一条，面向使用者）
+- 变更记录：[`CHANGELOG.md`](CHANGELOG.md)（最新版本与未发布改动；历史版本在 [`changelogs/`](changelogs/)）
 - 开发流程与提交规范：[`docs/dev-flow.md`](docs/dev-flow.md)
+- 有问题或想改什么，先开 Issue 说清楚再动手，免得白做；项目是单人主导开发，回复可能慢，但都会看。
 
 ## 许可证
 
 本项目以 **AGPL-3.0-or-later** 发布，全文见 [`COPYING`](COPYING)。
 
+Copyright (C) 2026 kasamorin
+
+第三方依赖（含前端静态资源）与设计参考项目的许可信息见 [`NOTICE`](NOTICE)。
+
 ## 参考项目
 
+设计思路上重点参考过（不涉及代码复用，各自的许可与参考内容见 [`NOTICE`](NOTICE)）：
+
 - [AstrBot](https://github.com/AstrBotDevs/AstrBot)
+- [AIRI](https://github.com/moeru-ai/airi)
 - [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - [opencode](https://github.com/anomalyco/opencode)

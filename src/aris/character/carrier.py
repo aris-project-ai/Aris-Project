@@ -114,7 +114,7 @@ class CharacterStore:
         for cid in self.cids():
             try:
                 name = self.load(cid).name
-            except (OSError, ValueError, KeyError):
+            except OSError, ValueError, KeyError:
                 name = cid
             infos.append(CharacterInfo(cid=cid, name=name, path=self.root / cid))
         return infos

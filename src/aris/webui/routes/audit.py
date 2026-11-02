@@ -109,7 +109,7 @@ async def audit_stream(request: Request) -> StreamingResponse:
 
     queue = audit_broker.subscribe()
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """SSE 事件生成器：实时推送审计事件，断连即退出。"""
         try:
             while True:

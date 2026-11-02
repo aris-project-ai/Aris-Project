@@ -86,7 +86,7 @@ async def logs_stream(request: Request) -> StreamingResponse:
 
     queue = log_broker.subscribe()
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """SSE 事件生成器：实时推送日志事件，断连即退出。"""
         try:
             while True:

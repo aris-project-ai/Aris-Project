@@ -1,0 +1,77 @@
+# NOTICE
+
+Aris-Project 以 **AGPL-3.0-or-later** 发布，全文见 [`COPYING`](COPYING)。
+
+Copyright (C) 2026 kasamorin
+
+本文件列出项目使用的第三方组件与设计参考来源，供再分发与协作时核对权利来源。
+「随安装获取」的组件不在本仓库分发，许可以其上游声明为准。
+
+## 一、第三方依赖（随安装获取）
+
+### 运行时依赖（`pyproject.toml` 主依赖）
+
+| 包 | 许可 |
+|---|---|
+| pydantic-settings | MIT |
+| loguru | MIT |
+| openai | Apache-2.0 |
+| httpx | BSD-3-Clause |
+| prompt-toolkit | BSD-3-Clause |
+| trafilatura | Apache-2.0 |
+| beautifulsoup4 | MIT |
+| tomli-w | MIT |
+| fastapi | MIT |
+| uvicorn | BSD-3-Clause |
+| jinja2 | BSD-3-Clause |
+| python-multipart | Apache-2.0 |
+| psycopg | LGPL-3.0-only |
+| pgvector（Python 客户端） | MIT |
+| mcp（官方 Python SDK） | MIT |
+
+### embedding 组（默认安装，可 `--no-default-groups` 跳过）
+
+| 包 | 许可 |
+|---|---|
+| sentence-transformers | Apache-2.0 |
+| optimum | Apache-2.0 |
+| openvino | Apache-2.0 |
+| transformers | Apache-2.0 |
+| torch | BSD-3-Clause（二进制内含若干第三方组件，详见其 LICENSE） |
+| torchvision | BSD-3-Clause |
+
+### 数据库（首次启动经 micromamba 获取，不在仓库内分发）
+
+- **PostgreSQL** — PostgreSQL License
+- **pgvector** — PostgreSQL License
+- **micromamba** — BSD-3-Clause
+
+## 二、前端静态资源（仓库内分发）
+
+| 资源 | 位置 | 许可 |
+|---|---|---|
+| marked | `src/aris/webui/static/marked.min.js` | MIT |
+| DOMPurify | `src/aris/webui/static/purify.min.js` | Apache-2.0 或 MPL-2.0（双许可） |
+| UnoCSS runtime | `src/aris/webui/static/uno.js` | MIT |
+
+## 三、模型
+
+- `hotchpotch/bekko-embedding-v1-a25m` — 首次启动从 Hugging Face 下载，不在本仓库分发；
+  许可以该模型卡（model card）的声明为准。
+
+## 四、设计来源与参考项目
+
+以下项目只在设计上参考（**不含代码复用**），版权与许可归各自作者：
+
+| 项目 | 许可 | 参考内容 |
+|---|---|---|
+| [AstrBot](https://github.com/AstrBotDevs/AstrBot) | AGPL-3.0 | 插件 / 适配层、配置与面板的整体设计思路 |
+| [AIRI](https://github.com/moeru-ai/airi) | MIT | 角色与人格的表达方式 |
+| [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) | MIT | agent 工具编排思路 |
+| [opencode](https://github.com/anomalyco/opencode) | MIT | 开发协作方式与文档组织 |
+
+## 五、许可兼容性说明
+
+- 上述 MIT / BSD-3-Clause / Apache-2.0 / PostgreSQL License 均与 AGPL-3.0-or-later 兼容。
+- psycopg 为 LGPL-3.0-only：以独立依赖方式使用（未修改、未静态链接），不影响本项目自身的 AGPL 授权。
+- DOMPurify 为双许可，本项目按 Apache-2.0 使用。

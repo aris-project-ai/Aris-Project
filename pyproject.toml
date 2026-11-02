@@ -13,13 +13,11 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-# TODO(3.15): 等 OpenVINO 提供 cp315 wheel 后再升，见 docs/forAiDoc/BACKLOG.md #11
-requires-python = ">=3.12"
+# TODO(3.15): 等 OpenVINO 提供 cp315 wheel 后再升
+requires-python = ">=3.14"
 dependencies = [
     "pydantic-settings>=2.0",
     "loguru>=0.7",
@@ -43,9 +41,9 @@ dependencies = [
 aris = "aris.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/kasamorin/Project-Aris"
-Repository = "https://github.com/kasamorin/Project-Aris"
-Issues = "https://github.com/kasamorin/Project-Aris/issues"
+Homepage = "https://github.com/aris-project-ai/Aris-Project"
+Repository = "https://github.com/aris-project-ai/Aris-Project"
+Issues = "https://github.com/aris-project-ai/Aris-Project/issues"
 
 [tool.uv.sources]
 # torch / torchvision 在 Linux 默认拉 CUDA wheel（本机无 NVIDIA GPU，纯浪费体积），
@@ -114,7 +112,7 @@ pythonpath = ["tests"]
 # 代码格式与静态检查（AGENTS.md §2/§7）；文档目录不参与
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 src = ["src", "tests"]
 extend-exclude = ["docs", "data"]
 
@@ -125,7 +123,7 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 
 # mypy 渐进推进：先只查 core + store，稳定后再逐步扩大
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 files = ["src/aris/core", "src/aris/store"]
 check_untyped_defs = true
 disallow_untyped_defs = true
