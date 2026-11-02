@@ -63,6 +63,10 @@
 3. 项目内 `data/pg/bin/postgres`（脚本此前自动装的）
 4. 全无 → 自动下载（见 3.2）
 
+`ARIS_PG_SOURCE=auto|project|system` 可收窄来源（默认 `auto`）：`project` 跳过系统
+`pg_config`，`system` 跳过 `data/pg`；`ARIS_PG_BIN` 始终最优先。系统 PostgreSQL 未必
+装了 pgvector，此时 `CREATE EXTENSION vector` 会失败——用 `project` 强制走便携实例。
+
 ### 3.2 获取方式：micromamba + conda-forge（定案）
 
 实测排除 **EDB 官方 binaries tarball**：`get.enterprisedb.com/postgresql/
@@ -112,7 +116,8 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
   仅监听 `127.0.0.1`
 - micromamba **固定版本 + sha256 常量写死** `bootstrap.py`（升级时两处一起人工更新）
 - Python 侧依赖 `psycopg[binary]`（自带 libpq，不依赖系统 libpq）
-- **系统已装则不下载**（`ARIS_PG_BIN` / `pg_config` 命中）：只确保库与扩展存在
+- **系统已装则不下载**（`ARIS_PG_BIN` / `pg_config` 命中）：只确保库与扩展存在；
+  系统 PG 缺 pgvector 时用 `ARIS_PG_SOURCE=project` 改走便携实例（CI 即如此）
 
 **实现状态（2026-09-18 跑通）**：
 
