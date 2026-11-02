@@ -336,7 +336,6 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | WebUI 管理后台 | `docs/forAiDoc/WEBUI.md` |
 | 可迁移性 / 单一会话 | `docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
 | **v1.0 施工方案与验收（施工入口）** | `docs/process/v1.0.0-prep.md` |
-| v1.0 旧方案（已被取代，仅历史） | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
 | 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
@@ -392,6 +391,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - 残留 `postmaster.pid` 与 run 目录里的 `.s.PGSQL.*`（含 `.lock`）都会挡住启动，两类一起清。
 - `pg_ctl -o "-k <相对路径>"` 必失败（启动后会 chdir 到 PGDATA），一律传绝对路径。
 - 不要 `pkill -f 'data/pgdata'`：模式会匹配到自己的 shell。
+- 系统 PostgreSQL 未必装 pgvector；`CREATE EXTENSION vector` 会失败，用
+  `ARIS_PG_SOURCE=project` 强制走 `data/pg` 便携实例（`ARIS_PG_BIN` 仍最高优先）。
 
 ### 依赖 / 打包
 
@@ -418,6 +419,15 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 ### 测试
 
 - 别往全局迁移登记表塞测试用重名版本；写真实库的测试要在 `finally` 里清理。
+- 模块级 `skipif` 在**收集阶段**求值，早于 autouse fixture；依赖运行期探测的跳过条件
+  写在用例里（先 `detect()` 再 `pytest.skip`），否则装了系统 PostgreSQL 的机器会假失败。
+
+### CI / 发版
+
+- fork 发起的 PR，`pull_request` 读取的是**基线仓库 base 分支上的** workflow 文件；
+  `main` 上还没有 `.github/workflows/` 时，`release → main` 的 PR 不会触发任何作业，
+  只能先绕过保护合并一次把 workflow 带进去（bootstrap），此后正常。
+- fork 发起的首个 PR，Actions 可能要求在 PR 页面点一次 **Approve and run**（首次贡献者限制）。
 
 ### 外部服务
 
@@ -429,8 +439,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 **主线**：v1.0.0「跨越」= 全量待办一次做完（跨越式发展），核心仍是人格 / 角色载体；
 记忆系统方案见 `docs/forAiDoc/MEMORY.md`（开发者维护）。之后是语音链路（STT → LLM → TTS）。
-**v1.0 的阶段划分、决策与施工入口见 `docs/process/v1.0.0-prep.md`**（`V1.0-PLAN.md` 已废弃）；
-待办与阶段计划见 `todolist.md`。
+**v1.0 的阶段划分、决策与施工入口见 `docs/process/v1.0.0-prep.md`**；
+待办与阶段计划见 `todolist.md`（旧方案 `V1.0-PLAN.md` 已归档，不在仓库内）。
 
 **已定方向（未实现）**：
 

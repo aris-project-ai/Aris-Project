@@ -5,22 +5,24 @@
 
 ## 当前版本
 
-`0.4.4`（tag `v0.4.4`，正式版，2026-10-30 发布）。下一阶段：**v0.4.5 标准化收尾 + v1.0 开发准备**。
+`0.4.5`（tag `v0.4.5`，正式版，2026-11-01 发布）。当前做 `0.4.5.1` 收尾补丁：
+**文档修理 + 已有 CI 修复，不加任何功能**。
 
 ## 当前阶段
 
-**v0.4.4 已完成并发布**（施工文档已归档，本机留档）。
-当前进行 **v0.4.5 标准化收尾**（变更记录迁移 / 渠道分档 CI / 发版脚本 / 文档与许可合规），
-完成并发布后进入 **v1.0「跨越」** 开发。
+**v0.4.5 已发布**：变更记录、CI 分档、发版脚本与文档合规落地。
+`check` 本地通过（`bash scripts/check.sh`）；推送 `develop` 后确认远端绿。`integration` 还没在
+远端跑绿——等 0.4.5.1 发版 PR 首次真实运行（本版修掉了它选中系统 PostgreSQL 的问题）。
 
-| 工作包 | 状态 |
+**v0.4.5.1 进行中**，完成后进入 **v1.0「跨越」**：
+
+| 项 | 状态 |
 |---|---|
-| W1 统一数据目录（`paths.py`） | 完成 |
-| W2 配置收口（`data/config/` + TOML 密钥 + 种子模板） | 完成 |
-| W3 CLI 事实入口（`info` / `config` / `modules`） | 完成 |
-| W4 serve 不被模块依赖（运行时归 `behavior/runtime.py`） | 完成 |
-| W5 LLM 退休机制退役（`data/state/llm-list-missing.json`） | 完成 |
-| W6 工程小件（AGPL / alpha / archive / CLAUDE.md） | 完成 |
+| pytest 假失败（模块级 `skipif` 早于 autouse fixture） | 已修，随 0.4.5.1 发布 |
+| integration 选中系统 PG、缺 pgvector | 已修（`ARIS_PG_SOURCE=project`），待发版 PR 验证 |
+| `docs/dev-flow.md` 错误陈述、`gh` 改网页优先 | 本版修 |
+| `PROGRESS.md` 刷新、`V1.0-PLAN.md` 归档、`todolist.md` 结算 | 本版做 |
+| `CHANGELOG` 归档 `[0.4.5]` 并封 `[0.4.5.1]` | 发版时做 |
 
 ## 模块状态
 
@@ -39,42 +41,39 @@
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
-## 已落地（v0.4.4）
+## v0.4.5 已落地
 
-- **W1**：`src/aris/infra/paths.py` 是路径唯一来源（`ARIS_DATA_DIR` > 开发树 `./data` > `~/.project-aris`）；
-  `aris info` 打印解析结果与来源。
-- **W2**：配置统一在 `data/config/`（`settings.toml` / `secrets.toml`(0600) / `providers.toml` /
-  各模块 toml），种子模板随包在 `src/aris/seed/config/` 并在 `serve.assemble()` 前幂等播种；
-  `.env` 机制移除（配置一律 TOML，环境变量优先）。
-- **W4**：运行期单例（`build_engine` / `get_runtime` / `peek_runtime` / `reset_runtime`）归
-  `behavior/runtime.py`，删除 `serve/assembly.py`；`chat` / `cli` / serve 步骤改为依赖 behavior。
-  装配失败经 `assembly_error()` 在启动清单与 `aris doctor` 如实报错；新增
-  `tests/test_import_boundary.py`（AST 扫描，除 `serve/` 与 `cli.py` 外禁止 import serve）。
-- **W5**：退休 / 宽限期 / 自动恢复机制删除；同步后消失的模型只写入
-  `data/state/llm-list-missing.json`（`{provider, model, last_seen}`，幂等合并、跨提供方保留）；
-  `aris llm missing list`（旧 `retired` 留一版别名）与 WebUI「缺失记录」tab 均只读。
-- **W6**：许可证换 AGPL-3.0-or-later（`COPYING` + pyproject + README/AGENTS 口径）；
-  版本脚本支持 `alpha-vX.Y.Z`（只在 develop、占号，含测试）；`docs/archive` 取消跟踪
-  （本机保留、`.gitignore` 排除）；新增 `CLAUDE.md -> AGENTS.md` 软链。
-- **W3**：新增 `src/aris/infra/modules.py`（7 个模块开关 + 依赖级联 + modules.toml 读写）；
-  `serve.assemble()` 先读开关再 import，关闭模块的启动步骤标 skipped、依赖方记 error 不退出；
-  CLI 新增 `aris info` / `aris config path|list|show|validate|env` / `aris modules list|status|enable|disable`；
-  `knowledge.toml` 的 `enabled` 并入 modules.toml。
+- **变更记录**：根 `CHANGELOG.md` 只留 `[Unreleased]` 与最新版本，旧版本归档到 `changelogs/`。
+- **CI 分档**：`check`（所有 PR / `develop` / `main` 推送）、`integration`（发版 PR 到 main，
+  真 PG + embedding + 全量测试 + 冷启动）、`smoke`（alpha tag）。
+- **发版脚本**：`scripts/release.sh` 只做本地准备（校验、切分支、bump、检查），不推送、不打 tag。
+- **文档与合规**：`docs/dev-flow.md` 发版节重写、README 变更记录与许可证段、`NOTICE`。
+
+## 0.4.5.1 修复
+
+- `tests/test_store_portability.py`：PG 二进制探针的跳过条件改为运行时判断。模块级 `skipif`
+  在收集阶段求值，早于 autouse fixture 把 `shutil.which` 打成 `None`；装了系统 PostgreSQL 的
+  CI runner 会先被判成「已安装」，用例内再探测却得到「未安装」，变成假失败。
+- `ARIS_PG_SOURCE=auto|project|system`：收窄便携 PG 探针链。系统 PostgreSQL 未必装
+  pgvector，`integration` 设 `project` 强制走 `data/pg`（`ARIS_PG_BIN` 仍最高优先）。
+- `docs/dev-flow.md`：修正「fork PR 首次带 workflow 也能跑」的错误陈述，补 bootstrap 坑；
+  `gh` 命令改为网页操作步骤。
 
 ## 阻塞 / 待决
 
+- **上游仓库设置**：需开发者确认已开启 **Allow auto-merge** 并导入 `.github/rulesets/`
+  （`main` 要求 `check` + `integration`，`develop` 要求 `check`）。0.4.5 因 `main` 上还没有
+  workflow 走了 bypass 合并（bootstrap），0.4.5.1 起按正常 auto-merge 验证。
 - **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
 - **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
-- **CI 上游前置设置**：需开发者在 `aris-project-ai/Aris-Project` 开 Allow auto-merge 并导入
-  `.github/rulesets/`（`main` 要求 `check` + `integration`，`develop` 要求 `check`）；首次 CI 真实运行待推送验证。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
+- `CONTRIBUTING.md` / `SECURITY.md`：0 字节占位，v1 P7 重写（面向人类、不引用 AI 文档）。
 
 ## 下一步
 
-1. v0.4.5 收尾：封 `CHANGELOG.md` 的版本段 → `bash scripts/release.sh` → `release-check.sh` →
-   `release/v0.4.5 → main` 单一 PR → 开原生 auto-merge（`check` + `integration` 全绿自动合并）→
-   上游打 tag → `main → develop` 回合并（流程见 `docs/dev-flow.md` §6）。
-2. v1.0「跨越」：施工入口 `docs/process/v1.0.0-prep.md`，待办见 `todolist.md`。
-3. 可选技术债：`cli.py` 拆包（W3 建议项，未做）、模块开关测试的总线快照隔离（3.5 建议项）。
-
+1. **0.4.5.1 发版**：`bash scripts/release.sh 0.4.5.1` → 归档 `[0.4.5]`、封 `[0.4.5.1]` →
+   `release-check.sh` → 上游 PR（**不 bypass**，等 `check` + `integration` 全绿）→ 开 auto-merge →
+   tag `v0.4.5.1` → `main → develop` 回合并。
+2. **v1.0「跨越」**：施工入口 `docs/process/v1.0.0-prep.md`，待办见 `todolist.md`。
+3. 可选技术债：`cli.py` 拆包、模块开关测试的总线快照隔离。
