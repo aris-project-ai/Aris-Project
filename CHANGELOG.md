@@ -14,25 +14,28 @@
 
 ### 升级注意
 
-## [0.4.5] - 2026-11-01
+## [0.4.5.1] - 2026-11-03
 
 ### 亮点
 
-第一次按标准流程发版的版本：变更记录、CI 与发版脚本在这里定型。
-
-### 新增
-
-- 仓库 CI：PR 与 `develop` / `main` 推送自动跑 ruff / mypy / 单测；发版 PR 额外起真 PostgreSQL
-  与 embedding 跑全量测试；alpha tag 跑轻量启动自检。
-- `NOTICE`：第三方依赖许可与设计参考项目（AstrBot、AIRI 等）。
-- `scripts/release.sh`：一条命令完成发版准备（校验、切分支、bump、检查），不推送、不打 tag。
+标准化收尾补丁：修好首次发版暴露的两处 CI 问题，并清掉 v0.4.5 留下的文档债；不含功能变更。
 
 ### 改进
 
-- 变更记录改为根 `CHANGELOG.md` 只留最新版本，旧版本归档到 `changelogs/`。
-- README 重整：快速开始、数据与备份、参与方式更清楚，补版本与 Python 徽章。
-- 发版流程定稿：`release/` 分支单一 PR → 原生 auto-merge → tag → `main` 回合并 `develop`。
+- 新增 `ARIS_PG_SOURCE=auto|project|system`：可收窄 PostgreSQL 来源。系统 PostgreSQL 没装
+  pgvector 时用 `project` 强制走项目便携实例（`ARIS_PG_BIN` 仍最高优先）。
+- 发版文档修正：fork PR 的 workflow 必须先落到 base 分支；操作步骤改为网页优先，不再依赖 `gh`。
+- `PROGRESS.md` / `todolist.md` 结算 v0.4.5；v1 的存量文档清理要求写入
+  `docs/process/v1.0.0-prep.md`。
+- 归档已废弃的 `V1.0-PLAN.md`。
+
+### 修复
+
+- 修 CI 里的 PostgreSQL 探针假失败：跳过条件改为运行时判断，避免在装有系统 PostgreSQL 的
+  runner 上误判为「已安装」。
+- CI 的 `integration` 作业固定使用项目便携 PostgreSQL，避免选中系统实例后
+  `CREATE EXTENSION vector` 失败。
 
 ### 升级注意
 
-- 运行环境要求提高到 **Python 3.14+**（`requires-python = ">=3.14"`），旧版 Python 无法安装。
+- 无功能变更，无需迁移数据或配置。
