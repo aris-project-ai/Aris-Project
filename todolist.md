@@ -4,18 +4,20 @@
 
 - [] Bug fix
 - [] WebUI重整，分为Dashboard与WebChat
-- [] 宣布项目公开
+- [x] 宣布项目公开
 - [] 基于MyGO框架的GUI
 - [] 对于发行版进行软件包打包（GUI）之后
 - [] .desktop文件（同样在GUI之后）
+- [] Live2D 支持（v1 不做，GUI 之后）
 - [] 记忆系统和角色系统
-- [] 迁移config至data
+- [x] 迁移config至data
 - [] 全新的备份系统
 - [] WebUI设置界面，分开简单设置和高级设置
-- [] 项目标准化（文档重整与CI/CD）
+- [p] 项目标准化（文档重整与CI/CD）
+- [] 许可证合规（NOTICE + 第三方许可清单、发行物附 COPYING、WebUI 关于页源码链接）
 - [] 文档重整
-- [] git中取消跟踪docs/archive
-- [] 全面取消多配置地点，配置完全归于data/config/*.toml（.env也迁移）
+- [x] git中取消跟踪docs/archive
+- [x] 全面取消多配置地点，配置完全归于data/config/*.toml（.env也迁移）
 - [] 密码和api key 加密
 - [] v1.0.0后续版本如果有破坏性更新，需支持老版本向新版本迁移（用户同意后）
 - [] memory-lite和sqlite
@@ -24,21 +26,36 @@
 - [] autorun自动任务
 - [] 消息平台连接（做的话先做OneBot v11）
 - [] 多模态、全模态模型支持
-- [] 制作图标与更改项目定义
-- [] 开发流程文档（从创建分支到更新版本）
+- [] 决策模型支持（自主回复 / 自主操作门控）
+- [] v1.x：借鉴 SurfCore（Mieksido/surfcore，v1.0 之后到 v2 之前，不进 v1.0 核心决策）
+- [] v1.x：主管理员账户（人格化管理员提示注入）
+- [] v1.x 评估：生活化主动联系（状态/日程/关系 → 行为候选；v1.0 的主动联系只走 autorun + 决策模型）
+- [] v1.x：群聊全量历史持久化 + 工具查询
+- [] v1.x 候选：回复拆多条（模型分段）、情绪/状态记忆
+- [] v1.x：插件 LLM/结果钩子扩到 AstrBot 全量（on_waiting、工具前后、agent 开始/结束、消息发送后等）
+- [] v1.x：知识库 rerank（成本敏感，v1 只留接口默认关）
+- [] v1.1：文档站（VitePress）+ 域名
+- [] v1.1：aarch64 / 交叉编译、deb / AppImage / Windows 打包
+- [p] 制作图标与更改项目定义
+- [p] 开发流程文档（从创建分支到更新版本）
 - [] 制作宣传视频
 - [] 统一连接路径&接入点
 - [] LLM连接与提供商完全重构
+- [] LLM fallback 按 D9 收敛（删竞速、免费优先、关双层重试、空输出重试）
+- [] 知识库分组
+- [] 日志优化（可读性与检索）
+- [] 加强路径守卫测试（只白名单 `paths.py`；覆盖 f-string / 字符串拼接；扫描 templates 与脚本）
 - [] 知识库二期
+- [] 知识库-lite（不依赖 embedding 的纯关键词版；方案未定，v1 不做）
 - [] 从zip导入skills
-- [] 切换项目许可证为AGPL
-- [] 增加只在develop发布的alpha-渠道
+- [x] 切换项目许可证为AGPL
+- [x] 增加只在develop发布的alpha-渠道
 - [] 彩蛋
-- [] 模块开关&工具开关
+- [p] 模块开关&工具开关
 - [] 取消models.dev获取元信息，直接从提供商获取（以及参考astrbot）
 - [] 买域名，将文档站提上议程
-- [] 将项目名正式修改为Aris Project(与Project AIRI作出区别),并将项目移入Github组织
-- [] 定v1大版本开发代号为"跨越"("Cross")
+- [x] 将项目名正式修改为Aris Project(与Project AIRI作出区别),并将项目移入Github组织
+- [x] 定v1大版本开发代号为"跨越"("Cross")
 
 
 ---
@@ -94,7 +111,7 @@
 
 ### A. 提交记录（head / body / footer）
 - [x] 规则写清：AGENTS.md §8、docs/dev-flow.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
-- [ ] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
+- [x] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
 - [ ] 新提交一律带 footer（有可关联 issue/PR 时）；合并时保留分支内多条 commit
 
 ### B. 文档
@@ -114,9 +131,24 @@
 - [x] oldWish 迁出主仓库：独立仓库在 `data/temp/oldWish`（带历史），主仓库与 fork 已删除该分支
 
 ### D. CI/CD（v1 期间）
-- [ ] 打包（wheel + 可选 GUI）后加 CI：lint / test / build / release 产物
+- [x] CI：PR 与 develop / main 推送跑 ruff / mypy / pytest；发版 PR 加真库 + embedding；alpha tag 跑 smoke（v0.4.5）
+- [ ] 打包（wheel + 可选 GUI）后加构建 / release 产物步骤
 - [ ] CD：tag 触发构建与发布（等发行包形态稳定）
 
 ### E. i18n（v1 期间）
 - [ ] 用户可见文案集中到常量 / 资源（先做后端，不引框架）
 - [ ] 至少支持中 / 英；后续再评估其它语言
+
+### v0.4.5 标准化施工进度（2026-11-01 记录）
+
+- W1 变更记录迁移：根 `CHANGELOG.md`（`[Unreleased]` + 最新版本）+ `changelogs/` 只放旧版本；`release-check.sh` 按新规则校验。
+- W2 CI：`.github/workflows/ci.yml` 按渠道分档——`check`（所有 PR / develop / main 推送跑 ruff / mypy / pytest）、
+  `integration`（发版 PR 到 main：真 PG + embedding + 全量测试 + 冷启动）、`smoke`（alpha tag：CLI + dry-run）。
+- W3 发版：新增 `scripts/release.sh`（只做本地准备，不推送；`--beta` 切 `release/beta-vX.Y.Z`）；
+  `bump-version.sh` 与 `release-check.sh` 放行 `release/*`；
+  流程定为「release 分支 → 上游单一 PR → 原生 auto-merge → 上游 tag → main 回 develop」。
+- W2 配套：`.github/rulesets/` 参考定义（main 要 `check` + `integration`，develop 要 `check`）；
+  需开发者在**上游**开启 Allow auto-merge 并导入 ruleset。
+- W4 文档与合规：`docs/dev-flow.md` 发版节重写；README 变更记录与许可证段；新增 `NOTICE`（第三方许可 + 设计来源）；
+  §5.1 清理指向 `docs/archive` 的指针。
+- 本版不做：`session_cooldown_days`（代码里尚无消费方，留到 v1 会话落地）、GitHub Release、打包、文档站、i18n。

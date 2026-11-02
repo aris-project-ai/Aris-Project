@@ -1,16 +1,17 @@
 # 开发进度
 
-> 只记**当前**状态与在手的事；历史条目在 `docs/archive/PROGRESS-2026-10.md`。
+> 只记**当前**状态与在手的事；历史条目不在仓库内。
 > 开工前先读本文件，再读 `todolist.md`（待办唯一真相源）与 AGENTS.md §10 路由。
 
 ## 当前版本
 
-`0.4.4`（tag `v0.4.4`，正式版，2026-10-30 发布）。下一阶段：**标准化 + v1.0 开发准备**。
+`0.4.4`（tag `v0.4.4`，正式版，2026-10-30 发布）。下一阶段：**v0.4.5 标准化收尾 + v1.0 开发准备**。
 
 ## 当前阶段
 
-**v0.4.4 已完成并发布**（施工文档已归档至 `docs/archive/v0.4.4.md`）。
-当前进入 **v1.0 前的标准化**（提交规范 / 文档 / 项目结构；CI 与 i18n 留到 v1 期间）。
+**v0.4.4 已完成并发布**（施工文档已归档，本机留档）。
+当前进行 **v0.4.5 标准化收尾**（变更记录迁移 / 渠道分档 CI / 发版脚本 / 文档与许可合规），
+完成并发布后进入 **v1.0「跨越」** 开发。
 
 | 工作包 | 状态 |
 |---|---|
@@ -64,11 +65,16 @@
 
 - **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
 - **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
+- **CI 上游前置设置**：需开发者在 `aris-project-ai/Aris-Project` 开 Allow auto-merge 并导入
+  `.github/rulesets/`（`main` 要求 `check` + `integration`，`develop` 要求 `check`）；首次 CI 真实运行待推送验证。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 
 ## 下一步
 
-1. 阶段收官：`bump-version.sh 0.4.4` → `release-check.sh` → 合并 main → tag `v0.4.4`。
-2. 可选技术债：`cli.py` 拆包（W3 建议项，未做）、模块开关测试的总线快照隔离（3.5 建议项）。
+1. v0.4.5 收尾：封 `CHANGELOG.md` 的版本段 → `bash scripts/release.sh` → `release-check.sh` →
+   `release/v0.4.5 → main` 单一 PR → 开原生 auto-merge（`check` + `integration` 全绿自动合并）→
+   上游打 tag → `main → develop` 回合并（流程见 `docs/dev-flow.md` §6）。
+2. v1.0「跨越」：施工入口 `docs/process/v1.0.0-prep.md`，待办见 `todolist.md`。
+3. 可选技术债：`cli.py` 拆包（W3 建议项，未做）、模块开关测试的总线快照隔离（3.5 建议项）。
 

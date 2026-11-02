@@ -4,9 +4,10 @@
 #      不带 .dev0 / -beta 等后缀；pyproject.toml 走 dynamic version
 #   2. 已安装元数据与源一致（uv cache-keys 是否生效的兜底）
 #   3. uv.lock 与 pyproject.toml 同步（uv lock --check）
-#   4. 当前分支是 develop 且无未合并的本地 feature 分支
+#   4. 当前分支是 develop 或 release/*，且无未合并的本地 feature 分支
 #   5. 号码未被任何渠道占用（alpha-vX.Y.Z / beta-vX.Y.Z / vX.Y.Z / 历史 vX.Y.Z-beta）
 #   6. 号码大于已发布的最后一个号
+#   7. CHANGELOG.md 有非空的 [<ver>] 段，且 changelogs/<ver>.md 不存在（归档只放旧版本）
 # 通过则输出发布流程提示并 exit 0；否则列出问题 exit 1。
 # 用法：bash scripts/release-check.sh
 
@@ -87,18 +88,20 @@ fi
 
 # ---- 4. 分支状态 ----
 cur="$(git symbolic-ref --short HEAD 2>/dev/null || echo '<detached>')"
-if [ "$cur" = "develop" ]; then
-    echo "[ ok ] 当前分支: develop"
-else
-    echo "[FAIL] 当前分支: $cur（发布检查应在 develop 上进行）"
+case "$cur" in
+develop | release/*) echo "[ ok ] 当前分支: $cur" ;;
+*)
+    echo "[FAIL] 当前分支: $cur（发布检查应在 develop 或 release/<版本> 上进行）"
     fail=1
-fi
+    ;;
+esac
 
 unmerged=""
 for b in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
     case "$b" in
     develop | main | oldWish) continue ;;
     feat/memory-old) continue ;; # 长期保留的存档分支，不合 develop
+    release/*) continue ;;       # 发版分支本身就是待合并项，不算遗漏
     esac
     if ! git merge-base --is-ancestor "$b" develop 2>/dev/null; then
         unmerged="$unmerged $b"
@@ -112,11 +115,33 @@ else
 fi
 
 # ---- 4.5 变更记录（面向使用者，发版前必须写）----
-CHANGELOG="changelogs/${ver}.md"
-if [ -n "${ver}" ] && [ -s "$CHANGELOG" ]; then
-    echo "[ ok ] 变更记录: $CHANGELOG"
+# 规则：CHANGELOG.md 里有非空的 `## [<ver>]` 段；changelogs/<ver>.md 不得存在
+# （归档目录只放旧版本，存在即说明重复归档 / 重复发布）。
+CHANGELOG="CHANGELOG.md"
+ARCHIVED="changelogs/${ver}.md"
+
+changelog_section_nonempty() {
+    awk -v ver="$1" '
+        index($0, "## [" ver "]") == 1 { inside = 1; next }
+        inside && index($0, "## ") == 1 { exit }
+        inside && $0 !~ /^[[:space:]]*$/ { found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' "$CHANGELOG"
+}
+
+if [ -z "$ver" ]; then
+    echo "[skip] 版本号不可用，跳过变更记录检查"
+elif [ ! -f "$CHANGELOG" ]; then
+    echo "[FAIL] 缺少 $CHANGELOG（最新版本与 [Unreleased] 都在这里，发版前必须写）"
+    fail=1
+elif ! changelog_section_nonempty "$ver"; then
+    echo "[FAIL] $CHANGELOG 里缺少非空的 '## [$ver] - YYYY-MM-DD' 段（发版前必须写）"
+    fail=1
 else
-    echo "[FAIL] 缺少 changelogs/${ver}.md（面向使用者的变更记录，发版前必须写）"
+    echo "[ ok ] 变更记录: $CHANGELOG 的 [$ver] 段"
+fi
+if [ -n "$ver" ] && [ -e "$ARCHIVED" ]; then
+    echo "[FAIL] $ARCHIVED 已存在（号码重复归档 / 重复发布；归档目录只放旧版本）"
     fail=1
 fi
 
@@ -145,10 +170,19 @@ fi
 echo
 if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
-    echo "  1. 在 develop 上 bump：bash scripts/bump-version.sh <版本|patch|minor|major>"
-    echo "  2. 提交 chore(release) 后合并回 main（git merge --no-ff）"
-    echo "  3. 按渠道打 tag：alpha-v$ver（只在 develop）/ beta-v$ver / v$ver（三选一，号码共用）"
-    echo "  4. git push origin develop main && git push origin <tag>"
+    echo "  1. 发版准备：bash scripts/release.sh [--beta] <版本|patch|minor|major>（从 develop 切 release 分支并 bump）"
+    echo "  2. 封 CHANGELOG.md 的版本段，提交 chore(release): ..."
+    echo "  3. 推送 ${cur} 到 fork（origin），向上游开 PR：${cur} → main"
+    echo "  4. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
+    echo "     （需上游已开 Allow auto-merge，且 main 的必需检查含 check + integration）"
+    case "$cur" in
+    release/beta-*) tag_hint="beta-v$ver" ;;
+    release/*) tag_hint="v$ver" ;;
+    *) tag_hint="alpha-v$ver（develop 专用，不进 main）" ;;
+    esac
+    echo "  5. 合并后在上游 main 打 tag 并推送：$tag_hint"
+    echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 release 分支"
+    echo "  7. 不创建 GitHub Release（等 GUI 打包后补）"
     exit 0
 fi
 

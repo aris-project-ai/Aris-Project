@@ -1,17 +1,16 @@
 # AGENTS.md
 
 > 本文件是 Aris 的最高权威与通用规则：**读完本文件 + 对应模块文档，就能开始开发**。
-> 为了方便称呼以及区分开发者与用户，本文档中可能会使用dever来称呼开发者（通常为莫琳）。
 >
 > 这些规矩绝大多数是踩坑踩出来的。写下来不是为了管住谁，是为了下次别再踩同一个坑。
 
 ## 1. 权威与规则
 
-- **最终权威归开发者，尤其是莫琳。**
-- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`
-  > `docs/archive/`**。都不合，停下来问开发者，不要自己拍板。
+- **最终权威归开发者**
+- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`**。
+  都不合，停下来问开发者，不要自己拍板。
 - **待办唯一真相源是仓库根 `todolist.md`**：要做的事只写在那里，按阶段推进；
-  旧的 `BACKLOG.md` 已归档作废。**事实优先于文档**——能用 CLI / 代码常量表达的事实，
+  旧的 `BACKLOG.md` 已作废、不再维护。**事实优先于文档**——能用 CLI / 代码常量表达的事实，
   不再单独写进文档。
 - **准入标准**：AGENTS.md 只收两类内容——**通用规则**（适用于所有模块）与**最高权威判定**。
   单模块实现细节、一次性决定、历史过程都不进来。
@@ -29,7 +28,17 @@
 - **必须读进度**：每次开工前先读 `PROGRESS.md`，确认当前版本、模块状态与阻塞；
   不要凭记忆或聊天记录判断项目状态。读完再按 §10 取对应模块文档。
 - **不擅自删不认识的改动**：看到不理解的代码、文档、未提交改动，先问，不要当垃圾清掉。
-- 对话中称「开发者」；明确是莫琳时可直接称名字；**不要用「dever」称呼对方**。
+- 对话中称「开发者」；。
+- **极为建议：先消歧义、再商议、拍板后动手。** 需求有歧义时先列出歧义点问开发者，
+  不要按自己的理解直接写文档或改代码；未定的事留作待定，不要替开发者做决定。
+- **不要主观臆测**：外部 API / 协议 / 第三方行为，必须先查官方文档或本地源码/实测，
+  不凭印象写进代码或文档；查不到就标明「未验证」并问开发者，**禁止编造字段、端点、参数**。
+  同理，讨论里没被开发者明确点头的方案不算定案。
+- **结论及时落地**：每轮商议拍板后**当场**把结论写进对应的阶段文档（`docs/process/`），
+  不要只留在对话里；横跨多天的长商议尤其如此——对话会压缩、会丢，文档不会。
+  收尾前对一遍：这轮定了什么、写进哪一节、还有什么仍是待定。
+- 文档不受100行的限制
+- **不要在给人类看的文档中指向给AI看的文档** **专门**给AI看的文档范围严格限定在AGENTS.md(CLAUDE.md)与 `docs/forAiDoc` 中
 
 ## 2. 会话启动与常用命令
 
@@ -56,9 +65,11 @@
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
+| `bash scripts/release.sh [--beta] <版本\|patch>` | 发版准备：切 `release/` 分支并 bump（只改文件，不推送） |
 
 **CLI 功能必须 ≥ WebUI**：WebUI 有的能力，CLI 必须先有（只能多不能少）；新增 WebUI 功能前先补对应命令。
-通常情况下，能使用CLI也就意味着能使用终端工具，因此如改设置这类功能可以通过vim/nano/sed......实现，不需要在cli额外添加实现
+原因见 §6「前后端边界」：CLI 属于后端，前端只是壳。
+通常情况下，能使用CLI也就意味着能使用终端工具，因此如改配置这类功能可以通过vim/nano/sed......实现，不需要在cli额外添加实现
 
 ## 3. 项目
 
@@ -89,19 +100,23 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
 | `src/aris/behavior/` | 行为：工具注册表（含世代同步）、agent loop、内置工具、skills 系统；联网搜索是**引擎池**（`behavior/search/`：Bing 直连 / Tavily 含 keyless / Exa 经 mcp，见 `docs/forAiDoc/WEB-SEARCH.md`） |
 | `src/aris/chat/` | 文字对话 + TUI（`aris chat`，开发调试用） |
-| `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI，不对外提供查询服务；**任何模块不得 import serve**（serve 是启动器，不是库；运行时对象归 `behavior/runtime.py`） |
+| `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI（约束见 §6「CMCB」） |
 | `src/aris/webui/` | 管理后台：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库 |
 | `src/aris/voice/` | STT / TTS：TTS 已定 Edge TTS 起步（Azure 备选），STT 选型未定 |
-| `src/aris/autorun/` | 定时与主动任务（只留设计，暂不实现） |
+| `src/aris/autorun/` | 定时与主动任务（规划中，目录尚未创建） |
 | `src/aris/seed/config/` | 随包配置模板：首次启动幂等播种到 `data/config/`（只补缺失，不覆盖用户改动） |
-| `data/` | 运行时数据：`config/`（含密钥）`pgdata/` `state/` `knowledge/` `characters/` `skills/` `autorun/` `logs/` `models/` `pg/`（不进 git） |
+| `data/` | 运行时数据：`config/`（含密钥）`pgdata/` `state/` `knowledge/` `characters/` `skills/` `autorun/` `logs/` `models/` `pg/` `bin/`（不进 git） |
 | `docs/forAiDoc/` | 设计与契约文档（为什么这么设计、接口是什么） |
-| `docs/archive/` | 历史存档（已作废的规则与方案），只读 |
+| `docs/dev-flow.md` | 人类开发流程（分支 → 提交 → 合并 → 发版） |
+| `tests/` | pytest 用例与测试支持（`tests/support/` 提供 mock LLM / HTTP） |
+| `scripts/` | 本地检修与发版脚本（`check.sh` / `release-check.sh` / `release.sh` / `bump-version.sh` / `install-git-hooks.sh`） |
+| `changelogs/` | 历史版本变更记录归档（最新版本在根 `CHANGELOG.md`） |
+| `CHANGELOG.md` | 最新版本与未发布改动（`[Unreleased]` 置顶） |
 
 ## 5. 编码规范
 
 - **语言**：变量 / 函数 / 类名一律英文；注释与 docstring 一律中文。
-- **Python**：最低 3.12，开发按 3.14，尽量用新特性；包名 `aris`，src 布局，依赖用 uv 管理。
+- **Python**：最低 3.14（`requires-python = ">=3.14"`，CI 同版本），尽量用新特性；包名 `aris`，src 布局，依赖用 uv 管理。
 - **类型标注**尽量全，公开函数 / 类必须完整。
 - **行宽**：**代码**限 100 列；**文档不限宽**。
 - **格式与静态检查**：`ruff format` + `ruff check`（行宽 100，规则见 `pyproject.toml`）；
@@ -129,6 +144,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 - **定位**：`src/aris/core/bus.py` 一处承载三件事——服务注册表、事件广播、审计。
   全项目的模块间通讯都走它，模块之间不互相 import。
+- **作用之一是在项目内替代 HTTP**：内部协作优先走总线（或既有机制），不要为项目内部通讯新增 HTTP 接口。
 - **服务面**：`provide(name, fn)` 注册、`call(name, ...)` 调用（同步、可有返回值）、
   `has_service(name)` 探测、`services()` 列出。服务名 `module.service`，事件名 `module.event`；
   前缀是模块名，代码标识符不带 `aris`。
@@ -148,10 +164,21 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **改服务时**：新增 / 改名 / 删除要同步 `docs/forAiDoc/CMCB.md` 的服务表，并全仓搜索调用点。
 - 服务表与架构详见 `docs/forAiDoc/CMCB.md`。
 
+### 前后端边界
+
+- **前端只有三类**：WebUI、GUI（MyGO 的 system webview，复用 WebUI 的前端产物）、未来手机端。
+- **CLI 属于后端**：与 `serve` 同侧，直接读 `data/`、直接调模块。因此「CLI 能力 ≥ 前端」是架构上的
+  必然，不是口号——前端是壳，任何前端能力都必须先在后端 / CLI 存在。
+- 日常操作以 WebUI / GUI 为主，CLI 用于诊断、脚本化与出问题时的救援；不要求普通用户会 CLI。
+- 前端不承载业务逻辑：路由只经 `core.call`；路径一律由 `infra/paths.py` 解析（有守卫测试兜底）。
+
 ### 依赖与错误处理
 
 - 依赖方向单向：`memory` / `knowledge` → 总线 → `store`，不许反向依赖。
 - 核心逻辑快速失败、不留脏状态；外围功能宽容降级，但**降级必须记日志**，禁止静默失败。
+- **必填配置缺失或非法 = 进入错误处理**（该功能不可用 + error 日志），不静默取默认值；
+  只有可选项缺省才用默认值。
+- **适配层必须隔离**：插件 / 兼容层（如 AstrBot 适配）原子化，上游变动不得倒逼本体大改。
 
 ### 单一会话
 
@@ -175,7 +202,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | `data/config/modules.toml` | 模块开关（`[modules]`） | `aris modules` / serve 装配 |
 
 - 优先级：代码内 dataclass 默认值 < 种子模板 < `data/config/*.toml` < 进程环境变量。
-  缺文件、缺键、解析失败都静默用默认值（记 warning，不抛异常）。
+  缺文件、缺键、解析失败按默认值兜底并记 warning，不抛异常；但**必填项为空或非法不兜底**，
+  按上面的「依赖与错误处理」处理。
 - `data_dir` 不写进 TOML：只认进程环境变量 `ARIS_DATA_DIR`（否则鸡生蛋）。
 - 收口原则：枚举 = 代码内 StrEnum；实现细节 = 模块顶部常量；真正可调的才进 toml；
   密钥永远只在 `data/config/secrets.toml`（其他 toml 只写 key 的环境变量名）。
@@ -199,7 +227,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - 密钥（API key）一律放 `data/config/secrets.toml`（0600，播种时自动设置），**不进 git**；
   进程环境变量优先，可临时覆盖。
 - 日志：`data/logs/YYYY-MM-DD/aris.log`；级别 `ARIS_LOG_LEVEL`，轮转与保留见 `data/config/logging.toml`。
-- 备份：`rsync -av data/ /backup/aris-data/`；数据库在跑时用 `pg_dump` 更稳。
+- **备份对象只有 `data/`**：运行期可变数据一律在 `data/`，`data/` 之外不放需要备份的东西；
+  备份 = 打包 `data/` + 元信息（版本、备注等）；数据库在跑时用 `pg_dump` 或先停库更稳。
 
 ### 常见改动落在哪
 
@@ -223,15 +252,17 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **开发闭环**：改代码 → 跑测试 / 起服务实测 → 更新文档（契约变化写模块文档，状态变化写
   `PROGRESS.md`）→ 提交。
 - **测试细节**：用例在 `tests/`；`tests/support/` 提供 mock LLM / mock HTTP；
-  `conftest.py` 会调用 `serve.assemble()` 注册全部服务。依赖真库的用例在 PG 未运行时自动 skip，
+  `tests/conftest.py` 会调用 `serve.assemble()` 注册全部服务。依赖真库的用例在 PG 未运行时自动 skip，
   跑全量前先 `aris db start`。单跑一个文件：`uv run pytest tests/test_xxx.py -q`。
 
 ## 8. Git 流程
 
 - **`develop` 是日常汇聚分支**：所有开发先开 feature 分支（`feat/` `fix/` `docs/` `refactor/` 前缀，
   从最新 develop 拉出），分支内小步提交，验证后 `git merge --no-ff` 合并回 develop，
-  随后删除本地与远程 feature 分支。日常开发不直接碰 main。
-- **`main` 只进发布**：beta 版与正式版发布时从 develop 合并回 main（`--no-ff`）并打 tag。
+  随后删除本地与远程 feature 分支（远程操作由开发者执行）。日常开发不直接碰 main。
+- **`main` 只进发布**：正式版从 `release/vX.Y.Z`、beta 从 `release/beta-vX.Y.Z` 向上游 `main`
+  开 PR（`--no-ff` 合并）并打 tag，合并后 `main` 再回合并 `develop`；发版 PR 用原生 auto-merge
+  （检查全绿自动合并），细节见 `docs/dev-flow.md` §6。
 - `oldWish` 已迁出主仓库（独立仓库在 `data/temp/oldWish`，带完整历史）；主仓库不再保留该分支。
 - **提交信息**：`<type>(<scope>): 简短中文描述`，type 取
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
@@ -242,6 +273,11 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **一次提交只做一件事**（代码与文档分开）；同一文件的改动一次改完。
 - **Fork + PR 模式**：上游 `aris-project-ai/Aris-Project`，日常推到 fork
   `kasamorin/Aris-Project` 的 `develop`；攒够后向上游 `develop` 提 PR，不直接推上游。
+- **推送由开发者执行**：AI 只做本地提交，**不执行 `git push`**；需要推送时提醒开发者，由其本人推送。
+- **发版由开发者决定**：bump / tag / GitHub Release / 合并 main 等发版动作，AI 必须先征得开发者明确同意，
+  不得私自执行发版流程。
+- **不绕过推送限制**：不得用改动 ssh 配置、替换 remote、伪造 token 等手段绕过 push / 分支保护；
+  这会造成提交人错误。遇到推送受限就停下来告诉开发者。
 - 版本号攒到**阶段性发布**再 bump，不要为了「有进展」频繁 bump。
 - 仓库自带 commit-msg 与 pre-commit hook（提交格式 + 分支保护 + staged Python 的 ruff 检查），
   换机后先跑 `bash scripts/install-git-hooks.sh`。
@@ -253,25 +289,34 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **唯一源**：`src/aris/__init__.py` 的 `__version__`。`pyproject.toml` 走 `dynamic = ["version"]`，
   `uv.lock` 不记录本项目版本；`[tool.uv] cache-keys` 必须含该文件（否则改了版本 uv 不重建元数据）。
 - **版本串只写数字**：`X.Y.Z` 或 `X.Y.Z.W`，不带 `.dev0` / `-beta` 等后缀；渠道只由 tag 表达。
-- 当前两类渠道，**都发布在 main**：
+- 当前三类渠道：beta / 正式版发布在 main，**alpha 只在 develop**：
 
-| 渠道 | tag | `__version__` |
-|---|---|---|
-| beta（小版本更新） | `beta-vX.Y.Z` | `X.Y.Z` |
-| 正式版 | `vX.Y.Z` | `X.Y.Z` |
+| 渠道 | tag | `__version__` | 发版分支 → 发布位置 |
+|---|---|---|---|
+| beta（候选版，正式前验证） | `beta-vX.Y.Z` | `X.Y.Z` | `release/beta-vX.Y.Z` → main |
+| 正式版 | `vX.Y.Z` | `X.Y.Z` | `release/vX.Y.Z` → main |
+| alpha（开发通道，长期存在） | `alpha-vX.Y.Z` | `X.Y.Z` | 直接在 develop 打 tag |
 
-- **号码全线唯一**：beta 与正式共用一条数字线，同一个 `X.Y.Z` 只能出现一次；
+- **渠道在 PR 阶段由分支名表达**（`release/beta-` 前缀 = beta，其余 `release/` = 正式版），
+  CI 据此选测试档位（`check` / `integration` / `smoke`），见 `docs/dev-flow.md` §6。
+- **号码全线唯一**：beta / 正式 / alpha 共用一条数字线，同一个 `X.Y.Z` 只能出现一次；
   有 `beta-v1.0.1` 就没有 `v1.0.1`，反之亦然；要发另一个渠道就用更高的号。
-- beta 不是预发布，只是小版本更新标记；不靠版本串排序区分渠道。
+- beta 是正式版前的候选版（不是「小版本更新」标记）；渠道由 tag 前缀表达，不靠版本串排序。
 - **密集发布、单个 patch 装不下的小功能**可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- **alpha 渠道**：只在 `develop` 发布，tag 形如 `alpha-vX.Y.Z`，用于 v1.0.0 前的预发布；
-  **占用数字线**（与 beta / 正式同规则，同号不得再发其他渠道）。
-- **大版本代号**：v1.0.0 = **「跨越」（Cross）**。代号只写在本节与发版说明里，不散落到文档各处。
-- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
-  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
-- **变更记录**：每次发版必须写 `changelogs/<版本>.md`（面向使用者，格式见 `changelogs/README.md`）；
-  未发布改动先进 `changelogs/unreleased.md`。tag / release 的描述直接取自该文件，
-  **没有变更记录不得发版**（`release-check.sh` 会检查文件存在且非空）。
+- **alpha 渠道**：长期存在的开发通道（不限于 v1.0 前），只在 `develop` 发布；可跳过完整测试流程，
+  但至少跑 smoke（含 `aris serve --dry-run` 启动检查），**不跑 PG / embedding 集成测试**；仍**占用数字线**。
+- **beta 渠道**：正式版前的候选版，走 `release/vX.Y.Z → main` 标准流程；测试**含 PG + embedding**；仍**占用数字线**。
+- **正式版**：跑完整流程（含 PG + embedding + 打包 + Release）；**占用数字线**。
+- **v1.0.0 的定位**：定位上独自开发的最后一个版本，也是标准化流程定下来的第一个版本；
+  **CD 必须在 v1.0 期间完成**，之后所有版本走同一套标准化流程，不再对流程做大变动。
+- **大版本代号**：**v1 整个生命周期 = 「跨越」（Cross）**，v1.0.0 是这条线的首个版本（v1.x 同属「跨越」）。
+  代号只写在本节与发版说明里，不散落到文档各处。
+- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`（发版推荐 `bash scripts/release.sh`，
+  它会切 `release/` 分支再 bump）：校验干净工作区（`develop` 或 `release/*`）、
+  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交、不推送**。
+- **变更记录**：最新版本与未发布改动写在根 `CHANGELOG.md`（`[Unreleased]` 置顶，格式见该文件开头）；
+  更早版本归档到 `changelogs/<版本>.md`。tag / release 描述取自 `CHANGELOG.md` 的对应版本段，
+  **没有变更记录不得发版**（`release-check.sh` 会检查对应版本段存在）。
 - 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
 - 历史 tag（如 `v0.4.2-beta`）保留不动；新规则从下一次 bump 起生效。
 
@@ -290,12 +335,12 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 提供商 / 模型管理 | `docs/forAiDoc/LLM-PROVIDER-MGMT.md` |
 | WebUI 管理后台 | `docs/forAiDoc/WEBUI.md` |
 | 可迁移性 / 单一会话 | `docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md` |
-| v1.0 施工方案与验收 | `docs/forAiDoc/V1.0-PLAN.md` |
+| **v1.0 施工方案与验收（施工入口）** | `docs/process/v1.0.0-prep.md` |
+| v1.0 旧方案（已被取代，仅历史） | `docs/forAiDoc/V1.0-PLAN.md` |
 | 当前状态与下一步 | `PROGRESS.md` |
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
 | 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
 | 项目蓝图 | `docs/forAiDoc/Aris-Project.md` |
-| 旧事 / 已作废的方案 | `docs/archive/`（本机保留、不随仓库分发；新克隆读不到） |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
 | TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 
@@ -306,6 +351,12 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 `docs/archive/` 只读。**状态进 `PROGRESS.md`，待办进 `todolist.md`，过程进 archive。**
 本规范只适用于AI， `docs/forAiDoc` 从目录名也可以看出只适用于AI，对于人，文档现阶段放在 `docs/` 根目录。
 人类开发者不受本文档以及其他针对AI的文档的约束。对于人，规范将在后续完善。
+
+- **人类文档不引用 AI 文档**：`AGENTS.md` / `CLAUDE.md` 由 harness 自动注入，人类文档
+  （`README.md`、`docs/dev-flow.md` 等）只指向人类文档，不把读者引到 AI 规则。
+- **v1 前文档目录保持平铺**：人类文档放 `docs/` 根，不建 `docs/user｜dev`；
+  分语言（`docs/zh｜en`）等文档站时一起做。
+- **术语**：后端事实叫「配置项」，前端称呼叫「设置」（设置是配置的前端）。
 
 **准入（硬规则）**：
 
@@ -330,7 +381,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 ## 11. 已知陷阱
 
-一句话一条，只写结论；来龙去脉在 `docs/archive/`。
+一句话一条，只写结论；来龙去脉见提交说明与 PR。
 
 ### 数据库 / 迁移
 
@@ -376,21 +427,21 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 ## 12. 路线与待定
 
-**主线**：v1.0 的主体是人格 / 角色载体；记忆系统暂停中，重启由开发者决定。之后是语音链路
-（STT → LLM → TTS）、知识库第二阶段（PDF / 混合检索）、GraphRAG。阶段划分与验收见
-`docs/forAiDoc/V1.0-PLAN.md`（阶段划分将被 `todolist.md` 的两阶段计划取代）；
+**主线**：v1.0.0「跨越」= 全量待办一次做完（跨越式发展），核心仍是人格 / 角色载体；
+记忆系统方案见 `docs/forAiDoc/MEMORY.md`（开发者维护）。之后是语音链路（STT → LLM → TTS）。
+**v1.0 的阶段划分、决策与施工入口见 `docs/process/v1.0.0-prep.md`**（`V1.0-PLAN.md` 已废弃）；
 待办与阶段计划见 `todolist.md`。
 
 **已定方向（未实现）**：
 
 - TTS 起步用 Edge TTS（免费），Azure TTS 备选；STT 待选型。
 - 知识库第二阶段：PDF 与混合检索。
+- 文档站：**v1.1 再做**（单仓 `docs/`，VitePress；2026-11-01 从 v1.0 移出），未开工。
+- 插件系统：先做原生插件（能力对标 AstrBot），之后做 AstrBot 适配层；适配层原子化隔离。未开工。
+- autorun 定时与主动任务：v1 内做，未开工。
 
 **明确不做（短期）**：
 
-- 独立文档站（另起仓库，暂不做）。
-- autorun 定时与主动任务（只留设计，暂不实现）。
-- 对外接口 / 插件系统（先搁置，只做总线内部调用）。
 - 场合与去向模型（含独白）：只写文档，不写代码。
 
 **待定（不要替开发者做决定）**：

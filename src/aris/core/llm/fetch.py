@@ -87,7 +87,7 @@ def modelsdev_load(data_dir: Path, *, refresh: bool = False) -> dict:
             try:
                 with path.open("r", encoding="utf-8") as f:
                     return json.load(f)
-            except (ValueError, OSError):
+            except ValueError, OSError:
                 logger.warning("models.dev 缓存损坏，重新下载")
     try:
         resp = httpx.get(MODELSDEV_URL, timeout=60)

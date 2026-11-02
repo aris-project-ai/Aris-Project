@@ -26,7 +26,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     ok = True
 
     logger.info(f"Aris {__version__}")
-    logger.info(f"Python: {sys.version.split()[0]} (需要 >= 3.12)")
+    logger.info(f"Python: {sys.version.split()[0]} (需要 >= 3.14)")
 
     try:
         from aris.csrc import demo_available
@@ -757,7 +757,7 @@ def _cmd_info(args: argparse.Namespace) -> int:
     state = resolve_modules(load_modules())
     enabled = sum(1 for ok in state.enabled.values() if ok)
     print(f"Aris {__version__}")
-    print(f"Python: {sys.version.split()[0]}（需要 >= 3.12）")
+    print(f"Python: {sys.version.split()[0]}（需要 >= 3.14）")
     print(f"数据目录: {paths.data_root()}  [{source}]")
     print(f"配置目录: {paths.config_dir()}")
     print(f"状态目录: {paths.state_dir()}")

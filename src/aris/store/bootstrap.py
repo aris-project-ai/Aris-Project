@@ -241,7 +241,7 @@ def _role_connects(env: PgEnv, user: str) -> bool:
             text=True,
             timeout=15,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return False
     return proc.returncode == 0 and proc.stdout.strip() == "1"
 

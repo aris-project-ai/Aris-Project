@@ -105,7 +105,7 @@ def _discard_pending_input() -> None:
     while select.select([sys.stdin], [], [], 0)[0]:
         try:
             os.read(sys.stdin.fileno(), 65536)
-        except (BlockingIOError, OSError):
+        except BlockingIOError, OSError:
             break
 
 
@@ -298,7 +298,7 @@ class ChatSession:
             _discard_pending_input()  # 清掉上一轮回复期间残留的输入
             try:
                 user_text = input(PROMPT_USER).strip()
-            except (EOFError, KeyboardInterrupt):
+            except EOFError, KeyboardInterrupt:
                 print()
                 break
             if not user_text:

@@ -17,7 +17,7 @@ from pathlib import Path
 def _is_dev_tree(root: Path) -> bool:
     try:
         return (root / "pyproject.toml").exists() and (root / "src" / "aris").exists()
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         return False
 
 
@@ -26,7 +26,7 @@ def _find_dev_root_via_cwd() -> Path | None:
         cwd = Path.cwd().resolve()
         if _is_dev_tree(cwd):
             return cwd
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         pass
     return None
 
@@ -43,7 +43,7 @@ def _find_dev_root_via_file() -> Path | None:
         for cand in parents:
             if _is_dev_tree(cand):
                 return cand
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         pass
     return None
 
@@ -64,7 +64,7 @@ def data_root() -> Path:
             # 只有在当前工作目录位于该开发树内时才认为是开发模式
             cwd.relative_to(file_dev)
             return (file_dev / "data").resolve()
-        except (OSError, RuntimeError, ValueError):
+        except OSError, RuntimeError, ValueError:
             pass
 
     return (Path.home() / ".project-aris").expanduser().resolve()

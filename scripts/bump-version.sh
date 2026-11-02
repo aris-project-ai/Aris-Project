@@ -60,12 +60,15 @@ if [ "$base" = "$cur_base" ]; then
     exit 2
 fi
 
-# bump 一律在干净的 develop 上做
+# bump 一律在干净的工作区上做：develop（alpha 渠道）或 release/<版本>（beta / 正式）
 branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo '<detached>')"
-if [ "$branch" != "develop" ]; then
-    echo "错误：当前分支是 $branch，版本 bump 必须在 develop 上进行" >&2
+case "$branch" in
+develop | release/*) ;;
+*)
+    echo "错误：当前分支是 $branch，版本 bump 只能在 develop 或 release/<版本> 上进行" >&2
     exit 1
-fi
+    ;;
+esac
 if [ -n "$(git status --porcelain)" ]; then
     echo "错误：工作区不干净，先提交或 stash 再 bump" >&2
     git status --short >&2
@@ -100,11 +103,19 @@ echo
 echo "完成，当前版本：$(uv run aris --version)"
 echo "下一步："
 echo "  1. git add $VERSION_FILE uv.lock && git commit -m 'chore(release): 版本号 bump 至 $base'"
-echo "  2. bash scripts/release-check.sh"
-echo "  3. alpha（预发布，只在 develop）：直接打 tag，不合并 main"
-echo "     beta / 正式：git checkout main && git merge --no-ff develop -m 'chore(release): <一句话总结>'"
-echo "  4. 三选一打 tag（号码共用）："
-echo "       git tag alpha-v$base  # alpha：develop 预发布，占号"
-echo "       git tag beta-v$base   # beta：小版本更新"
-echo "       git tag v$base        # 正式版"
-echo "  5. git push origin develop main && git push origin <tag>"
+echo "  2. 封 CHANGELOG.md 的 '## [$base] - YYYY-MM-DD' 段（面向使用者）并一起提交"
+echo "  3. bash scripts/release-check.sh   # 必须 PASS"
+if [ "$branch" = "develop" ]; then
+    echo "  4. alpha（只在 develop）：git tag alpha-v$base 后推送，不合并 main"
+    echo "     beta / 正式：用 scripts/release.sh（--beta 走 beta 渠道）切分支后走发版 PR"
+    echo "     见 docs/dev-flow.md §6"
+else
+    case "$branch" in
+    release/beta-*) tag_hint="beta-v$base" ;;
+    *) tag_hint="v$base" ;;
+    esac
+    echo "  4. 推送 $branch 到 fork，向上游开 PR：$branch → main"
+    echo "  5. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
+    echo "  6. 合并后在上游 main 打 tag 并推送：$tag_hint（号码共用）"
+    echo "  7. 再开 PR：main → develop（--no-ff 合并），随后删除 $branch"
+fi
