@@ -5,24 +5,34 @@
 
 ## 当前版本
 
-`0.4.5`（tag `v0.4.5`，正式版，2026-11-01 发布）。当前做 `0.4.5.1` 收尾补丁：
-**文档修理 + 已有 CI 修复，不加任何功能**。
+`0.4.6`（tag `alpha-v0.4.6`，alpha 开发通道，2026-11-03）。上一个正式版是 `0.4.5.1`。
+**v1.0「跨越」开发周期从 `alpha-v0.4.6` 起算**。
 
 ## 当前阶段
 
-**v0.4.5 已发布**：变更记录、CI 分档、发版脚本与文档合规落地。
-`check` 本地通过（`bash scripts/check.sh`）；推送 `develop` 后确认远端绿。`integration` 还没在
-远端跑绿——等 0.4.5.1 发版 PR 首次真实运行（本版修掉了它选中系统 PostgreSQL 的问题）。
+**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`）。本轮只收敛 v1 文档与决策，不含功能代码：
 
-**v0.4.5.1 进行中**，完成后进入 **v1.0「跨越」**：
+- **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）；代码仍叫 `memory`。
+- **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
+- **决策模型去掉 `main_llm`**：只保留 `off | dedicated`，失败降级到概率 / 规则；消息密集时先攒批再判。
+- **记忆**：允许按「不同自然日真实命中 ≥3」把中期晋升长期；命中与随机回忆共用 384 加成额度；
+  大会话（时间聚类）保留用于作息 / 活跃度查看，但 v1 不做大会话总结（小会话总结即 compact）；
+  换 embedding 模型走影子表全量重建。
+- **外部 PostgreSQL**：保留支持；备份改用 `pg_dump` 逻辑导出，版本不匹配时明确标注「数据库未备份」。
+- **配置档**：`serve.toml` / `webui.toml` 不随档（避免恢复别人的备份后端口变化）；GUI 不得写死端口。
+- v1 文档仍有未定项（Arch 安装位置、GUI 端口发现方式等），见 `docs/process/v1.0.0-prep.md` §7。
 
 | 项 | 状态 |
 |---|---|
-| pytest 假失败（模块级 `skipif` 早于 autouse fixture） | 已修，随 0.4.5.1 发布 |
-| integration 选中系统 PG、缺 pgvector | 已修（`ARIS_PG_SOURCE=project`），待发版 PR 验证 |
-| `docs/dev-flow.md` 错误陈述、`gh` 改网页优先 | 本版修 |
-| `PROGRESS.md` 刷新、`V1.0-PLAN.md` 归档、`todolist.md` 结算 | 本版做 |
-| `CHANGELOG` 归档 `[0.4.5]` 并封 `[0.4.5.1]` | 发版时做 |
+| pytest 假失败（模块级 `skipif` 早于 autouse fixture） | 已发布 |
+| integration 选中系统 PG、缺 pgvector | 已发布，远端 integration 已绿 |
+| `db init` 后紧跟 `db start` 误判端口 | 已发布（`4b9bd80`） |
+| `docs/dev-flow.md` 错误陈述、`gh` 改网页优先 | 已发布 |
+| `PROGRESS.md` 刷新、`V1.0-PLAN.md` 归档、`todolist.md` 结算 | 已完成 |
+| `CHANGELOG` 归档 `[0.4.5]` 并封 `[0.4.5.1]` | 已完成 |
+
+发版过程记录：tag `v0.4.5.1` 打在 `main` 的合并提交 `ea73a74` 上；发布期间上游尚未开启
+**Allow auto-merge**，0.4.5.1 的两步 PR 均为检查全绿后手动合并。
 
 ## 模块状态
 
@@ -37,7 +47,7 @@
 | `character/` | 完成：角色载体 `data/characters/<cid>/` |
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
-| `memory/` | **暂停开发**：设计审查发现重大缺陷，重启由开发者决定（见 `docs/forAiDoc/MEMORY.md`） |
+| `memory/` | v1 P4 开工（对外名 **APEMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
@@ -49,31 +59,33 @@
 - **发版脚本**：`scripts/release.sh` 只做本地准备（校验、切分支、bump、检查），不推送、不打 tag。
 - **文档与合规**：`docs/dev-flow.md` 发版节重写、README 变更记录与许可证段、`NOTICE`。
 
-## 0.4.5.1 修复
+## 0.4.5.1 已落地
 
 - `tests/test_store_portability.py`：PG 二进制探针的跳过条件改为运行时判断。模块级 `skipif`
   在收集阶段求值，早于 autouse fixture 把 `shutil.which` 打成 `None`；装了系统 PostgreSQL 的
   CI runner 会先被判成「已安装」，用例内再探测却得到「未安装」，变成假失败。
 - `ARIS_PG_SOURCE=auto|project|system`：收窄便携 PG 探针链。系统 PostgreSQL 未必装
   pgvector，`integration` 设 `project` 强制走 `data/pg`（`ARIS_PG_BIN` 仍最高优先）。
+- `choose_port` 复用「本实例已在跑」的端口，`start` / `stop` 不再误清运行中实例的
+  pid/socket：修 `db init` 后紧跟 `db start` 的幂等性回归。
 - `docs/dev-flow.md`：修正「fork PR 首次带 workflow 也能跑」的错误陈述，补 bootstrap 坑；
   `gh` 命令改为网页操作步骤。
 
 ## 阻塞 / 待决
 
-- **上游仓库设置**：需开发者确认已开启 **Allow auto-merge** 并导入 `.github/rulesets/`
-  （`main` 要求 `check` + `integration`，`develop` 要求 `check`）。0.4.5 因 `main` 上还没有
-  workflow 走了 bypass 合并（bootstrap），0.4.5.1 起按正常 auto-merge 验证。
+- **上游仓库设置**：`.github/rulesets/` 的必需检查已生效（0.4.5.1 两次 PR 都跑了
+  `check` + `integration`）；**Allow auto-merge 已开启**（2026-11-03），后续发版 PR 可直接
+  开 auto-merge。
+- **`gh` CLI**：本机尚未安装；网页操作可用，配置后可简化 PR 与合并操作（auto-merge 的
+  仓库开关仍需先在上游设置里打开）。
 - **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
-- **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
+- **v1 文档仍在商议中**：`docs/process/v1.0.0-prep.md` §7 的待定项不要当成已定结论。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 - `CONTRIBUTING.md` / `SECURITY.md`：0 字节占位，v1 P7 重写（面向人类、不引用 AI 文档）。
 
 ## 下一步
 
-1. **0.4.5.1 发版**：`bash scripts/release.sh 0.4.5.1` → 归档 `[0.4.5]`、封 `[0.4.5.1]` →
-   `release-check.sh` → 上游 PR（**不 bypass**，等 `check` + `integration` 全绿）→ 开 auto-merge →
-   tag `v0.4.5.1` → `main → develop` 回合并。
-2. **v1.0「跨越」**：施工入口 `docs/process/v1.0.0-prep.md`，待办见 `todolist.md`。
+1. **v1.0 P0（收尾与保护网）**：工具开关、品牌 URL / egg-info 尾巴、设置/配置项盘点。
+2. **v1 文档剩余待定项**：Arch 安装位置、GUI 端口发现方式等（§7）。
 3. 可选技术债：`cli.py` 拆包、模块开关测试的总线快照隔离。
