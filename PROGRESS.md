@@ -5,14 +5,22 @@
 
 ## 当前版本
 
-`0.4.5.1`（tag `v0.4.5.1`，正式版，2026-11-03 发布）。版本线已回到 `develop`，下一阶段是
-**v1.0「跨越」**。
+`0.4.6`（tag `alpha-v0.4.6`，alpha 开发通道，2026-11-03）。上一个正式版是 `0.4.5.1`。
+**v1.0「跨越」开发周期从 `alpha-v0.4.6` 起算**。
 
 ## 当前阶段
 
-**v0.4.5.1 已发布**：只做文档修理与已有 CI 修复，不含功能变更。发版 PR #6 首次让
-`check` + `integration` 全绿，确认了 `ARIS_PG_SOURCE=project` 与测试跳过条件两处修复有效；
-`main → develop` 回合并由 PR #7 完成。
+**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`）。本轮只收敛 v1 文档与决策，不含功能代码：
+
+- **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）；代码仍叫 `memory`。
+- **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
+- **决策模型去掉 `main_llm`**：只保留 `off | dedicated`，失败降级到概率 / 规则；消息密集时先攒批再判。
+- **记忆**：允许按「不同自然日真实命中 ≥3」把中期晋升长期；命中与随机回忆共用 384 加成额度；
+  大会话（时间聚类）保留用于作息 / 活跃度查看，但 v1 不做大会话总结（小会话总结即 compact）；
+  换 embedding 模型走影子表全量重建。
+- **外部 PostgreSQL**：保留支持；备份改用 `pg_dump` 逻辑导出，版本不匹配时明确标注「数据库未备份」。
+- **配置档**：`serve.toml` / `webui.toml` 不随档（避免恢复别人的备份后端口变化）；GUI 不得写死端口。
+- v1 文档仍有未定项（Arch 安装位置、GUI 端口发现方式等），见 `docs/process/v1.0.0-prep.md` §7。
 
 | 项 | 状态 |
 |---|---|
@@ -39,7 +47,7 @@
 | `character/` | 完成：角色载体 `data/characters/<cid>/` |
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
-| `memory/` | **暂停开发**：设计审查发现重大缺陷，重启由开发者决定（见 `docs/forAiDoc/MEMORY.md`） |
+| `memory/` | v1 P4 开工（对外名 **APEMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
@@ -71,12 +79,13 @@
 - **`gh` CLI**：本机尚未安装；网页操作可用，配置后可简化 PR 与合并操作（auto-merge 的
   仓库开关仍需先在上游设置里打开）。
 - **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
-- **memory 设计重审**：暂不恢复开发；重启时间按开发者意愿决定。
+- **v1 文档仍在商议中**：`docs/process/v1.0.0-prep.md` §7 的待定项不要当成已定结论。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 - `CONTRIBUTING.md` / `SECURITY.md`：0 字节占位，v1 P7 重写（面向人类、不引用 AI 文档）。
 
 ## 下一步
 
-1. **v1.0「跨越」**：施工入口 `docs/process/v1.0.0-prep.md`，待办见 `todolist.md`。
-2. 可选技术债：`cli.py` 拆包、模块开关测试的总线快照隔离。
+1. **v1.0 P0（收尾与保护网）**：工具开关、品牌 URL / egg-info 尾巴、设置/配置项盘点。
+2. **v1 文档剩余待定项**：Arch 安装位置、GUI 端口发现方式等（§7）。
+3. 可选技术债：`cli.py` 拆包、模块开关测试的总线快照隔离。
