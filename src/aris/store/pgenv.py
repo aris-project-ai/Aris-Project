@@ -7,8 +7,11 @@
 3. 项目内 ``data/pg/bin/postgres``（bootstrap 自动装的便携实例）
 4. 全无 → 视为未安装，提示先跑 ``aris db init``
 
-可覆盖的环境变量：``ARIS_PG_BIN`` / ``ARIS_PG_PORT`` / ``ARIS_PG_USER`` /
-``ARIS_PG_DB`` / ``ARIS_PG_DSN``（整条 DSN 直用，优先级最高）。
+``ARIS_PG_SOURCE=auto|project|system`` 可收窄这条链（默认 ``auto``）：``project`` 跳过
+系统 ``pg_config``，``system`` 跳过 ``data/pg``；``ARIS_PG_BIN`` 始终最高优先。
+
+可覆盖的环境变量：``ARIS_PG_BIN`` / ``ARIS_PG_SOURCE`` / ``ARIS_PG_PORT`` /
+``ARIS_PG_USER`` / ``ARIS_PG_DB`` / ``ARIS_PG_DSN``（整条 DSN 直用，优先级最高）。
 
 **可迁移性（D14，2026-10-01）**：角色名与端口都**不入库、不写配置文件**，只在运行期算，
 详见 docs/forAiDoc/PORTABILITY-AND-SINGLE-SESSION.md：
@@ -31,6 +34,8 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
+from loguru import logger
+
 DEFAULT_PORT = 55432
 DEFAULT_DB = "aris"
 DEFAULT_USER = "aris"  # 新建集群的超级用户名：与主机用户名无关（D14 缺口②）
@@ -38,6 +43,11 @@ PROJECT_DIR_NAME = "pg"  # 便携实例根目录：<data_dir>/pg
 PGDATA_NAME = "pgdata"  # 数据目录：<data_dir>/pgdata
 ROLE_MARKER_NAME = "aris-role"  # <pgdata>/aris-role：本集群实际角色名（提示，启动时复核）
 SOCKET_PREFIX = ".s.PGSQL."  # unix socket 文件名前缀，后接端口号
+
+# 探针来源开关：auto（默认）> project（只用 data/pg）> system（只用 PATH 中的 pg_config）
+SOURCE_ENV = "ARIS_PG_SOURCE"
+DEFAULT_SOURCE = "auto"
+SOURCE_MODES = {"auto", "project", "system"}
 
 
 class PgSource(StrEnum):
@@ -130,21 +140,40 @@ def _pg_config_bindir(pg_config: str) -> Path | None:
     return Path(bindir) if bindir else None
 
 
+def _source_mode() -> str:
+    """读 ``ARIS_PG_SOURCE``，非法值按 ``auto`` 兜底并记 warning（可选项，不拦启动）。"""
+    raw = os.environ.get(SOURCE_ENV, DEFAULT_SOURCE).strip().lower()
+    if raw in SOURCE_MODES:
+        return raw
+    modes = "/".join(sorted(SOURCE_MODES))
+    logger.warning(f"{SOURCE_ENV}={raw!r} 非法（可选 {modes}），按 auto 处理")
+    return DEFAULT_SOURCE
+
+
 def _probe_bin(prefix: Path) -> tuple[Path | None, PgSource]:
-    """按探针链找可执行文件目录，返回 (bin_dir, 来源)。"""
+    """按探针链找可执行文件目录，返回 (bin_dir, 来源)。
+
+    ``ARIS_PG_SOURCE`` 限制可用来源：``project`` 跳过系统 ``pg_config``（系统 PG 未必
+    装了 pgvector，CI 用它强制走便携实例），``system`` 跳过 ``data/pg``；缺省 ``auto``
+    保持 ENV > 系统 > 便携。``ARIS_PG_BIN`` 始终最先命中。
+    """
     env_bin = os.environ.get("ARIS_PG_BIN")
     if env_bin and (Path(env_bin) / "postgres").exists():
         return Path(env_bin), PgSource.ENV
 
-    pg_config = shutil.which("pg_config")
-    if pg_config:
-        bindir = _pg_config_bindir(pg_config)
-        if bindir and (bindir / "postgres").exists():
-            return bindir, PgSource.SYSTEM
+    mode = _source_mode()
 
-    project_bin = prefix / "bin"
-    if (project_bin / "postgres").exists():
-        return project_bin, PgSource.PROJECT
+    if mode in ("auto", "system"):
+        pg_config = shutil.which("pg_config")
+        if pg_config:
+            bindir = _pg_config_bindir(pg_config)
+            if bindir and (bindir / "postgres").exists():
+                return bindir, PgSource.SYSTEM
+
+    if mode in ("auto", "project"):
+        project_bin = prefix / "bin"
+        if (project_bin / "postgres").exists():
+            return project_bin, PgSource.PROJECT
 
     return None, PgSource.MISSING
 
