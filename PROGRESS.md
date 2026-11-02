@@ -66,8 +66,8 @@
 ## 阻塞 / 待决
 
 - **上游仓库设置**：`.github/rulesets/` 的必需检查已生效（0.4.5.1 两次 PR 都跑了
-  `check` + `integration`）；**Allow auto-merge 仍未开启**（Settings → General → Pull
-  Requests），开启前发版 PR 只能等检查全绿后手动合并。
+  `check` + `integration`）；**Allow auto-merge 已开启**（2026-11-03），后续发版 PR 可直接
+  开 auto-merge。
 - **`gh` CLI**：本机尚未安装；网页操作可用，配置后可简化 PR 与合并操作（auto-merge 的
   仓库开关仍需先在上游设置里打开）。
 - **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
