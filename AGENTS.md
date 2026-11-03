@@ -97,7 +97,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | `src/aris/knowledge/` | 知识库：外部资料的 RAG（摄入 / 分块 / 检索），384 维本地 embedding；不做 skill，只经总线暴露；摄入走 CLI，agent 只给检索工具 |
 | `src/aris/mcp/` | 通用 MCP 客户端：官方 `mcp` SDK + `data/config/mcp.toml` 驱动 transport；owner 线程 asyncio，同步总线服务（见 `docs/forAiDoc/MCP.md`） |
 | `src/aris/memory/` | Aris 的个人记忆（对外名 **APEMS**，代码仍叫 memory）；v1 P4 开工；详见 `docs/forAiDoc/MEMORY.md` |
-| `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时生成（uuid），改名 / 改人设不影响 |
+| `src/aris/character/` | 角色载体：`data/characters/<cid>/`（`character.toml` + 世界观 / 关系 / 成长占位）；`cid` 创建时可手填、留空自动生成（12 位十六进制），**创建后不可改**；改名 / 改人设不影响 |
 | `src/aris/behavior/` | 行为：工具注册表（含世代同步）、agent loop、内置工具、skills 系统；联网搜索是**引擎池**（`behavior/search/`：Bing 直连 / Tavily 含 keyless / Exa 经 mcp，见 `docs/forAiDoc/WEB-SEARCH.md`） |
 | `src/aris/chat/` | 文字对话 + TUI（`aris chat`，开发调试用） |
 | `src/aris/serve/` | 启动编排：唯一组装根，按序拉起各模块；单向、非守护、不含 TUI（约束见 §6「CMCB」） |
