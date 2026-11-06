@@ -77,11 +77,13 @@ postgresql-*-linux-x64-binaries.tar.gz` 现返回 **403**（改走 `getfile.jsp`
 
 - `postgresql` 与 `pgvector` **同源**，版本匹配由 solver 保证（conda-forge 上
   `pgvector` 有 linux-64 / linux-aarch64）
-- **实测取到 PostgreSQL 17.11 + pgvector 0.8.1**：`pgvector=0.8.6` 与
-  `postgresql=17` 依赖冲突（libpq 17.0 钳制），故规格写 `pgvector>=0.8`、
-  **不锁补丁版本**，由 solver 决定；日后要用 0.8.6+ 需换 PG 大版本或源码编译
+- **精确钉死 `postgresql=18.6` + `pgvector=0.8.6`**（2026-11-06 定）：两者是**绑死的**——
+  pgvector 0.8.6 要求 `libpq >=18.6`，PG 17 最高只能配 pgvector 0.8.1。
+  版本常量在 `infra/components.py`，升级 = 改那里 + 发版；**不写 `>=` 浮动约束**
+  （浮动在 PG 大版本钳制下会静默落到旧版本，等于假约束）
 - 由 **micromamba 单文件静态二进制**驱动，**免 root、免编译**，安装到 `data/pg/`
-  （`.gitignore` 已覆盖 `data/`，仓库零体积增长）
+  （`.gitignore` 已覆盖 `data/`，仓库零体积增长）；下载地址**按 CPU 架构选**
+  （`micromamba-linux-64` / `micromamba-linux-aarch64`），sha256 按架构分开记
 - 首次下载实测约 **40MB**（29 个包；原先估的 300MB 偏保守）——走单一路径，
   不保留"系统 pacman 优先"的双路径分支
 
@@ -114,15 +116,18 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
 - CLI：`aris db init|start|stop|status|psql`（`psql` 的后续参数原样透传）
 - 服务端口默认 **55432**，避开将来系统 PG 的 5432；socket 落 `data/pg/run`，
   仅监听 `127.0.0.1`
-- micromamba **固定版本 + sha256 常量写死** `bootstrap.py`（升级时两处一起人工更新）
+- micromamba 的**版本 / 架构相关 URL / sha256 常量收在 `infra/components.py`**（2026-11-06 定），
+  与 PG、embedding 同一份清单；升级 = 改该文件 + 发版。用户层 `components.toml` 只能覆盖 `url`
 - Python 侧依赖 `psycopg[binary]`（自带 libpq，不依赖系统 libpq）
 - **系统已装则不下载**（`ARIS_PG_BIN` / `pg_config` 命中）：只确保库与扩展存在；
   系统 PG 缺 pgvector 时用 `ARIS_PG_SOURCE=project` 改走便携实例（CI 即如此）
 
 **实现状态（2026-09-18 跑通）**：
 
-- **数据库**：`aris db init|start|stop|status|psql` 全部可用；实测 PostgreSQL **17.11** +
-  pgvector **0.8.1**（`data/pg` 约 166MB，另有包缓存 `data/pg-pkgs` 约 91MB 可随时删）。
+- **数据库**：`aris db init|start|stop|status|psql` 全部可用；2026-09-18 首次跑通时为
+  PostgreSQL **17.11** + pgvector **0.8.1**，**2026-11-06 起改钉 18.6 + 0.8.6**
+  （`data/pg` 约 166MB，另有包缓存 `data/pg-pkgs` 约 91MB 可随时删）。
+  **升级必须重建 `data/pgdata`**：PG 大版本变了，集群目录不兼容，`pg_upgrade` 不在支持范围内。
   micromamba 与 conda 的根前缀、包缓存、元数据缓存以及 `HOME` 全部收在 `data/` 下，
   不污染用户主目录；`pg_ctl` 启动失败时会附带服务日志末尾，便于定位。
 - **embedding**：`aris store info|embed` 可用；实测本地 Bekko a25m **384 维**编码通过，

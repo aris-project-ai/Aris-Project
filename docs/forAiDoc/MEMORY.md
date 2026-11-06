@@ -22,15 +22,17 @@
 
 | 轴 | 取值 | 决定什么 |
 |---|---|---|
-| **时间 / 生命周期** | 每条记忆自带**半衰期预设**（中期 / 长期） | 衰减多快、什么时候进上下文 |
+| **时间 / 生命周期** | 每条记忆自带**半衰期预设**（重要 / 中期 / 长期） | 衰减多快、什么时候进上下文 |
 | **embedding** | 记忆库绑定的模型（本地 / 云端），见 §12 | 谁来算向量、向量列多宽 |
 
-- 「中期/长期」是时间概念，不是向量模型概念。
+- 「重要 / 中期 / 长期」是时间概念，不是向量模型概念。
 - **一个记忆库一套表**：向量列维度由建库时选定的模型决定（本地或云端都行）；不分「热表 / 冷表」，也不预留第二套列。换模型 = 影子表全量重建（§12.1），不混用。
-- **不设 tier 枚举**：中期/长期只是两条半衰期预设，放在配置里；新增预设不改表。
+- **不设 tier 枚举**：重要 / 中期 / 长期只是三条半衰期预设，放在配置里；新增预设不改表。
 - **允许晋升，但不设层级表**：晋升 = 改预设名 + 抬初始 `weight`，不新增表、不新增枚举。
-- **预设由抽取时的 `importance` 决定**（默认映射，可配）：`importance ≥ 0.8` → 长期（H=73 天）且 `weight = 256`；否则中期（H=14 天）且 `weight = 128`。手动「特别记忆」直接加 `weight`，不改预设。
-- **晋升规则（2026-11-03 定）**：中期记忆在 **30 天**内被**真实检索**命中覆盖 **≥3 个不同自然日** → 晋升长期（preset 改长期、`weight` 提到 256、H 变 73；`last_reinforced_at` 不动）。**自动随机回忆不计入晋升**（§4.3）；窗口与阈值可配。晋升写在命中强化那条写库路径里，一次性 `UPDATE`，不引入定时任务。
+- **重要性在编码时定（2026-11-06 定，恢复原设计）**：抽取时模型标「重要」（`importance ≥ 0.8`，阈值可配）→ **直接进「重要」预设**（`weight = 1024`、H = 73 天），**立刻常驻**，不经过任何累加。模型也可对已有记忆显式调 `memory_mark_important`，用户手动标同理。没标的中期（`weight = 128`、H = 14 天）。
+- **检索不定义重要性（2026-11-06 定）**：真实命中只重置 `last_reinforced_at`、累加 `hit_count`，**不改 `weight`**。原设计里的「频繁回忆会加强」曾做成命中 +128 累加，数值上恰好是中期到 512 的唯一路径，喧宾夺主了；现退化为「续命」。
+- **长期不由抽取直接产生**：只由晋升产生（中期 → 长期，`weight = 256`、H = 73 天）。
+- **晋升规则（2026-11-06 调整）**：中期记忆在 **30 天**内被**真实检索**覆盖 **≥5 个不同自然日**（可配 5~7）→ 晋升长期（preset 改长期、`weight` 提到 256、H 变 73；`last_reinforced_at` 不动）。**晋升止步于长期**，不会变成「重要」；自动随机回忆 / 兜底检索不计入（§4.3）。晋升写在命中那条写库路径里，一次性 `UPDATE`，不引入定时任务。
 
 ### 1.1 记忆库（library）
 
@@ -39,15 +41,16 @@
 - **库元信息**：`id`、名称、后端类型、embedding 模型身份与维度、创建时间、是否已初始化。
 - **未初始化**（`uninitialized`）：不建表、不暴露记忆工具；不是关闭、不是错误。
 
-## 2. 三类产物
+## 2. 四类产物
 
 | 产物 | 形态 | 进上下文 | 向量化 |
 |---|---|---|---|
 | **原始对话** | 逐条 `角色: 内容`，与正常历史同格式 | 不主动进；工具可查 | 是（按语义块，§9.3 同款规则） |
-| **事件** | `content`（2~4 句）+ `brief`（一句话） | 进（关键 + 近期） | 是（唯一逐条向量化的提炼物） |
+| **事件** | `content`（2~4 句）+ `brief`（一句话）+ 可选 `mood` | 进（关键 + 近期） | 是（唯一逐条向量化的提炼物） |
+| **事实** | 一条 claim：主体 / 谓词 / 对象 + 置信度 / 来源 / 有效期 | 进（人物卡槽位段） | 否（按主体 + 谓词直取） |
 | **两周记** | 聚合叙事（原料 = compact 摘要 + 事件） | 进（最近 1 篇） | 否 |
 
-- 总结类产物一律不向量化：整段叙事切块后检索回来是残缺片段；靠**时间直取 + 关键词**。
+- 总结类产物与事实一律不向量化：整段叙事切块后检索回来是残缺片段；两周记靠**时间直取 + 关键词**，事实靠**主体 + 谓词**直取。
 - **embedding 只找候选，展示永远是完整行/整块原文**，不做 chunk 截取。
 - **原始对话里的非文本消息**：以 `[图片]` / `[语音]` / `[文件]` 占位入历史，媒体文件另存 `data/memory/media/<id>`，工具按需取用（需要多模态时再转成图）。
 
@@ -71,6 +74,7 @@
 |---|---|
 | `content` | 完整事件（2~4 句，含对象/话题/过程/结果/情绪） |
 | `brief` | 一句话，注入与列表用 |
+| `mood` | 可空；这段经历的**情绪基调**，七档预设或角色自拟短词（≤12 字） |
 | `occurred_from` / `occurred_to` | 时间段（两列，便于索引排序） |
 | `weight` | 整数权重（§4） |
 | `participants` | 涉及实体（§5） |
@@ -80,7 +84,7 @@
 ### 3.3 抽取
 
 - 走 **tool call**：一次可写多条，**边界由模型自己划分**。
-- 同一次 tool call 里**顺带输出实体与关系**（§5），不另起调用。
+- 同一次 tool call 里**顺带输出实体与事实**（§5），不另起调用。
 - 事件与总结**分两次调用、事件在前**：总结那次能看到已抽好的事件，质量更稳、不两处矛盾。
 - **模型选择（v1）**：统一用当前会话主模型；独立抽取模型 / 总结模型**先不做**。
 - 回归样例（按真实对话写，含寒暄干扰、工具调用、无结果协商、情绪类）：换模型/改提示词时检查粒度漂移；**默认不进 CI、本地默认不跑**。
@@ -89,64 +93,106 @@
 
 ### 4.1 数值（全整数，2 的幂）
 
+| 预设 | `weight` | 半衰期 `H` | 能否常驻 |
+|---|---|---|---|
+| **重要**（`core`） | **1024** | 73 天 | **是**：`1024 >> floor(Δt/73)` 在 146 天内都 ≥ 512 |
+| **长期**（`long`） | **256** | 73 天 | 否（目标寿命约 1 年） |
+| **中期**（`mid`） | **128** | 14 天 | 否（目标寿命约 2 个月） |
+
 | 量 | 值 | 说明 |
 |---|---|---|
-| 初始 `weight` | 中期 **128** / 长期 **256**（由预设决定） | 「特别记忆」手动加权直接加大 |
-| 命中增益 | **128** | 一次真实命中 +128（计入下面的合计上限） |
-| 自动加成合计上限 | **384** | `hit_count×128 + recall_bonus` 合计封顶；中期 `128+384=512` 正好到关键线 |
 | 关键阈值 | **512** | `w_eff ≥ 512` 直接进上下文 |
-| 封顶 | **1024** | 防刷分 |
+| 封顶 | **1024** | 「重要」预设即顶格 |
 | 消失阈值 | **<8** | 不注入、不检索，数据保留 |
-| 半衰期 `H` | 中期 **14 天** / 长期 **73 天** | 按「目标寿命 ≈ 5×H」反推：70 / 365 天 |
+| 晋升门槛 | **5 个不同自然日** | 30 天内，可配 5~7；见 §1 |
+
+- 没有「命中增益」「自动加成上限」——检索不改 `weight`（§4.3）。
+- 「重要」不进则已，进则顶格：抽取时标了就是 1024，不存在「先给 256 再靠搜索补」。
 
 ### 4.2 公式
 
 ```
-bonus = min(384, hit_count × 128 + recall_bonus)
-w_eff = (weight + bonus) >> floor(Δt / H)
+w_eff = weight >> floor(Δt / H)
 Δt = now − last_reinforced_at
 ```
 
-- 也可用 `floor(w × 0.5^(Δt/H))` 得平滑整数；位移保留但接受阈值附近跳变。
+- `weight` 只由预设（§4.1）、晋升、手动调整决定；**检索不改它**。
+- 整数位移让衰减呈台阶状：同一档内 `w_eff` 不变，跨过一个 H 才减半；阈值附近会跳变，接受。
 - **惰性计算、不落库**；没有定时任务、不改写历史行；调参不用洗数据。
-- **唯一写库路径 = 命中强化**（`hit_count += 1`、`last_reinforced_at = now()`；晋升也在这条路径里一次性改 `preset` / `weight`）。
+- **唯一写库路径 = 真实检索命中**（`hit_count += 1`、`last_reinforced_at = now()`；晋升也在这条路径里一次性改 `preset` / `weight`）。
 - 代价：`w_eff` 不能建普通索引，注入查询先按时间/预设过滤再排序。
+- **排序 tie-break（2026-11-06 定）**：`w_eff` 降序 → `last_reinforced_at` 降序 → `occurred_from` 降序 → `entry_id` 降序（稳定）。`w_eff` 只有几档，不定死的话同一批 1024 每次顺序都会变。
 
 ### 4.3 命中
 
-- 命中 = **真实检索把它返回给模型**（`memory_search` 或 6h 兜底）；**注入不算、WebUI 浏览不算**。
+- 命中 = **真实检索把它返回给模型**（`memory_search`）；**注入不算、WebUI 浏览不算**。
+- **命中只续命**：`hit_count += 1`、`last_reinforced_at = now()`；**不改 `weight`**。
+- **6h 兜底检索 / `memory_recall` 不算命中**：不写库、不重置时钟、不计晋升；它们只是当轮把内容塞进上下文（§6.2）。
 - 同一轮同一条只算一次。
-- **自动随机回忆只 +16**，记在 `recall_bonus`，与真实命中共用同一个 384 额度。
-- **自动加成天花板**：命中 + 随机回忆合计 **384**（即 `128 + 384 = 512`，正好到关键线）；到线后自动途径不再上涨，想更高只能手动 / 模型加权（封顶 1024）。
-- **两个计数器分开记、额度共用**：`hit_count` 只记真实命中（晋升判定用它），`recall_bonus` 记随机回忆，相加后截到 384。这样同一个「被检索到」的证据不会在两个桶里各领一份额度。
+- **晋升按自然日**：同一天多次命中只算一个自然日；`hit_count` 仍逐次累加（统计用），晋升看 `DISTINCT date`。
+- **晋升**：30 天内 ≥5 个不同自然日的真实命中 → 中期 → 长期（`weight` 抬到 256、H 变 73）。晋升**止步于长期**；「重要」只能由模型标注或用户手动给。
 
 ### 4.4 用户干预
 
 - **钉住** `pinned_at`：跳过衰减、注入优先、**仍占配额**；限数量（建议 ≤10）+ WebUI 提示。
+- **手动标「重要」**：WebUI / CLI 把 `preset` 改成「重要」、`weight` 提到 1024；效果与模型标注相同。与 pin 的区别：重要仍按 H=73 衰减，pin 完全不衰减。
 - **可见性** `normal | private | sealed | hidden`（用户可在 WebUI/CLI 改；模型也可通过工具标，默认 normal）：
   - `private`：不进自动注入，仍可被检索（想主动想起时才取）；
   - `sealed`：不注入不检索，仅 WebUI/CLI 可见；
   - `hidden`：软隐藏，数据保留、可恢复。
 - **可见性只管注入与检索，不管回复发到哪**：回复目标由发送工具决定，注入阶段不看目标渠道，也不按来源渠道过滤（§19.2）。
 - **硬删除**才真删行，只删提炼物、不动原文。
-- 改权重、钉住、可见性、隐藏/恢复，WebUI 与 CLI 都能做。
+- 改权重、标重要、钉住、可见性、隐藏/恢复，WebUI 与 CLI 都能做。
 
-## 5. 图与实体（GraphRAG）
+## 5. 事实层与人物
+
+> **每一行是一条 claim，不是 truth。** 记的是「谁、在什么时候、说过/表现出什么，角色信到什么程度」：
+> 允许不确定、允许冲突并存、允许「不知道」。不做真理库。
 
 ### 5.1 表与双时态
 
 | 表 | 内容 |
 |---|---|
-| `entities` | `cid`、`type`（person/place/thing/org/world）、`name`、`aliases`、`attrs`、`first_seen`、`last_seen` |
-| `relations` | `from_id`、`to_id`、`type`、**`valid_from`/`valid_to`（世界时间）**、`weight`、`source_event_id` |
-| `event_entities` | 事件 ↔ 实体，角色：主体 / 对象 / 地点 |
+| `memory_entities` | `cid`、`type`（person/place/thing/org/world）、`name`、`aliases`、`attrs`、**`is_user`**、`impression`、`first_seen`、`last_seen` |
+| `memory_facts` | 一条 claim：主体、谓词、对象（实体或字面量）、置信度、来源、有效期、状态 |
+| `memory_event_entities` | 事件 ↔ 实体，角色：主体 / 对象 / 地点 |
 
-- **双时态**（Graphiti 式）：事实边同时记世界时间与系统时间（`created_at`/`expired_at`）；
-  新事实与旧事实矛盾时**失效旧边、保留历史**，不删。
-- 「查某个人」走图：实体 → 关联事件 → 关联关系 → 回原文。
+- **不再有 `relations` 表**：关系就是「对象是实体的 fact」，同一条信息只存一处；
+  图遍历 = `memory_facts WHERE object_entity_id IS NOT NULL`。
+- **`memory_entities.is_user`**：每个 `cid` 恰好一个（对话对象本人），其余都是普通 person；
+  人物卡靠它区分「本人」和「别人」。
+- **双时态**（Graphiti 式）：`valid_from` / `valid_to` 是世界时间，`created_at` 是系统时间；
+  新事实与旧事实矛盾时给旧的收口（`valid_to = now()`、`status = superseded`），**保留历史不删**。
+- 「查某个人」走图：实体 → 事实 → 关联事件 → 回原文。
 - 社区摘要、多跳推理、图谱向量化 v1 不做。
 
-### 5.2 实体消歧（四段）
+### 5.2 一条事实（`memory_facts`）
+
+| 字段 | 说明 |
+|---|---|
+| `subject_id` | 主体实体（必须有） |
+| `predicate` | 归一化谓词，代码内常量（下表） |
+| `object_entity_id` / `object_literal` | 二选一；对象是实体还是字面量 |
+| `confidence` | 0~1，角色有多确定 |
+| `source_kind` | `stated`（明确说过）/ `inferred`（推断）/ `assumed`（角色设定） |
+| `evidence` | 原话片段；**抽不出原话就不写这条** |
+| `valence` | 可空；态度类 −1~+1，喜恶就是两端 |
+| `status` | `active` / `superseded` / `retracted` |
+
+**谓词表（代码内常量，带基数）**：
+
+| 基数 | 谓词 | 新值来了怎么办 |
+|---|---|---|
+| 单值 | `name` `called_as` `birthday` `lives_in` `works_at` | 旧的 `valid_to = now()`、`status = superseded`，不删 |
+| 多值 | `likes` `dislikes` `knows` `promised` `feels_about` | 并存 |
+
+- 去重与冲突在**应用层**做（抽取串行、无并发），不建唯一索引：单值冲突靠谓词基数判断，SQL 表达不了。
+- `inferred` 默认不进常驻注入，只在检索/人物卡里以「你好像提过…」的措辞出现；`stated` 才当既定事实用。
+- **衰减复用 §4.2 的公式**，只是数字不同：`stated` → `weight = 1024`、H = 365 天；`inferred` → 256、H = 90 天。
+  事实不该三个月就忘；再次被确认就重置时钟（与事件同一条写库路径）。
+- 有 `valid_to` 的（约定类）过期后**直接不注入**，不看 `weight`。
+
+### 5.3 实体消歧（四段）
 
 1. **归一化**：去首尾标点/空白、ASCII 小写；
 2. **blocking**：embedding 找相似候选；
@@ -155,12 +201,21 @@ w_eff = (weight + bonus) >> floor(Δt / H)
 
 - 代词消解 v1 不做：提示词要求输出名字。
 - 同一人跨平台多 id：v1 手工关联。
+- **`aliases` 是抽取硬要求**：模型输出实体时必须尽量给昵称 / 称呼变体。full 靠 embedding blocking 兜，
+  lite 没有向量，**只能靠 `aliases` 精确匹配**（§13）；不给就更容易裂成多个实体。
 
-### 5.3 关系摘要卡（注入第四块）
+### 5.4 人物卡（注入第四块）
 
-- 每个重要的人一张小卡：称呼 / 近况 / 最近互动 / 未了约定。
-- **生成与缓存**：事件抽取时顺带更新实体卡（写入 `entities.card` 缓存），注入时直接读缓存、不额外调 LLM；手动改卡走 WebUI。
-- 作为注入的第四块；v1 与三块并列输出，不做社区摘要。
+- **按人分卡**，不是全局一张「关于用户」：对话对象可能不止一个（群聊 / 多平台）。
+- **槽位段**（事实库投影、只读）：称呼 / 生日 / 住哪 / 在做 / 雷区 / 约定 / 在意的人；有就填，无则省行。
+- **自由段「我的印象」**（`memory_entities.impression`，≤150 字）：槽位装不下的长尾——相处方式、说不清的感觉、最近状态。
+  只由角色通过 `memory_update_impression` 写，或用户在 WebUI 改；**写满必须重写压缩，不自动截断**。
+- **生成与缓存**：槽位段每轮从 `memory_facts` 现算（按实体 + 谓词取最新最可信的一条，不做全表排序）；
+  自由段直接读 `impression`。**注入不调 LLM**。
+- **不够就不渲染**：一张卡的有效槽位 **<2 个就不输出**（整张跳过）；质量不够时它自己消失，而不是塞半张错卡。
+- **通用开关** `inject.people_card`（默认开，lite / full 共用一份配置）：关掉只是不注入，
+  事实照样抽取、照样能在 WebUI / `memory_search` 里查。
+- 标记头 `[记忆·人物]`，取代原「关系摘要卡」；v1 不做社区摘要。
 
 ## 6. 注入
 
@@ -171,14 +226,19 @@ w_eff = (weight + bonus) >> floor(Δt / H)
 | 块 | 取法 | 默认配额 | 内容规范 |
 |---|---|---|---|
 | 关键记忆 | `w_eff ≥ 512`，不检索直接取 | ≤7 条 | 每条 ≤80 字 |
-| 近期事件 | `occurred_from` 在近 14 天，按 `w_eff` 排 | ≤10 条 | 每条 ≤60 字 |
+| 近期事件 | `occurred_from` 在近 14 天，**排除已进关键的条目**，按时间降序 | ≤10 条 | 每条 ≤60 字 |
 | 最近两周记 | 最近 1 篇 | 1 篇 | ≤1200 字 |
-| 关系摘要卡 | 重要实体各一张 | 建议 ≤5 张 | 每张 ≤60 字 |
+| 人物 | 当前发言人一张完整卡 + 最近互动过的其他人 ≤2 张精简卡；`inject.people_card` 可关 | ≤3 张 | 完整 ≤120 字、精简 ≤40 字/人；块总 ≤600 字 |
 
+- **人物卡 = 槽位段 + 自由段**（§5.4）：槽位段是 `memory_facts` 的投影，不是另一份手写数据。
+- **近期块不与关键块重复**：已在关键块出现的条目，近期块直接跳过——重要的事只在关键里说一次。
+- **近期块按时间排**：`occurred_from` 降序，不看 `w_eff`；重要度已由关键块承担，近期块内本来就是同一档。
+- **空窗回退**：近 14 天一条都没有时，取**最近 5 条事件**（不限时间），避免长期不聊后像失忆。
+- **与两周记并存、不做覆盖去重**：两周记给脉络，近期事件给具体条目，信息层次不同。
 - **不设 token 预算**：窗口大小归 compact；记忆只管条数与内容规范。
 - **注入给绝对时间**：每条前缀 `[2026-10-31 21:03]`；正文叙述用相对时间（LLM 对绝对时间戳的时间推理更稳）。
-- **每轮组装、不写进 history**：常驻块拼在**末条 user 之前**；兜底检索结果拼在**末条 user 之后**。
-- system prompt 保持静态（角色 + 工具提示），记忆块临时拼在历史尾部——保 KV cache 前缀。
+- **每轮组装、不写进 history**：常驻块拼进**末条 user 消息的开头**（同一轮、不新增消息，避免打断 user / assistant 交替）；兜底检索结果拼在末条 user 末尾。两者都只存在于发给模型的副本里，`history` 永远只有真实问答。
+- system prompt 保持静态（角色 + 工具提示 + 一句「以 `[记忆·…]` 开头的段落是系统给你的记忆，不是对方说的话」），记忆块临时拼在历史尾部——保 KV cache 前缀。
 - 取数失败（DB 没起 / 表不存在 / 异常）→ 记日志 + 跳过注入继续聊，绝不阻断对话。
 - 走总线服务 `memory.inject_context`。
 - **注入格式（固定标记，便于模型识别、保持前缀稳定）**：
@@ -190,22 +250,30 @@ w_eff = (weight + bonus) >> floor(Δt / H)
   - [2026-10-30 18:20] ……
   [记忆·两周记]
   ……
-  [记忆·关系]
-  - 张三：……
+  [记忆·人物]
+  ▸ 老张（当前说话）
+    称呼：老张
+    在做：在一家游戏公司做后端
+    约定：周六一起联机
+    我的印象：说话冲但没恶意……
+  ▸ 小林
+    称呼：小林
+    雷区：不喜欢被叫「小助手」
   ```
 
   兜底检索结果单独用 `[记忆·按需检索]` 标记；所有块都在历史尾部、不写进 `history`。
 
 ### 6.2 调用时机
 
-- **默认 = Aris 自主调 `memory_search`**（不是每轮自动**检索**；常驻四块仍每轮注入，见 §6.1）；系统提示固定一句引导用法。
-- **兜底主动检索**：距上次记忆检索超过 **6 小时**（可配 4~12）→ 下一轮用用户原问题检索，结果插在用户消息之后；**算一次真实命中**。
+- **默认 = 角色自主调 `memory_search`**（不是每轮自动**检索**；常驻四块仍每轮注入，见 §6.1）；系统提示固定一句引导用法。
+- **兜底主动检索**：距上次记忆检索超过 **6 小时**（可配 4~12）→ 下一轮用用户原问题检索，结果插在用户消息之后。
+  **只注入、不写库**：不算命中、不重置 `last_reinforced_at`、不计晋升——否则闲置的 agent 靠自动检索就能让记忆永生。
 - **自动随机回忆** `memory_recall`（人也会突然想起）：全部满足才跑——
   1. 无请求在飞（与两周记共用「空闲锁」）；
   2. 距上次回忆 ≥ 随机 2~6 小时（可配）；
   3. **10 分钟内输入 ≤5 条**（比「密集」更严：密集是 5 分钟 >15 条，见 §9.3）；
   4. 每次只 recall 1~2 条；
-  注入时标注「你突然想起……」，计命中但只 +16。
+  注入时标注「你突然想起……」，**不写库**（不算命中、不计晋升）。
 
 ## 7. 检索
 
@@ -295,10 +363,24 @@ w_eff = (weight + bonus) >> floor(Δt / H)
 
 ```json
 {"events": [{"content": "...", "brief": "...", "occurred_from": "...", "occurred_to": "...",
-  "participants": ["实体id"], "importance": 0.7,
-  "entities": [{"name": "...", "type": "person"}],
-  "relations": [{"from": "...", "to": "...", "type": "..."}]}]}
+  "participants": ["实体id"], "importance": 0.7, "mood": "happy",
+  "entities": [{"name": "...", "type": "person", "is_user": false}],
+  "facts": [{"subject": "实体id或名字", "predicate": "lives_in",
+             "object": "上海", "object_kind": "literal",
+             "confidence": 0.9, "source": "stated", "evidence": "我住上海",
+             "valence": null}]}]}
 ```
+
+- `importance` 是模型对「这条值不值得一直记得」的判断，**只在抽取时打一次**：`≥ 0.8`（可配）进「重要」预设（`weight = 1024`、立刻常驻），否则中期。
+- 抽取之后想改判，走 `memory_mark_important`（模型）或 WebUI / CLI（用户），**不要靠后续检索累加**。
+- **`mood` 可选**：预设七档 `happy` / `calm` / `warm` / `tired` / `down` / `annoyed` / `awkward`；
+  都不贴切时**允许自拟一个短词**（≤12 字，原样存）。拿不准就整个省略，不硬编。
+- **`facts` 可选**，只抽「稳定的、会持续成立的信息」：
+  - 每条必须带 `evidence`（原话片段），**抽不出原话就不写**；
+  - 一次性的喜好、当下的情绪不抽，交给事件；
+  - `object_kind` = `literal` | `entity`，对应 `object_literal` / `object_entity_id`；
+  - `source` = `stated` | `inferred` | `assumed`；`inferred` 默认不进常驻注入（§5.2）；
+  - `valence` 只给态度类（`feels_about` / `likes` / `dislikes`），其余省略。
 
 ## 10. 表结构
 
@@ -306,16 +388,16 @@ w_eff = (weight + bonus) >> floor(Δt / H)
 memory_entries (
     entry_id uuid PRIMARY KEY,
     cid text NOT NULL,                 -- 角色分区
-    preset text NOT NULL,              -- 半衰期预设名（中期/长期…）
+    preset text NOT NULL,              -- 预设 id：core / mid / long（显示名：重要 / 中期 / 长期）
     kind text NOT NULL,                -- event | compact | digest（summary 预留给大会话总结，v1 不产出）
-    importance real,                   -- 抽取时给的重要度 0~1（决定预设与初始 weight）
+    importance real,                   -- 抽取时给的重要度 0~1（≥阈值 → 重要预设，否则中期）
+    mood text,                         -- 事件情绪基调，可空；七档预设或角色自拟短词（≤12 字）
     content text NOT NULL,
     brief text,                        -- 注入用一句话
     occurred_from timestamptz NOT NULL,
     occurred_to timestamptz,
     weight integer NOT NULL DEFAULT 128,
-    hit_count integer NOT NULL DEFAULT 0,   -- 真实检索命中次数（×128）
-    recall_bonus integer NOT NULL DEFAULT 0, -- 自动回忆加成（每次 +16，累计上限 384）
+    hit_count integer NOT NULL DEFAULT 0,   -- 真实检索命中次数（晋升判定与统计用；不改 weight）
     last_reinforced_at timestamptz NOT NULL DEFAULT now(),
     embedding vector,                  -- 可空；维度由该记忆库绑定的模型决定（建库时定 DDL）
     embedding_model text,              -- provider+model+version
@@ -331,7 +413,51 @@ memory_entries (
 )
 ```
 
-- 另建 `entities` / `relations` / `event_entities`（§5）。
+```sql
+memory_entities (
+    entity_id uuid PRIMARY KEY,
+    cid text NOT NULL,
+    type text NOT NULL,                -- person | place | thing | org | world
+    name text NOT NULL,
+    aliases jsonb NOT NULL DEFAULT '[]',
+    attrs jsonb NOT NULL DEFAULT '{}',
+    is_user boolean NOT NULL DEFAULT false,   -- 每个 cid 恰好一个
+    impression text,                   -- 自由段「我的印象」，≤150 字
+    first_seen timestamptz NOT NULL,
+    last_seen timestamptz NOT NULL
+)
+
+memory_facts (
+    fact_id uuid PRIMARY KEY,
+    cid text NOT NULL,
+    subject_id uuid NOT NULL,          -- memory_entities.entity_id
+    predicate text NOT NULL,           -- 代码内常量，带基数（§5.2）
+    object_entity_id uuid,             -- 与 object_literal 二选一
+    object_literal text,
+    confidence real NOT NULL,          -- 0~1
+    source_kind text NOT NULL,         -- stated | inferred | assumed
+    evidence text,                     -- 原话片段
+    source_event_id uuid,
+    valence real,                      -- 态度类 -1~+1，可空
+    status text NOT NULL DEFAULT 'active',   -- active | superseded | retracted
+    weight integer NOT NULL,
+    hit_count integer NOT NULL DEFAULT 0,
+    last_reinforced_at timestamptz NOT NULL DEFAULT now(),
+    valid_from timestamptz NOT NULL,
+    valid_to timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (object_entity_id IS NOT NULL OR object_literal IS NOT NULL)
+)
+
+memory_event_entities (
+    event_id uuid NOT NULL,
+    entity_id uuid NOT NULL,
+    role text NOT NULL                 -- subject | object | place
+)
+```
+
+- 索引：`memory_facts (cid, subject_id, status, predicate)`、`memory_facts (cid, object_entity_id)`、`memory_entities (cid, is_user)`。
+- **没有 `relations` 表**：关系 = 对象是实体的 fact（§5.1）。
 - 原文：`memory_sessions` / `memory_messages` / `memory_conversations` 三表；`memory_conversations` 记大会话（时间聚类结果），供时间轴查看；原文**全量保留**、可归档。
 - 原文块表带 `embedding_model` 与分块 id；**按语义边界切块**：最小单位 = 消息、不切半条；话轮（user→assistant→tool→tool result）不拆；「30 条」或「~4k token」只是切块信号，触发后回退最近安全边界；超长单条单独成块。
 - 索引：`(cid, preset, kind, occurred_from DESC)`、活跃 partial、HNSW 只对非空 embedding。
@@ -366,7 +492,11 @@ memory_entries (
 - 维护事件驱动、无后台调度器、手机被杀不丢数据。
 - **互转**：`memory convert --to memory|memory-lite`，JSONL 中间格式，先备份、后导入、full 侧重建向量。
 - 无初始化状态：首次启动不建表；创建角色时选择「不创建 / 新建（选后端）/ 使用已有」；无库 = `uninitialized`（不是关闭、不是错误）。
-- 图：full 走双时态实体图；lite 形态**待定**。
+- **图与事实层：与 full 同一套实现**（2026-11-06 定）——`memory_entities` / `memory_facts` / `memory_event_entities` 三张表都建、都维护，
+  不做「只留表不实现」。**不砍表和查询，只砍递归 CTE**：v1 的图查询只有一跳
+  （实体 → 事实、实体 → 事件 → 事实），普通 JOIN 足够，多跳 / 社区摘要本来就不做。
+- **消歧降级**：lite 没有向量，blocking 退化到归一化 + `aliases` 精确匹配 + WebUI 人工合并（§5.3）；
+  因此 `aliases` 在抽取时是**硬要求**，昵称变体靠它兜。裂开的实体只会让个别槽位空着，不会让整张卡失效。
 - **lite 不绑 embedding 模型**（它没有向量）；「库绑模型身份」只适用于 full。
 
 ## 14. 平台身份
@@ -380,11 +510,13 @@ memory_entries (
 
 - `/memory` **主页面只放**：关键记忆 + 最近异常 + 待处理；完整列表 / 统计 / 批量操作放二级页。
 - 列表：按 `cid` / 预设 / `kind` / 时间 / `w_eff` 筛排；详情显示 `sim`、`w_eff`、来源、原文。
-- 操作：改权重（特别记忆 / 取消）、钉住、可见性、软隐藏 / 恢复、硬删除（二次确认）。
+- 操作：改权重（特别记忆 / 取消）、标重要、钉住、可见性、软隐藏 / 恢复、硬删除（二次确认）。
 - 统计（4 项）：各 kind/预设条数、平均与最高 `w_eff`、近 7 天新增、命中分布。
 - 批量：按条件过滤后批量改权重 / 隐藏 / 钉住 / 删除。
+- **人物页**：每个实体一张卡——槽位段（来自 `memory_facts`）、自由段「我的印象」、它的事实列表；可增删改事实、调 `confidence` / `status`、编辑印象、合并实体。
 - **大会话时间轴**：按时间聚类展示「哪段在做事、哪段空着」，可下钻到该段的原文与事件；这是判断作息与活跃度的主要入口。
-- **页面不触发 LLM**；全部走总线；CLI 对等：`aris memory list|search|recall|timeline|set-weight|pin|hide|purge|recompute|rebuild-index|convert`。
+- **页面不触发 LLM**；全部走总线；CLI 对等：`aris memory list|search|recall|timeline|set-weight|mark-important|pin|hide|purge|recompute|rebuild-index|convert`，
+  外加 `aris memory facts list|edit|remove` 与 `aris memory impression show|set|clear`。
 
 ## 16. 无决策模型时的降级（硬约束）
 
@@ -411,7 +543,6 @@ memory_entries (
 ## 18. 未定 / 待议
 
 1. **检索重排权重** `0.5/0.3/0.2` 与 RRF 常数 `60`：先按默认实现，跑起来再调。
-2. **lite 的图形态**：最小图（实体/关系/按人查 + 递归 CTE）还是暂时只留表。
 
 ## 19. 实现默认（v1.0）
 
