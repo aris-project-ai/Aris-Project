@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import shutil
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -154,15 +155,42 @@ def test_config_save_rejects_module_traversal(client, tmp_path: Path) -> None:
 
 
 def test_config_escapes_special_strings(client, tmp_path: Path) -> None:
-    """字符串值含引号/反斜杠/换行时转义，不破坏 toml 结构（历史漏洞回归）。"""
+    """字符串值含引号/反斜杠/换行时不破坏 toml 结构（历史漏洞回归）。
+
+    改用真正是字符串的字段（`logging.file_rotation`）：往 int 字段里塞字符串应当被拒绝，
+    那不是「转义」而是类型错误——见下一条用例。
+    """
+    assert _login(client, "test-pass").status_code == 303
+    evil = 'a"b\\c\n'
+    r = client.post(
+        "/config/save",
+        data={"module": "logging", "file_rotation": evil},
+    )
+    assert r.status_code == 303, r.text[:200]
+    text = (tmp_path / "config" / "logging.toml").read_text(encoding="utf-8")
+    assert tomllib.loads(text)["file_rotation"] == evil, text
+
+
+def test_config_save_rejects_type_mismatch(client, tmp_path: Path) -> None:
+    """往数字字段塞非数字：拒绝该键、保留原值，不把 int 悄悄变成字符串。"""
     assert _login(client, "test-pass").status_code == 303
     r = client.post(
         "/config/save",
-        data={"module": "chat", "tool_result_preview_len": 'a"b\\c\n'},
+        data={"module": "chat", "tool_result_preview_len": "not-a-number"},
     )
     assert r.status_code == 303, r.text[:200]
     text = (tmp_path / "config" / "chat.toml").read_text(encoding="utf-8")
-    assert 'tool_result_preview_len = "a\\"b\\\\c\\u000A"' in text, text
+    assert tomllib.loads(text)["tool_result_preview_len"] == 60, text
+
+
+def test_config_save_keeps_comments(client, tmp_path: Path) -> None:
+    """写回保留种子模板里的注释与其它键（tomlkit 只改命中键）。"""
+    assert _login(client, "test-pass").status_code == 303
+    r = client.post("/config/save", data={"module": "chat", "temperature": "0.5"})
+    assert r.status_code == 303
+    text = (tmp_path / "config" / "chat.toml").read_text(encoding="utf-8")
+    assert "#" in text, "注释不应被整文件重写抹掉"
+    assert "max_rounds" in text, "未提交的键不应丢失"
 
 
 # ---------- skills CRUD ----------
