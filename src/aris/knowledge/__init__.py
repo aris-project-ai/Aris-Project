@@ -56,7 +56,18 @@ def _start() -> dict[str, Any]:
 
 provide("knowledge.start", _start)
 
+# knowledge 依赖的总线服务（本模块声明；serve 的 `services` 步骤启动时统一核验）
+REQUIRED_SERVICES = (
+    "store.connect",
+    "store.embed",
+    "store.embed_dimension",
+    "store.migrate.run",
+    "store.vector.count",
+    "store.vector.dimension",
+)
+
 __all__ = [
+    "REQUIRED_SERVICES",
     "KnowledgeConfig",
     "KnowledgeError",
     "KnowledgeService",

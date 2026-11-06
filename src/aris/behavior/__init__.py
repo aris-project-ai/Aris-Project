@@ -26,7 +26,12 @@ from .runtime import (
 )
 from .tools import register_builtin_tools
 
+# behavior 依赖的外部总线服务（本模块声明；serve 的 `services` 步骤启动时统一核验）。
+# 只列**别的模块**提供的：`tools.*` / `loop.*` / `skills.*` 是本模块自注册，不列。
+REQUIRED_SERVICES = ("http.request",)
+
 __all__ = [
+    "REQUIRED_SERVICES",
     "AgentLoop",
     "BehaviorRuntime",
     "LoopEvent",

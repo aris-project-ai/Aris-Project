@@ -712,9 +712,15 @@ def _cmd_tools(args: argparse.Namespace) -> int:
 
 
 def _cmd_services(args: argparse.Namespace) -> int:
-    """services 命令：list —— 打印全部已注册的 CMCB 总线服务（按模块分组排序）。"""
-    from aris.core import services
+    """services 命令：list —— 打印全部已注册的 CMCB 总线服务（按模块分组排序）。
 
+    必须先 `assemble()`：多数服务由模块 import / 引擎构造时自注册，只 import
+    `aris.core` 会看到一张残缺的表（实测 28 vs 装配后 57）。
+    """
+    from aris.core import services
+    from aris.serve import assemble
+
+    assemble()
     names = sorted(services())
     print(f"共 {len(names)} 个总线服务：")
     for name in names:
