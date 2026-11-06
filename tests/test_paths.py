@@ -25,4 +25,4 @@ def test_data_root_install_fallback(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("ARIS_DATA_DIR", raising=False)
     importlib.reload(paths)
-    assert paths.data_root() == (Path.home() / ".project-aris").expanduser().resolve()
+    assert paths.data_root() == (Path.home() / ".aris-project").expanduser().resolve()

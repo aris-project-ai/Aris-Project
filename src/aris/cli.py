@@ -757,7 +757,7 @@ def _cmd_info(args: argparse.Namespace) -> int:
     elif paths._find_dev_root_via_file() is not None:
         source = "开发树（按包路径判定）"
     else:
-        source = "安装（默认 ~/.project-aris）"
+        source = "安装（默认 ~/.aris-project）"
 
     settings = get_settings()
     state = resolve_modules(load_modules())
