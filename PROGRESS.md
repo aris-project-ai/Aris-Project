@@ -15,7 +15,9 @@
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）；代码仍叫 `memory`。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
 - **决策模型去掉 `main_llm`**：只保留 `off | dedicated`，失败降级到概率 / 规则；消息密集时先攒批再判。
-- **记忆**：允许按「不同自然日真实命中 ≥3」把中期晋升长期；命中与随机回忆共用 384 加成额度；
+- **记忆**：重要性由抽取时模型标注（`importance ≥ 0.8` → 「重要」预设，weight 1024、直接常驻）；
+  真实命中只续命（重置 `last_reinforced_at`、累加 `hit_count`，不改 weight）；中期在 30 天内
+  ≥5 个不同自然日命中的晋升长期（止步于长期）；兜底检索 / 随机回忆不写库。
   大会话（时间聚类）保留用于作息 / 活跃度查看，但 v1 不做大会话总结（小会话总结即 compact）；
   换 embedding 模型走影子表全量重建。
 - **外部 PostgreSQL**：保留支持；备份改用 `pg_dump` 逻辑导出，版本不匹配时明确标注「数据库未备份」。
@@ -31,8 +33,64 @@
   群聊 / 共用实例留 v1.x。
 - **图片**：按模型 `图形理解` 能力投影——原生发图 / 可选「图片转述」/ 占位；发送前限边长、压体积、
   动图拼九宫格（AstrBot 同思路）。
-- **关于页彩蛋**：白色图标触发；默认《东方红》，特殊日期映射别的内容；音源授权未确认前不打包录音。
-- v1 文档仍有未定项（Arch 安装位置、STT 选型、memory-lite 图形态等），见同文 §7。
+- **关于页彩蛋**：白色图标触发；默认**外链跳转**到东方红一号卫星在轨播发电子音版本的公开页面
+  （普通超链接、新标签、不内嵌、不直链、不打包）。除版权外还有四层合规：软件许可（AGPL 覆盖不到
+  第三方资产 / 打包规则要求许可证）、平台内容政策、链接方式、跨境分发——详见 `v1.0.0-prep.md` §4.23。
+  **硬规则：包内不得出现任何《东方红》音频文件**。
+- **S1 施工文档已写**：`docs/process/v1/S1-foundation.md`。工具开关只做按工具（owner 级归插件系统 v1.1），
+  `tools.toml` 只记 `[disabled] tools`，关闭 = 移出工具面 + 拒绝执行；模块关闭时配置项仍列出。
+- **store 总线化已排进 S5**（2026-11-06 定）：业务模块不再直接 import store，统一走 `store.*`；
+  连接对象走**方案 A（池化上下文）**——`store.connect` 从 `psycopg_pool` 借还、pgvector 适配器在池的
+  `configure` 注册、事务边界仍归调用方，见 `v1.0.0-prep.md` §3.7。
+- **外部组件清单定案**（2026-11-06）：`src/aris/infra/components.py`（**Python 常量**，不用 TOML），
+  v1 只收 PG + embedding，排 **S1**；用户层 `data/config/components.toml` 只能覆盖 `url`（镜像），
+  `sha256` 永远在代码里（§3.8，§7-28 已结）。
+- **v1prep 工程化（2026-11-06）**：§4.5 补全搜索引擎注册表契约（落点拆 `search_engines.toml` 只是建议，
+  待拍板）；§4.8 角色系统按代码校正——`character.toml` + `worldview/relations/growth.md`
+  （`prompt.md` 不存在）、cid 规则与 12 位十六进制自动生成冲突、`CharacterStore.create()` 无 cid 校验
+  （S10 开入口前必须补，否则是目录穿越）；§4.14 skills 导入定下「内置 / 用户两层根 + 原子落盘 + 无沙箱」。
+- **记忆模型校正（2026-11-06）**：「重要」恢复为模型在抽取时打标（`weight = 1024`、直接常驻，
+  不进则已、进则顶格）；检索退化为续命（只重置 `last_reinforced_at`，不改 `weight`）；
+  晋升改为 5 个自然日（可配 5~7）且止步于长期；`hit×128` / `384` / `recall_bonus` 全删。
+  详见 `MEMORY.md` §1 / §4。
+- **印象层（2026-11-06 定）**：`facts` 表取代 `relations`（claim 而非 truth：`confidence` / `source_kind` /
+  `evidence` / 有效期 / `status`，`inferred` 默认不进常驻）；人物卡 `[记忆·人物]` 取代关系摘要卡，
+  按人分卡（槽位段来自事实库、自由段由角色自写 ≤150 字）；事件加可选 `mood`（七档预设 + 允许自拟）。
+  详见 `MEMORY.md` §5 / §6.1。
+- **memory-lite 与 full 同构（2026-11-06 定）**：事实层三表（`memory_entities` / `memory_facts` / `memory_event_entities`）都实现，
+  只砍递归 CTE；消歧靠 `aliases` 精确匹配 + 人工合并；人物卡做成通用开关 `inject.people_card`
+  （默认开、两个后端共用），有效槽位 <2 自动不渲染。
+- **设置页分类定案（2026-11-06）**：合并为 **8 个 tab**（聊天 / 模型与搜索 / 记忆 / 知识库 / 存储与向量 /
+  服务与网络 / 日志与通知 / 界面），文件→tab 映射在 `infra/config_items.py` 一处定义、顺序显式；
+  `settings.toml` 允许字段级 `category` 覆盖；section 目标 3~12 项，`collapsed` 只按冷门程度用；
+  `serve.skip` / `llm_providers_file` 标 `hidden`；搜索补「跨 tab 跳转 + 高亮」，见 §3.3。
+- **PG / pgvector 定版本（2026-11-06）**：改钉 **`postgresql=18.6` + `pgvector=0.8.6`**（PG 17 最高只能配
+  pgvector 0.8.1，两者由 `libpq` 绑死）；版本常量进 `infra/components.py`，改它即升级、随版本发布；
+  `MAMBA_URL` 的 arch 写死一并修掉（aarch64 目前装不了）；micromamba 也收进该清单以支持镜像覆盖。
+  **本机需一次性重建 `data/pgdata`**（17→18），并丢弃 `data/knowledge/` 的两篇测试文档（S5 动手时做）。
+  另：`architecture-findings-2026-11-06.md` 里 6 条未决项已并入 `v1.0.0-prep.md` §7-32~37。
+- **打包与 CD 定案（2026-11-06）**：**M1（运行时 uv）确认**——包只装源码 + `uv.lock` + 启动器，
+  解释器由 uv 在首启安装；**Arch 声明 `depends=('uv')`、deb 内置钉死的 uv**（Debian 无 uv 二进制包，
+  sid 只产 `python3-uv-build`）；命名定为 **包名 / app-id / 目录 `ariscore`**，命令仍 `arisp` / `arisp-gui`
+  （`aris` 被 GNU Aris 占用）。首启下载 ≈ CPython 73 MB + 基础依赖（装好 129 MB）+ PG 约 40 MB，
+  本地 embedding 按需再补 1.5 GB。详见 §4.15。
+- **Python 钉 3.14（2026-11-06）**：仓库根加 `.python-version` = `3.14`。原 `requires-python >=3.14`
+  会让 uv 选到 3.15，而 `pydantic-core` / `jiter` 无 cp315 轮子 → 转源码编译。
+  **暂不升 3.15**：`openvino` / `openvino-tokenizers` 任何版本都没有 cp315 wheel（C++ 扩展），
+  其余依赖已就绪；等 OpenVINO 出新版再整体升。
+- **旧文档集中清理不绑阶段**（2026-11-04 定），见 `v1.0.0-prep.md` §10.1。
+- **S13 施工文档已写（2026-11-06）**：`docs/process/v1/S13-packaging.md`——产物与命名、安装布局、
+  首启启动器（环境变量 + stamp 重同步 + 失败处理）、PKGBUILD / deb 要点（含 trixie 的
+  `libgtk-3-0t64` / `libwebkit2gtk-4.1-0`）、`.desktop`、CI 矩阵、验收清单。
+- **命名一致性校对（2026-11-06）**：**CMCB 服务表整表删除**（清单以 `aris services list` 为准，
+  文档不再维护，必然漂移），命名规则改成「功能域 + 2~3 段」，`AGENTS.md` §6 / §7 同步；
+  种子模板删掉指向已消失的 `docs/developDoc/` 的注释，`store.toml` 的 `--extra embedding`
+  改为 `--group embedding`；`paths.py` / `todolist.md` 里残留的旧命令名 `paris` 改为 `arisp`；
+  安装态数据目录改名 `~/.project-aris` → **`~/.aris-project`**（源码树仍用仓库 `data/`）；
+  显示名统一为 **`Aris Project`**；删掉过程文档 `TUI-问题修复.md`。
+  命令维持双名：`arisp` 只出现在「以包形式安装」的语境；记忆表统一 `memory_*` 前缀
+   （`memory_entities` / `memory_facts` / `memory_event_entities`）。命名议题全部结案。
+- v1 文档仍有未定项（STT 选型、流式提前输入、记忆检索调参等），见同文 §7。
 
 | 项 | 状态 |
 |---|---|
@@ -90,7 +148,7 @@
   开 auto-merge。
 - **`gh` CLI**：本机尚未安装；网页操作可用，配置后可简化 PR 与合并操作（auto-merge 的
   仓库开关仍需先在上游设置里打开）。
-- **安装态数据目录**：暂用 `~/.project-aris`；上不上 XDG（`~/.local/share/aris`）待定（不上 Flatpak）。
+- **安装态数据目录**：**包安装用 `~/.aris-project`，源码树用项目根 `data/`**（2026-11-06 定）；不做 XDG、不上 Flatpak。
 - **v1 文档仍在商议中**：`docs/process/v1.0.0-prep.md` §7 的待定项不要当成已定结论。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
