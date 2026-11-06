@@ -13,14 +13,16 @@ import datetime as dt
 import json
 from pathlib import Path
 
-from aris.core.llm.config import LLMModel, LLMProvider, ProviderConfig
+from aris.core.llm.config import LLMModel, LLMProvider, ProviderConfig, load_providers
 from aris.core.llm.fetch import (
     apply_sync,
     compute_diff,
+    config_to_dict,
     load_missing,
     plan_sync,
     save_missing,
     update_missing,
+    write_providers,
 )
 
 _TODAY = dt.date(2026, 10, 30)
@@ -172,3 +174,47 @@ def test_missing_entries_are_sorted(tmp_path: Path) -> None:
     path = tmp_path / "llm-list-missing.json"
     update_missing("oc", [], ["z", "a"], path=path, today=_TODAY)
     assert [e.model for e in load_missing(path)] == ["a", "z"]
+
+
+# ---------- providers.toml 写回必须无损 ----------
+
+
+def test_config_to_dict_roundtrip_keeps_every_field(tmp_path: Path) -> None:
+    """写回再读回，提供方 / 模型的非默认字段一个都不能丢（历史 bug 回归）。"""
+    from aris.core.llm.config import TransportKind
+
+    model = LLMModel(
+        id="m1",
+        name="M1",
+        request_name="m1-remote",
+        context_length=128_000,
+        capabilities=["text", "tool_use"],
+        thinking_default=True,
+        fallback_models=["m2"],
+    )
+    provider = LLMProvider(
+        id="oc",
+        name="OC",
+        base_url="https://example.test/v1",
+        api_key_env="OC_API_KEY",
+        timeout=45.0,
+        transport=TransportKind.HTTPX,
+        connect_timeout=5.0,
+        retry_count=3,
+        backoff_base=1.5,
+        race_fallback=False,
+        models=[model],
+    )
+    cfg = ProviderConfig(providers=[provider], order=[provider.id], default_model="m1")
+
+    data = config_to_dict(cfg)
+    assert data["providers"]["provider"][0]["connect_timeout"] == 5.0
+    assert data["providers"]["provider"][0]["retry_count"] == 3
+    assert data["providers"]["provider"][0]["backoff_base"] == 1.5
+    assert data["providers"]["provider"][0]["race_fallback"] is False
+    assert data["providers"]["provider"][0]["models"][0]["fallback_models"] == ["m2"]
+
+    target = tmp_path / "providers.toml"
+    write_providers(target, cfg)
+    back = load_providers(target)
+    assert back.providers == [provider]
