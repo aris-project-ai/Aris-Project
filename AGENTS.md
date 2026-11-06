@@ -146,8 +146,10 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   全项目的模块间通讯都走它，模块之间不互相 import。
 - **作用之一是在项目内替代 HTTP**：内部协作优先走总线（或既有机制），不要为项目内部通讯新增 HTTP 接口。
 - **服务面**：`provide(name, fn)` 注册、`call(name, ...)` 调用（同步、可有返回值）、
-  `has_service(name)` 探测、`services()` 列出。服务名 `module.service`，事件名 `module.event`；
-  前缀是模块名，代码标识符不带 `aris`。
+  `has_service(name)` 探测、`services()` 列出。服务名 `domain.verb`、事件名 `domain.event`，2~3 段
+  （如 `llm.providers.load`、`store.vector.search`）；前缀是**功能域**——多数等于顶层模块名，
+  少数用 `core` / `behavior` 下的子能力名（`llm` / `audit` / `http` / `loop` / `tools` / `skills`）；
+  代码标识符不带 `aris`。
 - **注册方式**：核心类在自己的 `__init__` 里 `provide` 自己的方法（实例自注册），
   模块 `__init__.py` 里完成登记；不另建注册中心。
 - **缺失与异常**：`call` 遇到未注册的服务会记 error 日志 + 给出最相近的服务名建议，
@@ -155,14 +157,17 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   因此调用方拿到 `None` 时要按「服务不可用」处理，不能直接属性访问。
 - **事件**：`emit(event, payload)` / `subscribe(event, handler)`，同步执行；
   无订阅者时静默丢弃，单个订阅者异常不影响其他订阅者。
+  **现状**：只有 `mcp.tools_changed` 一个发布者、**没有总线订阅者**（WebUI 的 SSE 走自有 broker）；
+  首个真实订阅者随 memory / voice 落地，别把事件面当既有能力用。
 - **审计**：每次 `call` / `emit` 记一条流水（`audit.recent` / `audit.summary` 本身也是总线服务），
   审计失败不影响业务调用。
 - **不走总线的边界**：对象构造 / 依赖注入、同模块内部调用、纯类型引用（如 `Message`）、CLI 组装根。
 - **serve 是启动器，不是库**：任何模块不得 import `serve`（`cli.py` 入口与测试除外）；运行期单例（engine / registry / runtime）归 `behavior/runtime.py`。
 - **依赖声明与核验**：各模块声明自己的 `REQUIRED_SERVICES`，由 `serve` 的 `services` 步骤
   （required）统一核验；`serve.assemble()` 是**唯一**的 import 触发点，别在别处 import 所有者模块。
-- **改服务时**：新增 / 改名 / 删除要同步 `docs/forAiDoc/CMCB.md` 的服务表，并全仓搜索调用点。
-- 服务表与架构详见 `docs/forAiDoc/CMCB.md`。
+- **改服务时**：新增 / 改名 / 删除要全仓搜索调用点；**清单以 `aris services list` 为准**，
+  文档里不再维护服务表（必然漂移）。
+- 命名规则、注册方式与边界详见 `docs/forAiDoc/CMCB.md`。
 
 ### 前后端边界
 
@@ -218,7 +223,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - 启动必须幂等：缺什么补什么，重复执行无副作用。
 - 端口与角色名**不写进配置文件**（端口运行期分配，角色名新建集群统一 `aris`）。
 - `data/` 分层：**必须带** `config/` `pgdata/` `knowledge/` `characters/` `skills/` `autorun/`；
-  **可重建** `pg/` `bin/` `models/` `logs/` `state/`；`.venv/` 不在 `data/`。
+  **可重建** `pg/` `bin/` `models/` `logs/` `state/` `runtime/`；`.venv/` 不在 `data/`。
 
 ### 数据与密钥
 
@@ -234,7 +239,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 | 要加 / 改 | 动哪里 |
 |---|---|
-| 新的跨模块能力 | 在模块 `__init__` 里 `provide` 服务 + 同步 `CMCB.md` 服务表 |
+| 新的跨模块能力 | 在模块 `__init__` 里 `provide` 服务（清单用 `aris services list` 查，文档不再列服务表） |
 | 新的内置工具 | `behavior/tools/<name>.py`（提供 `register(registry)`）+ 在 `tools/__init__.py` 汇总注册 |
 | 业务模块的 agent 工具 | 壳声明在**能力归属模块**：模块内 `tools.py` 构造 `ToolSpec`（`core/tools.py`），`__init__.py` 里 `provide("<模块>.ai_tools", tool_specs)`；behavior 装配时探询收编，behavior / serve 零改动。工具 fn 不 provide 成总线服务。**文案不做人味**（不拟人、无第一人称）：只有 HTTP 报错给映射成「限流 / 鉴权失败」等人话 |
 | 新的数据库表 | `store/migrate.py` 的 `register([Migration(...)])`：owner 内 version 递增，历史迁移不许改写 |
@@ -341,7 +346,6 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
 | 项目蓝图 | `docs/forAiDoc/Aris-Project.md` |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
-| TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 
 ### 文档规范（`docs/forAiDoc/`）
 
@@ -402,6 +406,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - KDE Baloo 默认索引整个 `$HOME`，批量下载后可能吃满内存；本机已关闭内容索引
   （`balooctl6 config set contentIndexing no`），恢复时改 `yes`。
 - OpenVINO 的遥测 warning 无害（会往 `$HOME/intel` 写 consent 文件），可忽略。
+- **`[tool.uv] cache-keys` 只列了 `src/aris/__init__.py`**：改 `pyproject.toml` 的依赖后，
+  uv 仍认为 lock 已满足（`uv add` 只改 pyproject、静默不写 lock，装包时才报 ModuleNotFound）。
+  先 `touch src/aris/__init__.py` 再 `uv lock`。
 
 ### 命名 / 导入
 
