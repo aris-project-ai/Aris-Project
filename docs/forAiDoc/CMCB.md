@@ -131,8 +131,9 @@ aris services list
 
 契约层面只保留三条：
 
-- **注册方式**：有核心类的模块在 `__init__` 里 `provide` 自己（实例自注册）；无核心类的模块
-  在 `__init__.py` 里模块级注册。注册的触发点是组装根 `serve.assemble()`。
+- **注册方式**：核心类在自己的 `__init__` 里 `provide` 自己（实例自注册）；可关模块的模块级
+  `provide()` / 迁移登记收进模块级 `register()`，由组装根 `serve.assemble()` 按模块开关显式调用；
+  包 `__init__.py` 只做定义 / re-export，不产生注册副作用。`core` 是常驻基础设施，保持 import 即注册。
 - **依赖核验**：各模块声明 `REQUIRED_SERVICES`，由 serve 的 `services` 步骤统一核验，
   缺一则记 ERROR 并以非零码退出。
 - **只有注册到总线的东西才算服务**：注册在 `ToolRegistry` 里的工具（如 `activate_skill`）
@@ -160,8 +161,8 @@ aris services list
   `--system` 可覆盖；显式 `--system` 不触碰角色目录。
 - `chat/__init__.py`：删掉包级直引 `ARIS_SYSTEM_PROMPT`（原属总线违例）。
 
-> 注：character 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
-> 全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
+> 注：character 无核心类实例，模块级注册收进 `register()`，由 `serve.assemble()` 显式调用；
+> 服务注册表是全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
 
 ### 已迁移（第三批：Skills，2026-08-12）
 

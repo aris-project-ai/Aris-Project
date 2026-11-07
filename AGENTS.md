@@ -150,8 +150,10 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   （如 `llm.providers.load`、`store.vector.search`）；前缀是**功能域**——多数等于顶层模块名，
   少数用 `core` / `behavior` 下的子能力名（`llm` / `audit` / `http` / `loop` / `tools` / `skills`）；
   代码标识符不带 `aris`。
-- **注册方式**：核心类在自己的 `__init__` 里 `provide` 自己的方法（实例自注册），
-  模块 `__init__.py` 里完成登记；不另建注册中心。
+- **注册方式**：核心类在自己的 `__init__` 里 `provide` 自己的方法（实例自注册）；
+  可关模块把模块级 `provide()` 与迁移登记收进模块级 `register()`，由 `serve.assemble()`
+  按模块开关显式调用，`__init__.py` 只做定义 / re-export（不 `provide()`、不 import 迁移）；
+  `core` 是常驻基础设施，保持 import 即注册。不另建注册中心。
 - **缺失与异常**：`call` 遇到未注册的服务会记 error 日志 + 给出最相近的服务名建议，
   **返回 `None`**（宽容降级）；被调函数抛异常则审计记 `ok=False` 后**原样抛出**。
   因此调用方拿到 `None` 时要按「服务不可用」处理，不能直接属性访问。
@@ -239,9 +241,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 | 要加 / 改 | 动哪里 |
 |---|---|
-| 新的跨模块能力 | 在模块 `__init__` 里 `provide` 服务（清单用 `aris services list` 查，文档不再列服务表） |
+| 新的跨模块能力 | 在模块 `register()` 里 `provide` 服务（清单用 `aris services list` 查，文档不再列服务表） |
 | 新的内置工具 | `behavior/tools/<name>.py`（提供 `register(registry)`）+ 在 `tools/__init__.py` 汇总注册 |
-| 业务模块的 agent 工具 | 壳声明在**能力归属模块**：模块内 `tools.py` 构造 `ToolSpec`（`core/tools.py`），`__init__.py` 里 `provide("<模块>.ai_tools", tool_specs)`；behavior 装配时探询收编，behavior / serve 零改动。工具 fn 不 provide 成总线服务。**文案不做人味**（不拟人、无第一人称）：只有 HTTP 报错给映射成「限流 / 鉴权失败」等人话 |
+| 业务模块的 agent 工具 | 壳声明在**能力归属模块**：模块内 `tools.py` 构造 `ToolSpec`（`core/tools.py`），`register()` 里 `provide("<模块>.ai_tools", tool_specs)`；behavior 装配时探询收编，behavior / serve 零改动。工具 fn 不 provide 成总线服务。**文案不做人味**（不拟人、无第一人称）：只有 HTTP 报错给映射成「限流 / 鉴权失败」等人话 |
 | 新的数据库表 | `store/migrate.py` 的 `register([Migration(...)])`：owner 内 version 递增，历史迁移不许改写 |
 | 新的可调参数 | 模块 dataclass 默认值 + `data/config/<module>.toml`（模板进 `src/aris/seed/config/`）+ `CONFIG.md`；密钥不进来 |
 | 新的 CLI 子命令 | `cli.py` 的 subparsers（含 `-h` 文案） |
@@ -413,6 +415,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 ### 命名 / 导入
 
 - 函数与模块同名会被包重导出遮蔽（`bootstrap()` vs `bootstrap.py`）→ 函数改名 `bootstrap_env`。
+- 可关模块的 `__init__.py` 不 `provide()` / 不 import 迁移；注册收进 `register()`，否则
+  `load_all()` 会把关闭模块的服务 / 迁移带进来。
 
 ### WebUI / 前端
 

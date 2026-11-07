@@ -190,7 +190,9 @@
 
 ## 下一步
 
-1. **S1 契约与地基**：配置项元数据 schema + `aris config items`、i18n 基建 `t()`、工具开关、
+1. **S1 契约与地基**：配置项元数据 schema + `config.items`、i18n 基建 `t()`、工具开关、
    品牌 URL / egg-info 尾巴、旧文档清理（§10.1）；顺手带走 `cli.py` 拆包与 tests 分组。
-2. **S1 之前先谈定**：`aris config items` 的输出形态与元数据字段（这是全项目最底层契约）。
+2. **S1 已谈定，可开工**（2026-11-07）：元数据字段 / 英文 slug / 新增 `config` 命名空间 /
+   `condition` 先落字段 / `config.items` 在 S1 提供 / 不做 `aris config items` /
+   可关模块改显式 `register()`；细节见 `docs/process/v1/S1-foundation.md`。
 3. **v1 文档剩余待定项**：GUI 框架、WebChat 界面、彩蛋等（§5.4 / §7）。
