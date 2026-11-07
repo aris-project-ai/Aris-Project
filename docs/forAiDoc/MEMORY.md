@@ -6,9 +6,12 @@
 
 ## 0. 定位
 
-- **对外名称 APEMS**（**A**ris **P**roject **E**ngram **M**emory **S**ystem，2026-11-03 定）：
-  只用于对外公开（文档、界面、发布说明）。代码里仍叫 `memory`——包名 `aris.memory`、服务名
-  `memory.*`、命令 `aris memory`、配置 `memory.toml` 都不改。
+- **对外名称 APEMS**（`Aris Project Engram Memory System`，2026-11-03 定）：
+  **`Engram` 是名、`Memory System` 是性质**，不是同义反复；全称只在本节展开，其余地方直接写 APEMS。
+  **缩写不可再简**：`AP`（归属）+ `E`（名）+ `MS`（品类）缺一段就念不出来（`APMS` / `EMS` 只能
+  逐字母拼），不许为了简短去掉任何一段。
+  只用于对外文案（文档、发布说明、关于页）；代码、CLI、配置与**界面导航**仍叫 `memory` /「记忆」——
+  包名 `aris.memory`、服务名 `memory.*`、命令 `aris memory`、配置 `memory.toml` 都不改。
 - **engram（记忆痕迹）**：系统要留的是「经历在角色身上留下的痕迹」，不是可检索的档案柜。
 
 - **多模态内容块必须先落库、再进记忆**：图片/语音先存成消息内容块，抽取时再引用，避免记忆里只有「[图片]」占位。
@@ -29,9 +32,9 @@
 - **一个记忆库一套表**：向量列维度由建库时选定的模型决定（本地或云端都行）；不分「热表 / 冷表」，也不预留第二套列。换模型 = 影子表全量重建（§12.1），不混用。
 - **不设 tier 枚举**：重要 / 中期 / 长期只是三条半衰期预设，放在配置里；新增预设不改表。
 - **允许晋升，但不设层级表**：晋升 = 改预设名 + 抬初始 `weight`，不新增表、不新增枚举。
-- **重要性在编码时定（2026-11-06 定，恢复原设计）**：抽取时模型标「重要」（`importance ≥ 0.8`，阈值可配）→ **直接进「重要」预设**（`weight = 1024`、H = 73 天），**立刻常驻**，不经过任何累加。模型也可对已有记忆显式调 `memory_mark_important`，用户手动标同理。没标的中期（`weight = 128`、H = 14 天）。
+- **重要性在编码时定（2026-11-06 定，恢复原设计）**：抽取时模型标「重要」（`importance ≥ 0.8`，阈值可配）→ **直接进「重要」预设**（`weight` 基准 = 2048、H = 73 天），**立刻常驻**，不经过任何累加。模型也可对已有记忆显式调 `memory_mark_important`，用户手动标同理。没标的中期（`weight` 基准 = 128、H = 14 天）。
 - **检索不定义重要性（2026-11-06 定）**：真实命中只重置 `last_reinforced_at`、累加 `hit_count`，**不改 `weight`**。原设计里的「频繁回忆会加强」曾做成命中 +128 累加，数值上恰好是中期到 512 的唯一路径，喧宾夺主了；现退化为「续命」。
-- **长期不由抽取直接产生**：只由晋升产生（中期 → 长期，`weight = 256`、H = 73 天）。
+- **长期不由抽取直接产生**：只由晋升产生（中期 → 长期，`weight` 基准 = 256、H = 73 天）。
 - **晋升规则（2026-11-06 调整）**：中期记忆在 **30 天**内被**真实检索**覆盖 **≥5 个不同自然日**（可配 5~7）→ 晋升长期（preset 改长期、`weight` 提到 256、H 变 73；`last_reinforced_at` 不动）。**晋升止步于长期**，不会变成「重要」；自动随机回忆 / 兜底检索不计入（§4.3）。晋升写在命中那条写库路径里，一次性 `UPDATE`，不引入定时任务。
 
 ### 1.1 记忆库（library）
@@ -76,7 +79,7 @@
 | `brief` | 一句话，注入与列表用 |
 | `mood` | 可空；这段经历的**情绪基调**，七档预设或角色自拟短词（≤12 字） |
 | `occurred_from` / `occurred_to` | 时间段（两列，便于索引排序） |
-| `weight` | 整数权重（§4） |
+| `weight` | 基准权重（整数，§4） |
 | `participants` | 涉及实体（§5） |
 | `session_id` / `source_ref` | 溯源：哪个会话、哪几条原文 |
 | `schema_version` | 抽取所用提示词/模型版本（换模型 +1） |
@@ -91,37 +94,47 @@
 
 ## 4. 权重与衰减
 
-### 4.1 数值（全整数，2 的幂）
+### 4.1 基准值与半衰期（基准取 2 的幂）
 
-| 预设 | `weight` | 半衰期 `H` | 能否常驻 |
+`weight` 是**基准值**，只在预设 / 晋升 / 手动调整时改，**永不随衰减变小**；衰减算出的有效分 `w_eff` 是浮点。
+
+| 预设 | `weight`（基准） | 半衰期 `H` | 能否常驻 |
 |---|---|---|---|
-| **重要**（`core`） | **1024** | 73 天 | **是**：`1024 >> floor(Δt/73)` 在 146 天内都 ≥ 512 |
-| **长期**（`long`） | **256** | 73 天 | 否（目标寿命约 1 年） |
-| **中期**（`mid`） | **128** | 14 天 | 否（目标寿命约 2 个月） |
+| **重要**（`core`） | **2048** | 73 天 | **是**：`2048 × 0.5^(Δt/73)` 在 146 天内 ≥ 512 |
+| **长期**（`long`） | **256** | 73 天 | 否（`<8` 约在 365 天） |
+| **中期**（`mid`） | **128** | 14 天 | 否（`<8` 约在 56 天） |
 
 | 量 | 值 | 说明 |
 |---|---|---|
 | 关键阈值 | **512** | `w_eff ≥ 512` 直接进上下文 |
-| 封顶 | **1024** | 「重要」预设即顶格 |
+| 封顶 | **2048** | 「重要」预设即顶格 |
 | 消失阈值 | **<8** | 不注入、不检索，数据保留 |
 | 晋升门槛 | **5 个不同自然日** | 30 天内，可配 5~7；见 §1 |
 
+- **消失阈值 `<8`** 是产品语义上的「想不起来了」：不注入、不检索、数据保留。它是阈值的分界，
+  不属于衰减曲线本身。
 - 没有「命中增益」「自动加成上限」——检索不改 `weight`（§4.3）。
-- 「重要」不进则已，进则顶格：抽取时标了就是 1024，不存在「先给 256 再靠搜索补」。
+- 「重要」不进则已，进则顶格：抽取时标了就是 2048，不存在「先给 256 再靠搜索补」。
 
-### 4.2 公式
+### 4.2 公式（连续曲线）
 
 ```
-w_eff = weight >> floor(Δt / H)
+w_eff = weight × 0.5^(Δt / H)
 Δt = now − last_reinforced_at
 ```
 
-- `weight` 只由预设（§4.1）、晋升、手动调整决定；**检索不改它**。
-- 整数位移让衰减呈台阶状：同一档内 `w_eff` 不变，跨过一个 H 才减半；阈值附近会跳变，接受。
-- **惰性计算、不落库**；没有定时任务、不改写历史行；调参不用洗数据。
+- **连续衰减，没有台阶**：每过一个 `H` 正好减半，中间平滑下降（2026-11-07 定，替换原先的整数位移 `>>`）。
+- `weight` 是**基准值**，只由预设（§4.1）、晋升、手动调整决定；**检索不改它**。
+- **惰性计算、不落库**；没有定时任务、不改写历史行；漏算多久都不影响正确性——公式直接代入
+  当前时间，改 `H` 也不用洗数据。
 - **唯一写库路径 = 真实检索命中**（`hit_count += 1`、`last_reinforced_at = now()`；晋升也在这条路径里一次性改 `preset` / `weight`）。
-- 代价：`w_eff` 不能建普通索引，注入查询先按时间/预设过滤再排序。
-- **排序 tie-break（2026-11-06 定）**：`w_eff` 降序 → `last_reinforced_at` 降序 → `occurred_from` 降序 → `entry_id` 降序（稳定）。`w_eff` 只有几档，不定死的话同一批 1024 每次顺序都会变。
+- 代价：`w_eff` 不能建普通索引，注入查询先按时间/预设过滤成小候选集，再算再排
+  （见 `docs/process/v1.0.0-prep.md` §4.7）。
+- **若将来确实需要可索引的排序**：在合适的时机（例如列表页出现性能问题）把算好的 `w_eff` 物化成
+  `score` 列即可——它是**派生缓存**，可随时增删、不需要数据迁移；那时再补刷新时机与
+  `aris memory recompute`。
+- **排序 tie-break**：`w_eff` 降序 → `last_reinforced_at` 降序 → `occurred_from` 降序 → `entry_id` 降序（稳定）。
+  浮点极少正好相等，但同一时刻写入的行仍要定死顺序。
 
 ### 4.3 命中
 
@@ -135,7 +148,7 @@ w_eff = weight >> floor(Δt / H)
 ### 4.4 用户干预
 
 - **钉住** `pinned_at`：跳过衰减、注入优先、**仍占配额**；限数量（建议 ≤10）+ WebUI 提示。
-- **手动标「重要」**：WebUI / CLI 把 `preset` 改成「重要」、`weight` 提到 1024；效果与模型标注相同。与 pin 的区别：重要仍按 H=73 衰减，pin 完全不衰减。
+- **手动标「重要」**：WebUI / CLI 把 `preset` 改成「重要」、`weight`（基准）提到 2048；效果与模型标注相同。与 pin 的区别：重要仍按 H=73 衰减，pin 完全不衰减。
 - **可见性** `normal | private | sealed | hidden`（用户可在 WebUI/CLI 改；模型也可通过工具标，默认 normal）：
   - `private`：不进自动注入，仍可被检索（想主动想起时才取）；
   - `sealed`：不注入不检索，仅 WebUI/CLI 可见；
@@ -371,7 +384,7 @@ w_eff = weight >> floor(Δt / H)
              "valence": null}]}]}
 ```
 
-- `importance` 是模型对「这条值不值得一直记得」的判断，**只在抽取时打一次**：`≥ 0.8`（可配）进「重要」预设（`weight = 1024`、立刻常驻），否则中期。
+- `importance` 是模型对「这条值不值得一直记得」的判断，**只在抽取时打一次**：`≥ 0.8`（可配）进「重要」预设（`weight = 2048`、立刻常驻），否则中期。
 - 抽取之后想改判，走 `memory_mark_important`（模型）或 WebUI / CLI（用户），**不要靠后续检索累加**。
 - **`mood` 可选**：预设七档 `happy` / `calm` / `warm` / `tired` / `down` / `annoyed` / `awkward`；
   都不贴切时**允许自拟一个短词**（≤12 字，原样存）。拿不准就整个省略，不硬编。
@@ -396,7 +409,7 @@ memory_entries (
     brief text,                        -- 注入用一句话
     occurred_from timestamptz NOT NULL,
     occurred_to timestamptz,
-    weight integer NOT NULL DEFAULT 128,
+    weight integer NOT NULL DEFAULT 128,   -- 基准权重，不随衰减变小（§4.2）
     hit_count integer NOT NULL DEFAULT 0,   -- 真实检索命中次数（晋升判定与统计用；不改 weight）
     last_reinforced_at timestamptz NOT NULL DEFAULT now(),
     embedding vector,                  -- 可空；维度由该记忆库绑定的模型决定（建库时定 DDL）
@@ -440,7 +453,7 @@ memory_facts (
     source_event_id uuid,
     valence real,                      -- 态度类 -1~+1，可空
     status text NOT NULL DEFAULT 'active',   -- active | superseded | retracted
-    weight integer NOT NULL,
+    weight integer NOT NULL,          -- 基准权重，不随衰减变小（§4.2）
     hit_count integer NOT NULL DEFAULT 0,
     last_reinforced_at timestamptz NOT NULL DEFAULT now(),
     valid_from timestamptz NOT NULL,
@@ -487,7 +500,8 @@ memory_event_entities (
 
 - 同一套逻辑 schema 与工具面，SQLite 后端：时间 ISO8601 TEXT、JSON TEXT、**无向量列**。
 - 检索：**FTS5 + trigram**（中文 3 字切分，短词回退 LIKE）+ BM25 + 权重 + 时间；`memory_search` 语义不变（`refined` 查事件/总结/两周记，`raw` 查原文块）；`memory_recall` 同样加权随机。
-- 衰减用 SQLite 整数运算（同一公式，`>>` 直接写）。
+- 衰减在 Python 侧按同一公式算，不依赖 SQLite 的 `pow()`（有些发行版没编译 math 扩展）；
+  候选集本来就小，代价值得。
 - pragma：WAL、`synchronous=NORMAL`、合理 `cache_size`、`temp_store=MEMORY`；启动轻量 `ANALYZE`。
 - 维护事件驱动、无后台调度器、手机被杀不丢数据。
 - **互转**：`memory convert --to memory|memory-lite`，JSONL 中间格式，先备份、后导入、full 侧重建向量。
@@ -515,7 +529,7 @@ memory_event_entities (
 - 批量：按条件过滤后批量改权重 / 隐藏 / 钉住 / 删除。
 - **人物页**：每个实体一张卡——槽位段（来自 `memory_facts`）、自由段「我的印象」、它的事实列表；可增删改事实、调 `confidence` / `status`、编辑印象、合并实体。
 - **大会话时间轴**：按时间聚类展示「哪段在做事、哪段空着」，可下钻到该段的原文与事件；这是判断作息与活跃度的主要入口。
-- **页面不触发 LLM**；全部走总线；CLI 对等：`aris memory list|search|recall|timeline|set-weight|mark-important|pin|hide|purge|recompute|rebuild-index|convert`，
+- **页面不触发 LLM**；全部走总线；CLI 对等：`aris memory list|search|recall|timeline|set-weight|mark-important|pin|hide|purge|rebuild-index|convert`，
   外加 `aris memory facts list|edit|remove` 与 `aris memory impression show|set|clear`。
 
 ## 16. 无决策模型时的降级（硬约束）
