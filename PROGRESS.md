@@ -54,6 +54,28 @@
   不进则已、进则顶格）；检索退化为续命（只重置 `last_reinforced_at`，不改 `weight`）；
   晋升改为 5 个自然日（可配 5~7）且止步于长期；`hit×128` / `384` / `recall_bonus` 全删。
   详见 `MEMORY.md` §1 / §4。
+- **`is_user` → `is_owner`（2026-11-07 定）**：原字段把「当前发言人」「归属」「是不是人」三件事挤成一个 bool，
+  与「群聊 / 多平台对话对象不止一个」自相矛盾。改为 **`is_owner`（这个角色属于谁）**：至多一个、可以没有、
+  只由用户手动设，数据库用部分唯一索引保证；当前发言人改由消息信封 `speaker` 经 `memory_identities` 解析。
+  抽取 schema 不再输出该字段；WebUI 人物页与 CLI `aris memory owner` 对等。显示文案可配
+  `owner_label`（默认「主人」，可改「管理员」等）。详见 `MEMORY.md` §5.1 / §10 / §15。
+- **换 embedding 模型后的旧表保留期（2026-11-07 定）**：`retention_days` 默认 7 天、可配 0~30
+  （0 = 切换成功即删）；保留期内可回滚，到期自动清理。
+- **记忆库元信息 = 库自描述（2026-11-07 定，方案 A）**：每个库内部一张单行 `memory_library`
+  （full 在该库 PG schema 内，lite 在该库 SQLite 文件内），**不设全局注册表**；不存 `initialized`
+  （启动探测）、不存 `cid` 绑定、不存大小 / 条数；不做 `description` / `last_used_at`。
+  物理位置由 `library_id` 推导（schema `mem_<id 前 12 位>`、文件 `data/memory/libraries/<id>.sqlite`），
+  `character.toml` 只存 `library_id`。结构迁移逐库记在库内 `memory_migrations`——全局
+  `store_schema_migrations` 的 `(owner, version)` 表达不了每库进度不同。详见 `MEMORY.md` §1.1 / §10。
+- **`importance` 保留（2026-11-07 评估）**：只作抽取原始分，用于定预设、审计、改阈值后重新分层；
+  运行期注入与排序只看 `w_eff`，不再参与重排。
+- **会话冷却同步为 1 天（2026-11-07）**：`AGENTS.md` 与 `PORTABILITY-AND-SINGLE-SESSION.md` 一并改成
+  「默认 1 天，可配、最大 5 天」，与 `MEMORY.md` §9.0 一致。
+- **记忆文档一致性修订（2026-11-07）**：补 `memory_hits`（晋升要 `DISTINCT` 自然日，原 DDL 无处记录）、
+  `memory_identities`（speaker → 实体）、`memory_messages` 的 `speaker` 等字段；`valid_to` 与
+  `superseded_at` 拆成世界时间 / 系统时间；`stale` 落列；事件参与者只存 `memory_event_entities`；
+  检索重排改为 `0.7 rel + 0.3 norm(w_eff)`（原 `importance` + `recency` 与 `w_eff` 重复计权）；
+  两周记检索改用真实窗口边界；钉住上限与关键块配额对齐；工具面明确为 2 读 2 写。
 - **衰减改连续曲线（2026-11-07）**：`w_eff = weight × 0.5^(Δt/H)` 取代整数位移 `>>`；
   `weight` 明确为**基准值**、永不随衰减变小；仍惰性计算、无定时任务。为保住原来的
   「重要」146 天常驻，基准从 1024 提到 **2048**（H 仍 73，彻底不可达仍是 584 天）；
