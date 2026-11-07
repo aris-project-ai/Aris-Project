@@ -60,6 +60,31 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     else:
         logger.info(f"分层: {'、'.join(CARRIED_PATHS)} 齐备（换机可整体拷走）")
 
+    # 外部组件：清单钉的版本 vs 本机实际。PG 大版本不一致意味着必须重建 data/pgdata，
+    # 不自动处理（数据无价），只在这里提示。
+    from .infra.components import POSTGRESQL, ComponentsError, platform_key
+    from .store.pgenv import detect
+
+    try:
+        logger.info(f"外部组件平台: {platform_key()}（详情 `aris components list`）")
+    except ComponentsError as exc:
+        logger.warning(f"外部组件: {exc}")
+    env = detect()
+    if env.initialized:
+        try:
+            installed = (env.pgdata / "PG_VERSION").read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            logger.warning(f"PostgreSQL: 读取 {env.pgdata / 'PG_VERSION'} 失败（{exc}）")
+        else:
+            expected_major = POSTGRESQL.version.split(".")[0]
+            if installed.split(".")[0] != expected_major:
+                logger.warning(
+                    f"PostgreSQL: 数据目录是 {installed}，清单钉的是 {POSTGRESQL.version}"
+                    "（大版本变更需重建 data/pgdata，不会自动做）"
+                )
+            else:
+                logger.info(f"PostgreSQL: 数据目录 {installed}，与清单主版本一致")
+
     # 模块状态：与 `aris serve` 共用同一份探针（不再各写一套自检）
     from .serve import probe_all
 
@@ -775,6 +800,45 @@ def _cmd_info(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_components(args: argparse.Namespace) -> int:
+    """外部组件清单：版本 / 来源 / 校验值（只读）。"""
+    import json
+
+    from .infra.components import ComponentsError, all_components, as_dict, platform_key
+
+    items = [as_dict(c) for c in all_components()]
+    if args.json:
+        print(json.dumps(items, ensure_ascii=False, indent=2))
+        return 0
+
+    try:
+        current = platform_key()
+    except ComponentsError:
+        current = None
+
+    print("外部组件（事实来源：src/aris/infra/components.py）")
+    for item in items:
+        kind = item["kind"]
+        if kind == "archive":
+            print(f"- {item['id']} {item['version']}（下载文件）")
+            for platform, url in item["urls"].items():
+                digest = item["sha256"].get(platform, "缺失")
+                mark = "  ← 当前平台" if platform == current else ""
+                print(f"    {platform}{mark}")
+                print(f"      地址: {url}")
+                print(f"      sha256: {digest}")
+        elif kind == "conda":
+            print(f"- {item['id']} {item['version']}（conda / {item['channel']}）")
+        else:
+            print(
+                f"- {item['id']}（HF 模型）{item['repo']} @ {item['revision']}"
+                f"（{item['dimension']} 维，{item['license']}）"
+            )
+    if current is None:
+        print("当前平台不在支持范围（只支持 linux-64 / linux-aarch64）")
+    return 0
+
+
 # TOML 里哪些键算密钥（只用于 `aris config show` 脱敏）
 _SECRET_KEY_RE = re.compile(r"(?i)(api[_-]?key|token|secret|password|passwd|hmac)")
 
@@ -981,6 +1045,15 @@ def main(argv: list[str] | None = None) -> int:
 
     p_info = sub.add_parser("info", help="版本 / 路径 / 模块开关等环境事实（只读）")
     p_info.set_defaults(func=_cmd_info)
+
+    p_components = sub.add_parser("components", help="外部组件清单：版本 / 来源 / 校验值（只读）")
+    p_components_sub = p_components.add_subparsers(dest="components_command")
+    p_components_list = p_components_sub.add_parser(
+        "list", help="列出便携 PG / pgvector / micromamba / embedding 模型"
+    )
+    p_components_list.add_argument("--json", action="store_true", help="JSON 输出（脚本用）")
+    p_components_list.set_defaults(func=_cmd_components)
+    p_components.set_defaults(func=_cmd_components, components_command="list")
 
     p_config = sub.add_parser("config", help="配置事实（只读：path/list/show/validate/env）")
     p_config_sub = p_config.add_subparsers(dest="config_command")

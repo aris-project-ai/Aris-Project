@@ -6,9 +6,10 @@ provider 之类的逻辑类型留在代码里；密钥一律走 data/config/secr
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
+from ..infra.components import BEKKO_A25M
 from ..infra.toml import load_config
 
 
@@ -18,12 +19,15 @@ class StoreConfig:
 
     # embedding 提供方（当前支持 "local" = 本地 Bekko a25m，384 维）
     embedding_provider: str = "local"
-    # 本地模型：HF 仓库 id，或 data/models/ 下的目录名
-    local_model: str = "hotchpotch/bekko-embedding-v1-a25m"
+    # 本地模型：HF 仓库 id，或 data/models/ 下的目录名；默认值来自 infra/components.py
+    local_model: str = BEKKO_A25M.repo
     # 本地推理一次喂多少条
     batch_size: int = 16
     # Matryoshka 截断维度（None = 用模型原生维度 384）
     truncate_dim: int | None = None
+    # 外部组件镜像（只换下载地址，sha256 仍取 infra/components.py）：
+    # "<id>" = 镜像目录（自动拼官方文件名）；"<id>.<platform>" = 完整 URL 精确覆盖
+    mirror: dict[str, str] = field(default_factory=dict)
 
 
 @lru_cache
