@@ -10,7 +10,7 @@
 
 ## 当前阶段
 
-**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`）。本轮只收敛 v1 文档与决策，不含功能代码：
+**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`），已进入施工：S1 从外部组件清单开始落代码，其余批次先收敛文档与决策。
 
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
@@ -22,6 +22,12 @@
   大会话（时间聚类）保留用于作息 / 活跃度查看，但 v1 不做大会话总结（小会话总结即 compact）；
   换 embedding 模型走影子表全量重建。
 - **外部 PostgreSQL**：保留支持；备份改用 `pg_dump` 逻辑导出，版本不匹配时明确标注「数据库未备份」。
+- **S1 T6 已落地（2026-11-07）**：`infra/components.py` 收编 PG / pgvector / micromamba / embedding
+  的版本与校验值（`Archive` / `CondaPackage` / `Model` 三种条目）；`store/bootstrap.py` 删掉版本常量、
+  修掉 arch 写死；本地 embedding 改为锁 HF commit（原来读 `refs/main`，是浮动的）；
+  `aris components list [--json]` 只读、`doctor` 增主版本对账。镜像写 `store.toml` 的 `[mirror]`
+  （只换 URL，sha256 仍取清单）；**uv 不进清单**（运行期不用，归 S13 打包脚本）。
+  版本仍钉 `17` / `0.8.1`，目标 `18.6` / `0.8.6` 在 S5 连同 `data/pgdata` 重建一起切。
 - **配置档**：`serve.toml` / `webui.toml` 不随档（避免恢复别人的备份后端口变化）；GUI 不得写死端口。
 - **施工顺序已定**（2026-11-03）：v1 按 S1–S14 批次推进（元数据与 i18n 基建 → WebUI 外壳 →
   备份 → 配置档 → 存储适配 → 消息模型 → LLM → 设置页 → 消息平台 → 记忆/角色 → WebChat/决策/autorun

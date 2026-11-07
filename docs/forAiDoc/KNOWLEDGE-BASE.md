@@ -77,10 +77,12 @@ postgresql-*-linux-x64-binaries.tar.gz` 现返回 **403**（改走 `getfile.jsp`
 
 - `postgresql` 与 `pgvector` **同源**，版本匹配由 solver 保证（conda-forge 上
   `pgvector` 有 linux-64 / linux-aarch64）
-- **精确钉死 `postgresql=18.6` + `pgvector=0.8.6`**（2026-11-06 定）：两者是**绑死的**——
-  pgvector 0.8.6 要求 `libpq >=18.6`，PG 17 最高只能配 pgvector 0.8.1。
-  版本常量在 `infra/components.py`，升级 = 改那里 + 发版；**不写 `>=` 浮动约束**
-  （浮动在 PG 大版本钳制下会静默落到旧版本，等于假约束）
+- **精确钉死**（不写 `>=`：浮动在 PG 大版本钳制下会静默落到旧版本，等于假约束）。
+  目标版本是 `postgresql=18.6` + `pgvector=0.8.6`（2026-11-06 定），两者**绑死**——
+  pgvector 0.8.6 要求 `libpq >=18.6`，PG 17 最高只能配 0.8.1。
+  **S1 收编清单时先保持 `17` / `0.8.1`**（与现有 `data/pgdata` 一致），
+  S5 连同 `data/pgdata` 重建一起切到 `18.6` / `0.8.6`。
+  版本常量在 `infra/components.py`，升级 = 改那里 + 发版。
 - 由 **micromamba 单文件静态二进制**驱动，**免 root、免编译**，安装到 `data/pg/`
   （`.gitignore` 已覆盖 `data/`，仓库零体积增长）；下载地址**按 CPU 架构选**
   （`micromamba-linux-64` / `micromamba-linux-aarch64`），sha256 按架构分开记
@@ -108,7 +110,7 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
 | `store/pgenv.py` | 探针链 + `PgEnv`（bin / pgdata / run / port / user / db）+ DSN 拼装 |
 | `store/bootstrap.py` | micromamba 获取（sha256 校验）→ conda 环境 → `initdb` → 启停 → 建库 → 建扩展 → `versions.txt` |
 | `store/db.py` | psycopg 连接与探活（对外总线服务 `store.health`） |
-| `store/conf.py` + `data/config/store.toml` | embedding 可调参数（provider / 模型 / batch / 截断维度） |
+| `store/conf.py` + `data/config/store.toml` | embedding 可调参数（provider / 模型 / batch / 截断维度）；外部组件镜像 `[mirror]` |
 | `store/embedding/` | embedding 抽象（Protocol）+ 本地 Bekko provider（懒加载；总线服务 `store.embed`） |
 | `store/migrate.py` | 轻量迁移：按 `(owner, version)` 记录到 `store_schema_migrations`，每条单事务，防历史改写 |
 | `store/vector.py` | pgvector 通用 helper：建 HNSW 索引 / upsert / 近邻检索 / 维度读取（标识符校验 + 算子白名单） |
@@ -117,7 +119,8 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
 - 服务端口默认 **55432**，避开将来系统 PG 的 5432；socket 落 `data/pg/run`，
   仅监听 `127.0.0.1`
 - micromamba 的**版本 / 架构相关 URL / sha256 常量收在 `infra/components.py`**（2026-11-06 定），
-  与 PG、embedding 同一份清单；升级 = 改该文件 + 发版。用户层 `components.toml` 只能覆盖 `url`
+  与 PG、embedding 同一份清单；升级 = 改该文件 + 发版。用户层 `store.toml` 的 `[mirror]`
+  只能覆盖 `url`（`sha256` 永远取清单）
 - Python 侧依赖 `psycopg[binary]`（自带 libpq，不依赖系统 libpq）
 - **系统已装则不下载**（`ARIS_PG_BIN` / `pg_config` 命中）：只确保库与扩展存在；
   系统 PG 缺 pgvector 时用 `ARIS_PG_SOURCE=project` 改走便携实例（CI 即如此）
@@ -125,7 +128,7 @@ pgvector 在 glibc Linux + GCC/Clang 上会自动启用 `USE_TARGET_CLONES`
 **实现状态（2026-09-18 跑通）**：
 
 - **数据库**：`aris db init|start|stop|status|psql` 全部可用；2026-09-18 首次跑通时为
-  PostgreSQL **17.11** + pgvector **0.8.1**，**2026-11-06 起改钉 18.6 + 0.8.6**
+  PostgreSQL **17.11** + pgvector **0.8.1**；**18.6 + 0.8.6 定为目标，S5 切换**
   （`data/pg` 约 166MB，另有包缓存 `data/pg-pkgs` 约 91MB 可随时删）。
   **升级必须重建 `data/pgdata`**：PG 大版本变了，集群目录不兼容，`pg_upgrade` 不在支持范围内。
   micromamba 与 conda 的根前缀、包缓存、元数据缓存以及 `HOME` 全部收在 `data/` 下，

@@ -21,7 +21,7 @@
 | 3 | 新文案都能走 `t()`，切换语言生效 | `aris --lang en doctor` 输出英文；缺 key 回退 `zh-CN` 并记 DEBUG |
 | 4 | 工具开关能持久化并影响工具面 | `aris tools list` 显示启停；关掉的工具不出现在 `definitions()`，`tools.execute` 拒绝 |
 | 5 | 品牌只在一处 | `grep -rn "Aris Project" src/ pyproject.toml` 只剩 `branding.py`（模板渲染点除外） |
-| 6 | 外部组件版本只在一处 | `grep -rn "micromamba-linux\|bekko-embedding" src/` 只剩 `infra/components.py`；`aris components list --json` 可解析 |
+| 6 | 外部组件版本只在一处 | `grep -rn "bekko-embedding" src/` 只剩 `infra/components.py`；`store/bootstrap.py` 里无版本 / 校验常量；`aris components list --json` 可解析 |
 | 7 | 全检通过 | `bash scripts/check.sh` |
 
 ## 3. 任务
@@ -118,24 +118,32 @@ S1 不碰这块。
 
 ### T6 外部组件清单（Lead）
 
-**新增** `src/aris/infra/components.py`：PG / embedding 的来源、版本、校验值集中在这里
-（`v1.0.0-prep.md` §3.8 已定格式与范围）。
+**新增** `src/aris/infra/components.py`：PG / pgvector / micromamba / embedding 模型的
+来源、版本、校验值集中在这里（`v1.0.0-prep.md` §3.8 已定格式与范围）。
 
-- **形状**：dataclass + 模块级常量（不用 TOML）。条目至少含
-  `id` / `kind`（`archive` / `model` / `conda`）/ `version` / `url`（按平台）/ `sha256`（按平台）。
-- **缺校验就报错**：装载 / 取用条目时若 `sha256` 为空，直接抛 `ComponentsError`，
+- **形状**：三种 frozen dataclass + 模块级元组，不硬塞一个结构——
+  `Archive`（`base_url` + 按平台文件名 + 按平台 sha256）、
+  `CondaPackage`（`id` / 精确 `version` / `channel`）、
+  `Model`（`repo` / `revision` / `dimension` / `license`）。
+- **缺校验就报错**：`require_sha()` 对空串 / 非 64 位十六进制直接抛 `ComponentsError`，
   不允许「跳过校验继续装」。
 - **平台键归一**只在这一处：`sys.platform` + `platform.machine()` → `linux-64` / `linux-aarch64`
   （其它平台先明确报「未支持」，不做猜测映射）。
-- **收编**：`store/bootstrap.py` 的 `MAMBA_VERSION` / `MAMBA_URL` / `MAMBA_SHA256` /
-  `PG_VERSION` / `PGVECTOR_SPEC` / `CONDA_CHANNEL`；`store/embedding/local.py` 的
-  `DEFAULT_MODEL`（`BEKKO_A25M_DIM` 改为从清单取维度）。
-- **embedding 用 HF revision（commit）锁**，不跟 tag；`main` 随时变，tag 也能被推。
-- **用户镜像覆盖（2026-11-06 定）**：读 `data/config/components.toml`，**只接受 `url`**
-  （`[mirror] <artifact-id> = "<url>"`）；`sha256` 永远取 `components.py`，
-  用户层出现 `sha256` 字段一律忽略。镜像必须字节一致，否则校验失败。
-- **CLI**：`aris components list [--json]`，只读。
-- **不做**：下载逻辑（留在 `store/bootstrap.py`，这里只是事实）、
+- **收编（同批，不拆开）**：
+  - `store/bootstrap.py`：`MAMBA_VERSION` / `MAMBA_URL` / `MAMBA_SHA256` /
+    `PG_VERSION` / `PGVECTOR_SPEC` / `CONDA_CHANNEL` 全部删除，改调清单；
+    同时修掉 `MAMBA_URL` 的 arch 写死；
+  - `store/embedding/local.py`：`DEFAULT_MODEL` / `BEKKO_A25M_DIM` 改为从清单取；
+    加载时传 `revision`（**现在读 `refs/main`，是浮动的**，收编时一并修）；
+  - `store/conf.py`：`local_model` 默认值改为 `BEKKO_A25M.repo`。
+- **embedding 用 HF revision（commit）锁**，不跟 tag；缓存里只有别的 commit 时**不拿它顶替**
+  （否则锁 revision 失效），没有就联网取钉住的那个。
+- **用户镜像覆盖（2026-11-07 修订）**：**不新增 `components.toml`**；读现有
+  `data/config/store.toml` 的 `[mirror]`，只接受 `url`：`"<id>"` = 镜像目录（自动拼官方文件名）、
+  `"<id>.<platform>"` = 完整 URL 精确覆盖；`sha256` 永远取清单。镜像必须字节一致。
+- **CLI**：`aris components list [--json]`，只读；`doctor` 增一行「清单主版本 vs `data/pgdata` 实际」，
+  不一致只 warning（重建数据目录不自动做）。
+- **不做**：下载逻辑（留在 `store/bootstrap.py`，这里只是事实）；uv（打包工具，归 S13）；
   STT / TTS / 本地推理运行时（v1 不预留空结构）。
 
 ## 4. 不做（明确划线）
