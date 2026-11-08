@@ -185,19 +185,32 @@ fi
 echo
 if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
-    echo "  1. 发版准备：bash scripts/release.sh [--beta] <版本|patch|minor|major>（从 develop 切 release 分支并 bump）"
-    echo "  2. 封 CHANGELOG.md 的版本段，提交 chore(release): ..."
-    echo "  3. 推送 ${cur} 到 fork（origin），向上游开 PR：${cur} → main"
-    echo "  4. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
-    echo "     （需上游已开 Allow auto-merge，且 main 的必需检查含 check + integration）"
     case "$cur" in
-    release/beta-*) tag_hint="beta-v$ver" ;;
-    release/*) tag_hint="v$ver" ;;
-    *) tag_hint="alpha-v$ver（develop 专用，不进 main）" ;;
+    release/beta-*)
+        echo "  1. 需要「亮点」就补进 CHANGELOG.md 的 [$ver] 段（可选）"
+        echo "  2. git add -A && git commit -m 'chore(release): beta-v$ver'"
+        echo "  3. git push origin $cur（由开发者执行）"
+        echo "  4. 上游开 PR：$cur → main，并开启原生自动合并：gh pr merge --auto --merge"
+        echo "  5. 合并后在上游 main 打 tag 并推送：beta-v$ver"
+        echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 $cur"
+        ;;
+    release/*)
+        echo "  1. 需要「亮点」就补进 CHANGELOG.md 的 [$ver] 段（可选）"
+        echo "  2. git add -A && git commit -m 'chore(release): v$ver'"
+        echo "  3. git push origin $cur（由开发者执行）"
+        echo "  4. 上游开 PR：$cur → main，并开启原生自动合并：gh pr merge --auto --merge"
+        echo "  5. 合并后在上游 main 打 tag 并推送：v$ver"
+        echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 $cur"
+        ;;
+    *)
+        echo "  1. 需要「亮点」就补进 CHANGELOG.md 的 [$ver] 段（可选）"
+        echo "  2. git add -A && git commit -m 'chore(release): 版本号 bump 至 $ver'"
+        echo "  3. git tag alpha-v$ver（tag 必须指向这次提交）"
+        echo "  4. 推送：git push origin develop && git push origin alpha-v$ver（由开发者执行）"
+        echo "  5. alpha 只在 develop，不开 PR、不进 main；tag 触发 smoke 档 CI"
+        ;;
     esac
-    echo "  5. 合并后在上游 main 打 tag 并推送：$tag_hint"
-    echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 release 分支"
-    echo "  7. 不创建 GitHub Release（等 GUI 打包后补）"
+    echo "  最后：不创建 GitHub Release（等 GUI 打包后补）"
     exit 0
 fi
 
