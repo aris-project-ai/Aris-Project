@@ -1,9 +1,9 @@
 """统一数据目录解析（唯一来源）。
 
-优先级：ARIS_DATA_DIR（进程环境）> 开发树 ./data > 安装 ~/.project-aris。
+优先级：ARIS_DATA_DIR（进程环境）> 开发树 ./data > 安装 ~/.aris-project。
 
 开发树判定：仓库根同时存在 pyproject.toml 与 src/aris。打包后的入口
-（paris / paris-gui）会显式注入 ARIS_DATA_DIR，不依赖这个猜测。
+（arisp / arisp-gui）会显式注入 ARIS_DATA_DIR，不依赖这个猜测。
 
 本模块只回答「东西放哪」，不做业务；配置内容见 aris.infra.settings 与 aris.infra.toml。
 """
@@ -67,7 +67,7 @@ def data_root() -> Path:
         except OSError, RuntimeError, ValueError:
             pass
 
-    return (Path.home() / ".project-aris").expanduser().resolve()
+    return (Path.home() / ".aris-project").expanduser().resolve()
 
 
 def config_dir() -> Path:

@@ -25,6 +25,15 @@ from pathlib import Path
 
 from loguru import logger
 
+from ..infra.components import (
+    MICROMAMBA,
+    PGVECTOR,
+    POSTGRESQL,
+    platform_key,
+    require_sha,
+    resolve_url,
+)
+from .conf import get_store_config
 from .pgenv import (
     SOCKET_PREFIX,
     PgEnv,
@@ -39,18 +48,7 @@ from .pgenv import (
     write_role_marker,
 )
 
-# micromamba 固定版本 + 官方 sha256（升级时两处一起人工更新）
-MAMBA_VERSION = "2.9.0-0"
-MAMBA_URL = (
-    "https://github.com/mamba-org/micromamba-releases/releases/download/"
-    f"{MAMBA_VERSION}/micromamba-linux-64"
-)
-MAMBA_SHA256 = "366cd9cd8be14df1ab8ed50352a82111082a36686b2d389fdb79a92c3fafb3e3"
-
-PG_VERSION = "17"
-PGVECTOR_SPEC = "pgvector>=0.8"
-CONDA_CHANNEL = "conda-forge"
-
+# 版本 / 校验值 / 下载地址统一在 infra/components.py，这里只管下载与安装流程
 DOWNLOAD_TIMEOUT = 600  # 秒；conda 环境首次下载可能较慢
 CHUNK_SIZE = 1 << 20
 
@@ -85,28 +83,32 @@ def mamba_path(env: PgEnv) -> Path:
 
 
 def ensure_micromamba(env: PgEnv) -> Path:
-    """确保 micromamba 就位：已存在且 sha256 匹配则复用，否则下载校验。"""
+    """确保 micromamba 就位：已存在且 sha256 匹配则复用，否则下载校验。
+
+    版本、地址与校验值全部来自 :mod:`aris.infra.components`；镜像覆盖读
+    ``store.toml`` 的 ``[mirror]``，但校验值永远取清单。
+    """
     dest = mamba_path(env)
-    if dest.exists() and _sha256(dest) == MAMBA_SHA256:
+    platform = platform_key()
+    expected = require_sha(MICROMAMBA, platform)
+    if dest.exists() and _sha256(dest) == expected:
         return dest
 
+    url = resolve_url(MICROMAMBA, platform, get_store_config().mirror)
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_name(dest.name + ".tmp")
-    logger.info(f"下载 micromamba {MAMBA_VERSION} ...")
+    logger.info(f"下载 micromamba {MICROMAMBA.version}（{platform}）...")
     try:
-        with (
-            urllib.request.urlopen(MAMBA_URL, timeout=DOWNLOAD_TIMEOUT) as resp,
-            open(tmp, "wb") as fh,
-        ):
+        with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT) as resp, open(tmp, "wb") as fh:
             shutil.copyfileobj(resp, fh)
     except OSError as exc:
         tmp.unlink(missing_ok=True)
         raise BootstrapError(f"下载 micromamba 失败：{exc}") from exc
 
     digest = _sha256(tmp)
-    if digest != MAMBA_SHA256:
+    if digest != expected:
         tmp.unlink(missing_ok=True)
-        raise BootstrapError(f"micromamba sha256 不匹配：期望 {MAMBA_SHA256}，实际 {digest}")
+        raise BootstrapError(f"micromamba sha256 不匹配：期望 {expected}，实际 {digest}")
     tmp.chmod(0o755)
     tmp.replace(dest)
     logger.success(f"micromamba 就位：{dest}")
@@ -117,7 +119,10 @@ def ensure_pg_env(env: PgEnv, mamba: Path) -> None:
     """确保 conda 环境内已装 postgresql + pgvector（已装则跳过）。"""
     if (env.prefix / "bin" / "postgres").exists():
         return
-    logger.info(f"安装 PostgreSQL {PG_VERSION} + pgvector 到 {env.prefix}（首次约 40MB）...")
+    logger.info(
+        f"安装 PostgreSQL {POSTGRESQL.version} + pgvector {PGVECTOR.version} "
+        f"到 {env.prefix}（首次约 40MB）..."
+    )
     # 根前缀、包缓存、libmamba 元数据缓存全部收在 data/ 下：
     # 不污染用户主目录，清理时随 data/ 一起走。
     # micromamba 仍会写 ~/.conda/environments.txt 与 ~/.mambarc，故把 HOME 也指到 data/。
@@ -137,9 +142,9 @@ def ensure_pg_env(env: PgEnv, mamba: Path) -> None:
             "-p",
             str(env.prefix),
             "-c",
-            CONDA_CHANNEL,
-            f"postgresql={PG_VERSION}",
-            PGVECTOR_SPEC,
+            POSTGRESQL.channel,
+            f"{POSTGRESQL.id}={POSTGRESQL.version}",
+            f"{PGVECTOR.id}={PGVECTOR.version}",
         ],
         env=mamba_env,
     )

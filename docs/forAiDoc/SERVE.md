@@ -23,7 +23,7 @@ serve 是**组装根 + 启动编排**，相当于一次 `init`：把各模块按
 
 | 类 | 模块 | 需要启动动作吗 |
 |---|---|---|
-| ① import 即就绪 | `core.llm`、`character`、`behavior`（工具 / skills）、`http.request` | **不需要**——import 触发 `provide()` 即完成 |
+| ① import + `register()` 即就绪 | `core.llm`、`character`、`behavior`（工具 / skills）、`http.request` | **不需要**启动步骤——组装根 import 后调用 `register()`（可关模块）；`core` 保持 import 即 `provide()` |
 | ② 需要外部资源 / 耗时 | `store`（PG 起没起、embedding 预热）、`knowledge`（迁移、索引、计数） | **需要**真实步骤 |
 | ③ 入口 | `webui`（HTTP server）；将来 `voice`、平台适配 | 由 serve 决定是否拉起 |
 
@@ -44,7 +44,7 @@ serve 侧只持一张**有序清单**逐个 `core.call`。
 | 4 | `store.db` | 探活；没跑则**自启**便携 PG（端口被占则换端口、二进制跑不起来则重获取、角色名在线对齐）；跑迁移到最新 | **required** |
 | 5 | `store.embed` | **后台预热** embedding（就绪标志；见 §4） | optional |
 | 6 | `knowledge` | 建表 / 建索引 / 统计文档与块数 | optional（依赖 4） |
-| 7 | `mcp` | 报 server 面状态（连接已在 3 的 behavior 装配时发生；`mcp.status`） | optional（import 即就绪） |
+| 7 | `mcp` | 报 server 面状态（连接已在 3 的 behavior 装配时发生；`mcp.status`） | optional（装配即就绪） |
 | 8 | `webui` | 端口探测 → 起 HTTP（见 §4） | optional |
 
 说明：探针是「只读 + 可失败」的体检（`aris doctor` 复用同一份），启动动作才是真正
@@ -176,8 +176,10 @@ serve 只管「启不启」。
 
 - **唯一组装根（已落地）**：`serve.assemble()` 是唯一一份「import 哪些所有者模块」
   的清单；服务自检由 `services` 步骤统一做。**v0.4.4 W3 起该清单来自
-  `data/config/modules.toml`（`src/aris/infra/modules.py`）**：关闭的模块不 import，
-  依赖被关的模块级联关闭（记 error、步骤标 skipped、不退出）；`aris modules enable|disable`
+  `data/config/modules.toml`（`src/aris/infra/modules.py`）**：关闭的模块不 import、
+  也不调用 `register()`，依赖被关的模块级联关闭（记 error、步骤标 skipped、不退出）；
+  可关模块的 `__init__` 不 `provide()`，`assemble()` 在 import 后调用 `register()`（见 CMCB.md）；
+  `aris modules enable|disable`
   只写文件、下一次启动生效。`aris serve` / `aris web` 都走它，
   测试在 `tests/conftest.py` 里调它，`webui.create_app()` 只搭 HTTP 层、不再自己
   import 各模块（原先 `cli.py` 与 `webui/__init__.py` 各维护一套，必然漂移）。

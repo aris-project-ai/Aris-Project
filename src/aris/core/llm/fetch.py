@@ -25,7 +25,17 @@ from loguru import logger
 
 from aris.infra import paths
 
-from .config import LLMModel, LLMProvider, ProviderConfig, load_providers
+from .config import (
+    DEFAULT_BACKOFF_BASE,
+    DEFAULT_CONNECT_TIMEOUT,
+    DEFAULT_RACE_FALLBACK,
+    DEFAULT_RETRY_COUNT,
+    DEFAULT_TIMEOUT,
+    LLMModel,
+    LLMProvider,
+    ProviderConfig,
+    load_providers,
+)
 from .errors import AuthError, LLMError
 from .message import ApiFormat
 
@@ -260,7 +270,12 @@ def plan_sync(provider: LLMProvider, endpoint_ids: list[str], modelsdev: dict) -
 
 
 def config_to_dict(cfg: ProviderConfig) -> dict:
-    """ProviderConfig → dict（供 tomli_w 序列化；None 值跳过）。"""
+    """ProviderConfig → dict（供 tomli_w 序列化）。
+
+    **必须无损**：`load_providers(config_to_dict(...))` 要能还原出等价配置。
+    默认值可以省略（读回时用同一个常量兜底），非默认值一个都不能漏——
+    漏了就等于「用 WebUI 改一次配置，把用户手写的字段静默清空」。
+    """
     providers: list[dict] = []
     for p in cfg.providers:
         models: list[dict] = []
@@ -277,6 +292,8 @@ def config_to_dict(cfg: ProviderConfig) -> dict:
                 d["capabilities"] = list(m.capabilities)
             if m.thinking_default is not None:
                 d["thinking_default"] = m.thinking_default
+            if m.fallback_models:
+                d["fallback_models"] = list(m.fallback_models)
             models.append(d)
         pd: dict = {
             "id": p.id,
@@ -285,10 +302,19 @@ def config_to_dict(cfg: ProviderConfig) -> dict:
             "api_key_env": p.api_key_env,
             "models": models,
         }
-        if p.timeout != 30.0:
+        # 与代码默认值相同就省略；不同则必须写出（否则读回时被默认值覆盖）
+        if p.timeout != DEFAULT_TIMEOUT:
             pd["timeout"] = p.timeout
         if p.transport != "sdk":
             pd["transport"] = p.transport
+        if p.connect_timeout != DEFAULT_CONNECT_TIMEOUT:
+            pd["connect_timeout"] = p.connect_timeout
+        if p.retry_count != DEFAULT_RETRY_COUNT:
+            pd["retry_count"] = p.retry_count
+        if p.backoff_base != DEFAULT_BACKOFF_BASE:
+            pd["backoff_base"] = p.backoff_base
+        if p.race_fallback != DEFAULT_RACE_FALLBACK:
+            pd["race_fallback"] = p.race_fallback
         providers.append(pd)
     data: dict = {
         "default_provider_order": list(cfg.order),

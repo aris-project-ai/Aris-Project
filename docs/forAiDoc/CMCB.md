@@ -58,11 +58,13 @@
 
 ### 3. 命名规范
 
-- **服务**：`module.service` 两级，如 `llm.stream`、`llm.deltas`、
-  `tools.execute`、`loop.run`。
-- **事件**：`domain.event` 两级，如 `memory.saved`（规划）、`mcp.tools_changed`（已实现）。
-- **前缀**：`core.` 是模块名不是项目名——项目名 aris 随时可能改，
-  函数名绝不含 `aris`，减小改名成本。
+- **服务**：`domain.verb`，2~3 段，如 `llm.stream`、`tools.execute`、`loop.run`、
+  `store.vector.search`、`llm.providers.load`。
+- **事件**：`domain.event`，2 段，如 `mcp.tools_changed`（已实现）、`memory.saved`（规划）；
+  跨模块的系统事件用 `system.`（`system.freeze` / `system.thaw`），此时 `system` 不是模块名。
+- **前缀是功能域，不是目录名**：多数等于顶层模块（`store` / `knowledge` / `mcp` / `character` / `webui`）；
+  `core` 与 `behavior` 下的能力用自己的名字（`llm` / `audit` / `http` / `loop` / `tools` / `skills`）。
+- **代码标识符不含 `aris`**：项目名随时可能改，服务名、事件名、函数名都不带项目名，减小改名成本。
 
 ## 架构总览
 
@@ -119,45 +121,26 @@ summary = query_summary()            # 聚合统计
 - 全局单例 `default_audit`，bus 直接调用。
 - 聚合统计：按目标合并（count / total_ms / avg_ms / errors）。
 
-## 服务注册表（当前全部服务）
+## 服务清单
 
-| 服务名 | 注册来源 | 用途 | 调用方 |
-|---|---|---|---|
-| `llm.stream` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 纯文本流式（简单场景） | `cli.py llm test` |
-| `llm.deltas` | `LLMEngine.__init__`（组装期 `serve.assemble()`） | 完整增量流式（含完成事件/tool_calls） | `behavior/loop.py`（内部直调注入的 engine） |
-| `tools.execute` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 执行工具，返回文本结果 | `behavior/loop.py`（内部直调注入的 registry；服务供外部经总线用） |
-| `loop.run` | `AgentLoop.__init__`（组装期 `serve.assemble()`） | 跑完整「LLM↔工具」循环，产出事件流 | `chat/session.py` |
-| `character.system_prompt(cid)` | `character/__init__.py` 模块级 | 按 `cid` 返回该角色系统提示词（**`cid` 必填**，防静默串号） | `chat/session.py`（默认人设，`--system` 可覆盖） |
-| `character.list` | `character/__init__.py` 模块级 | 角色清单（`cid` / `name` / `path`） | `serve` character 探针 |
-| `character.resolve(cid=None)` | `character/__init__.py` 模块级 | 解析角色：显式 `cid` 校验存在，缺省取最早一个（空目录则播种默认角色） | `chat/session.py`、`serve` 启动动作 |
-| `skills.menu` | `SkillManager.__init__` | 返回技能清单（注入 system prompt 供模型判断何时激活） | `chat/session.py`（工具启用时） |
-| `audit.recent` | `core/bus.py` 模块级 | 最近审计流水（分页，按 wall_ts 倒序） | `webui` 审计页 |
-| `audit.summary` | `core/bus.py` 模块级 | 审计聚合统计 | `webui` 仪表盘 |
-| `llm.providers.load` | `core/llm/manage.py` 模块级 | 加载提供商配置 | `webui` 提供商页 |
-| `llm.providers.add/delete` | `core/llm/manage.py` 模块级 | 增删提供商（结构化写回 toml） | `webui` 提供商页 |
-| `llm.providers.model_add/model_delete` | `core/llm/manage.py` 模块级 | 增删模型 | `webui` 提供商页 |
-| `llm.fetch.plan/apply` | `core/llm/fetch.py` 模块级 | /models 同步：生成计划 / 应用计划 | `webui` 提供商页 |
-| `llm.missing.list` | `core/llm/fetch.py` 模块级 | 缺失模型记录（只读）：同步后从端点消失的模型 | `webui` 提供商页 |
-| `skills.list/detail` | `behavior/skills/manager.py` 模块级 | 技能清单 / 详情 | `webui` 技能页 |
-| `skills.create/save/delete` | `behavior/skills/manager.py` 模块级 | 技能增改删 | `webui` 技能页 |
-| `knowledge.ai_tools` | `knowledge/__init__.py` 模块级 | agent 工具声明（`list[ToolSpec]`，契约 `core/tools.py`；`.ai_tools` 后缀由 behavior 探询） | behavior 装配（`register_declared_tools`） |
-| `tools.sync_generation(specs, owner)` | `ToolRegistry.__init__`（组装期 `serve.assemble()`） | 世代同步：旧代（同 owner）全量卸下 ↔ 新代全量登记；新代校验失败保旧代 | `mcp/_runtime.py`（动态工具换装） |
-| `mcp.ai_tools` | `mcp/__init__.py` 模块级 | agent 工具声明（触发连接 + 目录拉取；失败 server 不连坐） | behavior 装配（`register_declared_tools`） |
-| `mcp.call_tool(server, tool, arguments)` | `mcp/__init__.py` 模块级 | 执行一次 MCP 工具调用（文本归一化，失败抛 MCPToolError） | `mcp` 自家工具壳（fn 闭包直调，不过总线） |
-| `mcp.status` | `mcp/__init__.py` 模块级 | server 状态快照（不触发连接） | `serve` mcp 探针；将来的 WebUI 工具页 |
+**本文件不再维护服务表**——清单必然漂移，看命令：
 
-> 注：`llm.*` 提供商管理服务由 `core/llm/manage.py`、`core/llm/fetch.py`
-> **模块级注册**（import 即注册），无核心类实例；注册触发与启动自检归**组装根**
-> `serve.assemble()`（2026-09-19 上收，原先散在 `webui.create_app()` 里）。
-> 依赖清单由各模块自己声明（如 `webui.REQUIRED_SERVICES`），由 serve 的
-> `services` 步骤统一核验，缺一则记 ERROR 并让 serve 以非零码退出。
+```bash
+aris services list
+```
 
-> 注：`activate_skill` 是注册在 `ToolRegistry` 里的普通工具（经 `tools.execute`
-> 总线执行），**不是**独立服务。skill 系统详见 `docs/forAiDoc/SKILLS.md`。
+契约层面只保留三条：
 
-> 注：曾规划 `browser.close` / `browser.cleanup` 服务，因浏览器链路
-> （Playwright）已整体删除（2026-08-12，见 `docs/forAiDoc/WEB-SEARCH.md`），
-> 不再需要。
+- **注册方式**：核心类在自己的 `__init__` 里 `provide` 自己（实例自注册）；可关模块的模块级
+  `provide()` / 迁移登记收进模块级 `register()`，由组装根 `serve.assemble()` 按模块开关显式调用；
+  包 `__init__.py` 只做定义 / re-export，不产生注册副作用。`core` 是常驻基础设施，保持 import 即注册。
+- **依赖核验**：各模块声明 `REQUIRED_SERVICES`，由 serve 的 `services` 步骤统一核验，
+  缺一则记 ERROR 并以非零码退出。
+- **只有注册到总线的东西才算服务**：注册在 `ToolRegistry` 里的工具（如 `activate_skill`）
+  不是服务，它们经 `tools.execute` 执行。
+
+> 曾规划 `browser.close` / `browser.cleanup`，因浏览器链路（Playwright）整体删除
+> （2026-08-12，见 `docs/forAiDoc/WEB-SEARCH.md`），不再需要。
 
 ## 迁移状态
 
@@ -178,8 +161,8 @@ summary = query_summary()            # 聚合统计
   `--system` 可覆盖；显式 `--system` 不触碰角色目录。
 - `chat/__init__.py`：删掉包级直引 `ARIS_SYSTEM_PROMPT`（原属总线违例）。
 
-> 注：character 无核心类实例，采用模块级注册（import 即注册）；服务注册表是
-> 全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
+> 注：character 无核心类实例，模块级注册收进 `register()`，由 `serve.assemble()` 显式调用；
+> 服务注册表是全局的，模块加载顺序无关紧要——session 在构造时经 call 获取即可。
 
 ### 已迁移（第三批：Skills，2026-08-12）
 

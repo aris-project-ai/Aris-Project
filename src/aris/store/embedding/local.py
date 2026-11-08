@@ -18,15 +18,17 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from ...infra.components import BEKKO_A25M
 from ..conf import get_store_config
 from .base import EmbeddingError
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
-DEFAULT_MODEL = "hotchpotch/bekko-embedding-v1-a25m"
+# 模型身份与维度的事实来源：infra/components.py（版本 / revision / 维度只在那里改）
+DEFAULT_MODEL = BEKKO_A25M.repo
 OPENVINO_FILE = "openvino/openvino_model.xml"
-BEKKO_A25M_DIM = 384
+BEKKO_A25M_DIM = BEKKO_A25M.dimension
 
 
 class LocalBekkoProvider:
@@ -87,13 +89,18 @@ class LocalBekkoProvider:
                 raise EmbeddingError(
                     f"本地 embedding 依赖不可用（{exc}）：请运行 uv sync 安装 embedding 组"
                 ) from exc
-            logger.info(f"加载本地 embedding 模型 {self._target()}（首次含下载需数分钟）...")
+            target = self._target()
+            logger.info(f"加载本地 embedding 模型 {target}（首次含下载需数分钟）...")
+            # 默认模型锁 commit：HF 上 main 随时会变，跟 tag 也能被推；
+            # 只有解析到仓库 id（需要联网取模型）时才传 revision，本地目录 / 缓存快照不传。
+            revision = BEKKO_A25M.revision if target == BEKKO_A25M.repo else None
             try:
                 self._model = SentenceTransformer(
-                    self._target(),
+                    target,
                     backend="openvino",
                     device="cpu",
                     cache_folder=str(self._hf_home),
+                    revision=revision,
                     model_kwargs={"file_name": OPENVINO_FILE, "device": "CPU"},
                 )
             except Exception as exc:
@@ -124,8 +131,16 @@ class LocalBekkoProvider:
         HuggingFace 的缓存是 ``models--org--name/snapshots/<rev>``，不是
         ``<name>`` 这种平铺目录；直接传仓库 id 会让 sentence-transformers
         在加载前请求远程文件列表，离线时卡住。
+
+        默认模型**只认清单钉的 commit**：缓存里正好有它就走本地，没有就交回仓库 id
+        让 sentence-transformers 联网取同一个 commit——不拿别的快照顶替，否则锁 revision 就失效了。
+        用户自己换的模型没有清单约束，退回原来的「refs/main → 任意快照」逻辑。
         """
         repo_dir = self._hf_home / f"models--{self._model_id.replace('/', '--')}"
+        if self._model_id == BEKKO_A25M.repo:
+            pinned = repo_dir / "snapshots" / BEKKO_A25M.revision
+            return pinned if (pinned / "modules.json").is_file() else None
+
         candidates: list[Path] = []
         ref = repo_dir / "refs" / "main"
         if ref.is_file():

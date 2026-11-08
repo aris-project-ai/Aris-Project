@@ -11,8 +11,8 @@
 
 | 文件 | 管什么 | 读取方式 |
 |---|---|---|
-| `settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>` 后由 pydantic-settings 读（`config.py`） |
-| `secrets.toml` | 密钥，键名**就是**环境变量名 | `setdefault` 进 `os.environ`（`config.py`） |
+| `settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>` 后由 pydantic-settings 读（`infra/settings.py`） |
+| `secrets.toml` | 密钥，键名**就是**环境变量名 | `setdefault` 进 `os.environ`（`infra/settings.py`） |
 | `providers.toml` | LLM 提供方（base_url / key 环境变量名 / 超时 / transport / 模型） | `core/llm/config.py`；`ARIS_LLM_PROVIDERS_FILE` 可覆盖路径 |
 | `<module>.toml` | 模块可调参数（chat / search / logging / audit / notify / serve / knowledge / store / webui / mcp） | `cfgtoml.load_config`（tomllib） |
 | `modules.toml` | 模块开关（`[modules]`，7 个业务模块，缺键=true） | `modules.py`；serve 装配 / `aris modules` |

@@ -41,22 +41,27 @@ class ServeStep:
 def _probe_services() -> str:
     """探针：组装后的服务表是否覆盖各模块声明的依赖（缺一即报，不静默）。
 
-    清单由各模块自己声明（如 `webui.REQUIRED_SERVICES`），serve 只负责启动时统一
-    核验——原实现散在 `webui.create_app()` 里，只有 WebUI 那条路径会被检查。
+    清单由各模块自己声明（模块包里的 ``REQUIRED_SERVICES``），serve 只负责启动时
+    统一核验——**不在这里维护一份名单**：名单写在 serve 里就必然和模块漂移。
     模块开关关闭后，该模块声明的依赖不再核验（它本来就不会装配）。
     """
-    from ..infra.modules import module_enabled
+    import importlib
 
-    required: tuple[str, ...] = ()
-    if module_enabled("webui"):
-        from ..webui import REQUIRED_SERVICES
+    from ..infra.modules import MODULES, module_enabled
 
-        required = REQUIRED_SERVICES
+    checked = 0
+    missing: list[str] = []
+    for spec in MODULES:
+        if spec.import_path is None or not module_enabled(spec.name):
+            continue
+        module = importlib.import_module(spec.import_path)
+        required = tuple(getattr(module, "REQUIRED_SERVICES", ()))
+        checked += len(required)
+        missing.extend(name for name in required if not has_service(name))
 
-    missing = [name for name in required if not has_service(name)]
     if missing:
         raise RuntimeError(f"缺少服务：{', '.join(missing)}——检查组装根是否 import 到了所有者模块")
-    return f"各模块声明的 {len(required)} 个依赖服务全部就绪"
+    return f"各模块声明的 {checked} 个依赖服务全部就绪"
 
 
 def _probe_llm() -> str:

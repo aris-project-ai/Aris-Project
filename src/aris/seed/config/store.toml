@@ -1,7 +1,6 @@
 # store 模块可调参数（优先级：代码内默认值 < 本文件）
-# 详见 docs/developDoc/CONFIG.md（配置收口原则）与 docs/developDoc/KNOWLEDGE-BASE.md
 
-# embedding 提供方："local" = 本地 Bekko a25m（384 维，需 uv sync --extra embedding）
+# embedding 提供方："local" = 本地 Bekko a25m（384 维，需 uv sync --group embedding）
 embedding_provider = "local"
 
 # 本地模型：HF 仓库 id，或 data/models/ 下的目录名（本地目录优先）
@@ -12,3 +11,9 @@ batch_size = 16
 
 # Matryoshka 截断维度（取消注释可降到 256 维，省存储与检索开销）
 # truncate_dim = 256
+
+# 外部组件镜像：只换下载地址，校验值永远以代码（infra/components.py）为准。
+# 键 "<id>" = 镜像目录，按当前平台自动拼官方文件名；"<id>.<platform>" = 完整 URL 精确覆盖。
+# [mirror]
+# micromamba = "https://你的镜像/2.9.0-0"
+# "micromamba.linux-aarch64" = "https://你的镜像/完整文件地址"

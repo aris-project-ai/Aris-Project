@@ -91,6 +91,8 @@ model = SentenceTransformer(
 vec = model.encode(["今天在公园看见一只橘猫"])  # -> list[float]，长度 384
 ```
 
+- **实际加载锁 HF commit**：默认模型的身份、revision 与维度都在 `infra/components.py`；
+  示例为省篇幅省略 `revision=...`，代码里必须传（`main` 会漂移）。
 - query 与 document **无需加任何前缀**，同一个 encode 调用即可。
 - 384 维可截断：`model.encode(..., truncate_dim=256)` 减小存储与检索开销。
 

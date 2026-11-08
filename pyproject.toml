@@ -35,6 +35,7 @@ dependencies = [
     "pgvector>=0.3",
     # MCP 官方 SDK；代码按 v2 API 写（v1 的 FastMCP/旧客户端已废），锁上限防 v3 破坏
     "mcp>=2.0,<3",
+    "tomlkit",
 ]
 
 [project.scripts]
@@ -63,7 +64,7 @@ dev = [
     "pytest>=8",
     "ruff>=0.17.2",
 ]
-# 本地 embedding（重依赖，见 docs/developDoc/EMBEDDING.md）：默认安装，
+# 本地 embedding（重依赖，见 docs/forAiDoc/EMBEDDING.md）：默认安装，
 # 想要轻量环境可用 `uv sync --no-default-groups`
 embedding = [
     "sentence-transformers>=5",
