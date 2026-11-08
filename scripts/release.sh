@@ -10,8 +10,8 @@
 #   1. 校验：在 develop、工作区干净、与 upstream/develop 比对、号码未占用
 #   2. 按渠道切 release/vX.Y.Z 或 release/beta-vX.Y.Z
 #   3. 调 bump-version.sh 改版本号（uv lock / uv sync 由它自己跑）
-#   4. 提示手工封 CHANGELOG.md 的版本段（本脚本不改文案）
-#   5. 跑 release-check.sh（封版前会因 CHANGELOG 未写而 FAIL，属预期）
+#   4. bump 时自动封 CHANGELOG.md（归档上一版、把 [Unreleased] 切成新版本段）
+#   5. 跑 release-check.sh（应 PASS；「亮点」等文案可事后补）
 #   6. 打印后续命令
 #
 # 不做：推送、PR、打 tag、合并 main —— 全部由开发者执行。
@@ -155,17 +155,12 @@ git switch -c "$release_branch" || die "切分支 $release_branch 失败"
 # ---- 3. bump ----
 bash scripts/bump-version.sh "$base" || die "bump 失败，当前仍在 $release_branch"
 
-# ---- 4. 提示封 CHANGELOG ----
-today="$(date +%F)"
+# ---- 4. CHANGELOG 由 bump-version.sh 自动封版 ----
 echo
-echo "下一步：手工封 CHANGELOG.md（脚本不代写文案）——"
-echo "  在 '## [Unreleased]' 段之后加："
-echo "    ## [$base] - $today"
-echo "    ### 亮点            # 可选，人话写 2~3 条"
-echo "    ### 新增 / 改进 / 修复 / 升级注意"
-echo "  然后把 [Unreleased] 里属于本版的内容搬进去（没有内容的分类直接省略）。"
+echo "已自动封 CHANGELOG：上一版归档到 changelogs/，[Unreleased] 已切成 [$base]。"
+echo "需要「亮点」的话，补到 CHANGELOG.md 的 '## [$base]' 段（可选）。"
 
-# ---- 5. release-check（封版前 FAIL 属预期）----
+# ---- 5. release-check ----
 echo
 echo "==> bash scripts/release-check.sh"
 bash scripts/release-check.sh
@@ -174,7 +169,7 @@ rc=$?
 # ---- 6. 后续命令 ----
 echo
 echo "后续（全部由开发者执行）："
-echo "  1. 封完 CHANGELOG 后重跑：bash scripts/release-check.sh    # 必须 PASS"
+echo "  1. 需要「亮点」就补进 CHANGELOG.md，然后重跑：bash scripts/release-check.sh    # 必须 PASS"
 echo "  2. git add -A && git commit -m 'chore(release): $tag_hint'"
 echo "  3. git push origin $release_branch"
 echo "  4. 上游开 PR：$release_branch → main"
@@ -186,6 +181,6 @@ echo "  8. 不创建 GitHub Release（等 GUI 打包后补）"
 
 if [ "$rc" -ne 0 ]; then
     echo
-    echo "注意：上面 release-check 未通过；封完 CHANGELOG 版本段后重跑即可（封版前属预期）。"
+    echo "注意：上面 release-check 未通过；修掉列出的问题后重跑即可。"
 fi
 exit "$rc"

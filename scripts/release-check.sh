@@ -7,7 +7,7 @@
 #   4. 当前分支是 develop 或 release/*，且无未合并的本地 feature 分支
 #   5. 号码未被任何渠道占用（alpha-vX.Y.Z / beta-vX.Y.Z / vX.Y.Z / 历史 vX.Y.Z-beta）
 #   6. 号码大于已发布的最后一个号
-#   7. CHANGELOG.md 有非空的 [<ver>] 段，且 changelogs/<ver>.md 不存在（归档只放旧版本）
+#   7. CHANGELOG.md 有非空的 [<ver>] 段、只保留该段，且 changelogs/<ver>.md 不存在（归档只放旧版本）
 # 通过则输出发布流程提示并 exit 0；否则列出问题 exit 1。
 # 用法：bash scripts/release-check.sh
 
@@ -143,6 +143,21 @@ fi
 if [ -n "$ver" ] && [ -e "$ARCHIVED" ]; then
     echo "[FAIL] $ARCHIVED 已存在（号码重复归档 / 重复发布；归档目录只放旧版本）"
     fail=1
+fi
+
+# CHANGELOG.md 只允许 [Unreleased] + 当前最新版本两段；旧版本必须已归档
+if [ -f "$CHANGELOG" ] && [ -n "$ver" ]; then
+    recorded="$(grep -oE '^## \[[^]]+\]' "$CHANGELOG" | sed -E 's/^## \[(.*)\]$/\1/' | grep -v '^Unreleased$' || true)"
+    recorded_count="$(printf '%s\n' "$recorded" | grep -c . || true)"
+    if [ "$recorded_count" -ne 1 ]; then
+        echo "[FAIL] $CHANGELOG 应只保留一个版本段（当前: ${recorded//$'\n'/、}）；旧版本请移入 changelogs/"
+        fail=1
+    elif [ "$recorded" != "$ver" ]; then
+        echo "[FAIL] $CHANGELOG 的最新版本段是 [$recorded]，与当前版本 $ver 不一致"
+        fail=1
+    else
+        echo "[ ok ] $CHANGELOG 仅保留 [Unreleased] 与最新版本 [$ver]"
+    fi
 fi
 
 # ---- 5. 号码占用 ----

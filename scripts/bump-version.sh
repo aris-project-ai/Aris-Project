@@ -10,6 +10,9 @@
 #   bash scripts/bump-version.sh minor     # 1.0.1 -> 1.1.0
 #   bash scripts/bump-version.sh major     # 1.1.0 -> 2.0.0
 #
+# 同时调用 scripts/changelog.py：把上一版变更记录归档到 changelogs/，
+# 并把 CHANGELOG.md 的 [Unreleased] 切成新版本段。
+#
 # 只改文件、不提交；跑完后按脚本打印的后续步骤走。
 
 set -euo pipefail
@@ -93,6 +96,9 @@ if ! version_gt "$base" "$floor"; then
     exit 1
 fi
 
+# 先封 CHANGELOG：失败时还没改版本号，工作区保持原样
+python3 scripts/changelog.py cut "$base"
+
 sed -i "s/^__version__ *= *\"$current\"/__version__ = \"$base\"/" "$VERSION_FILE"
 echo "版本号 $current -> $base（$VERSION_FILE）"
 
@@ -102,9 +108,9 @@ uv sync
 echo
 echo "完成，当前版本：$(uv run aris --version)"
 echo "下一步："
-echo "  1. git add $VERSION_FILE uv.lock && git commit -m 'chore(release): 版本号 bump 至 $base'"
-echo "  2. 封 CHANGELOG.md 的 '## [$base] - YYYY-MM-DD' 段（面向使用者）并一起提交"
-echo "  3. bash scripts/release-check.sh   # 必须 PASS"
+echo "  1. 需要「亮点」的话，补到 CHANGELOG.md 的 '## [$base]' 段（可选）"
+echo "  2. bash scripts/release-check.sh   # 必须 PASS"
+echo "  3. git add -A && git commit -m 'chore(release): 版本号 bump 至 $base'"
 if [ "$branch" = "develop" ]; then
     echo "  4. alpha（只在 develop）：git tag alpha-v$base 后推送，不合并 main"
     echo "     beta / 正式：用 scripts/release.sh（--beta 走 beta 渠道）切分支后走发版 PR"

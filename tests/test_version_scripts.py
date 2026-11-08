@@ -71,10 +71,14 @@ def fake_uv(tmp_path: Path, version: str = "0.5.0") -> dict[str, str]:
 def make_bump_repo(repo: Path, version: str = "0.4.2") -> Path:
     """把 bump 需要的脚本与版本文件放进临时仓库，并切到 develop。"""
     (repo / "scripts").mkdir(exist_ok=True)
-    for name in ("lib-version.sh", "bump-version.sh"):
+    for name in ("lib-version.sh", "bump-version.sh", "changelog.py"):
         shutil.copy(SCRIPTS / name, repo / "scripts" / name)
     (repo / "src" / "aris").mkdir(parents=True, exist_ok=True)
     (repo / "src" / "aris" / "__init__.py").write_text(f'__version__ = "{version}"\n')
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n### 新增\n\n- 测试用变更\n",
+        encoding="utf-8",
+    )
     git(repo, "checkout", "-q", "-B", "develop")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "setup")
@@ -105,15 +109,14 @@ def make_release_repo(repo: Path, version: str = "0.5.0") -> Path:
     return repo
 
 
-def make_release_script_repo(repo: Path, version: str = "0.4.4", target: str = "0.4.5") -> Path:
-    """release.sh 需要的仓库：脚本 + 版本文件 + pyproject + 带目标版本段的 CHANGELOG。"""
+def make_release_script_repo(repo: Path, version: str = "0.4.4") -> Path:
+    """release.sh 需要的仓库：脚本 + 版本文件 + pyproject + 带上一版本的 CHANGELOG。"""
     make_release_repo(repo, version)
-    for name in ("bump-version.sh", "release.sh"):
+    for name in ("bump-version.sh", "release.sh", "changelog.py"):
         shutil.copy(SCRIPTS / name, repo / "scripts" / name)
     (repo / "CHANGELOG.md").write_text(
-        "# 变更记录\n\n## [Unreleased]\n\n"
-        f"## [{version}] - 2026-10-30\n\n### 新增\n- 旧版本\n\n"
-        f"## [{target}] - 2026-11-01\n\n### 新增\n- 目标版本\n",
+        "# 变更记录\n\n## [Unreleased]\n\n### 新增\n\n- 待发布内容\n\n"
+        f"## [{version}] - 2026-10-30\n\n### 新增\n- 旧版本\n",
         encoding="utf-8",
     )
     git(repo, "add", "-A")
@@ -131,6 +134,16 @@ def bump(
 
 def release_check(repo: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return run(["bash", "scripts/release-check.sh"], repo, check=False, env=env)
+
+
+def changelog_cut(
+    repo: Path, version: str, *, date: str = "2026-11-08"
+) -> subprocess.CompletedProcess[str]:
+    return run(
+        ["python3", "scripts/changelog.py", "cut", version, "--date", date],
+        repo,
+        check=False,
+    )
 
 
 # ---- lib-version.sh ----
@@ -387,3 +400,84 @@ def test_release_script_rejects_alpha(repo: Path) -> None:
     out = release_script(repo, "--alpha", "patch", env=os.environ)
     assert out.returncode == 2
     assert "alpha 不走 release 分支" in out.stderr
+
+
+# ---- changelog.py ----
+
+
+def test_changelog_cut_archives_previous_version(repo: Path) -> None:
+    make_release_script_repo(repo)
+    index = repo / "changelogs" / "README.md"
+    index.write_text(
+        "# 历史版本\n\n## 索引\n\n- [`0.4.3`](./0.4.3.md) - 2026-10-01\n",
+        encoding="utf-8",
+    )
+    out = changelog_cut(repo, "0.4.5")
+    assert out.returncode == 0, out.stderr
+
+    changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [0.4.5] - 2026-11-08" in changelog
+    assert "## [0.4.4]" not in changelog
+    assert "待发布内容" in changelog
+
+    archived = (repo / "changelogs" / "0.4.4.md").read_text(encoding="utf-8")
+    assert archived.startswith("## [0.4.4] - 2026-10-30")
+    assert "旧版本" in archived
+    assert "- [`0.4.4`](./0.4.4.md) - 2026-10-30" in index.read_text(encoding="utf-8")
+
+
+def test_changelog_cut_rejects_empty_unreleased(repo: Path) -> None:
+    make_release_script_repo(repo)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n### 新增\n\n", encoding="utf-8"
+    )
+    out = changelog_cut(repo, "0.4.5")
+    assert out.returncode == 1
+    assert "[Unreleased] 没有实际内容" in out.stderr
+
+
+def test_changelog_cut_rejects_multiple_versions(repo: Path) -> None:
+    make_release_script_repo(repo)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n- 待发布\n\n"
+        "## [0.4.4] - 2026-10-30\n\n- 旧\n\n"
+        "## [0.4.3] - 2026-10-01\n\n- 更旧\n",
+        encoding="utf-8",
+    )
+    out = changelog_cut(repo, "0.4.5")
+    assert out.returncode == 1
+    assert "多个历史版本段" in out.stderr
+
+
+def test_bump_archives_previous_changelog(repo: Path, tmp_path: Path) -> None:
+    make_release_script_repo(repo)
+    out = bump(repo, "0.4.5", env=fake_uv(tmp_path, "0.4.5"))
+    assert out.returncode == 0, out.stderr
+    assert (repo / "changelogs" / "0.4.4.md").exists()
+    assert "## [0.4.5]" in (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+
+
+# ---- CHANGELOG 结构（release-check.sh）----
+
+
+def test_release_check_rejects_multiple_version_sections(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    changelog = repo / "CHANGELOG.md"
+    changelog.write_text(
+        changelog.read_text(encoding="utf-8") + "\n## [0.4.9] - 2026-10-01\n\n- 旧版本\n",
+        encoding="utf-8",
+    )
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "应只保留一个版本段" in out.stdout
+
+
+def test_release_check_rejects_stale_latest_version(repo: Path, tmp_path: Path) -> None:
+    make_release_repo(repo)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n## [0.4.9] - 2026-10-01\n\n### 新增\n- 旧版本\n",
+        encoding="utf-8",
+    )
+    out = release_check(repo, fake_uv(tmp_path))
+    assert out.returncode == 1
+    assert "与当前版本 0.5.0 不一致" in out.stdout
