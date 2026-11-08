@@ -2,7 +2,8 @@
 
 > 面向**使用者**：写可见变化与操作影响，不写内部重构细节。
 > 本文件只保留 `[Unreleased]` 与**当前最新版本**两段；历史版本在 `changelogs/<版本>.md`。
-> 发版时把上一版本整段移入 `changelogs/<版本>.md`，并在本文件顶部写新版本段。
+> 发版时用 `bash scripts/bump-version.sh` 自动归档上一版并切出新版本段（`scripts/changelog.py`），
+> 不要手工搬移。
 
 ## [Unreleased]
 

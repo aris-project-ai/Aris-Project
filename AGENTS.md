@@ -322,8 +322,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   它会切 `release/` 分支再 bump）：校验干净工作区（`develop` 或 `release/*`）、
   号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交、不推送**。
 - **变更记录**：最新版本与未发布改动写在根 `CHANGELOG.md`（`[Unreleased]` 置顶，格式见该文件开头）；
-  更早版本归档到 `changelogs/<版本>.md`。tag / release 描述取自 `CHANGELOG.md` 的对应版本段，
-  **没有变更记录不得发版**（`release-check.sh` 会检查对应版本段存在）。
+  更早版本归档到 `changelogs/<版本>.md`。封版用 `bash scripts/bump-version.sh`（内部调
+  `scripts/changelog.py` 自动归档上一版并切段），不要手工搬移。tag / release 描述取自 `CHANGELOG.md`
+  的对应版本段，**没有变更记录不得发版**（`release-check.sh` 会检查对应版本段存在）。
 - 发版前必跑 `bash scripts/release-check.sh`：号码已被任一渠道占用就 FAIL。
 - 历史 tag（如 `v0.4.2-beta`）保留不动；新规则从下一次 bump 起生效。
 
